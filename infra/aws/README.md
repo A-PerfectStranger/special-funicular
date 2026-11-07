@@ -2,7 +2,10 @@
 
 Proveedor decidido por el usuario: AWS, `us-east-1`, perfil `aesir`.
 Techo total 150 USD para TODO el desarrollo y primer despliegue.
-No se ha leído facturación ni saldo: autenticación pendiente. No se han creado
+El usuario confirmó saldo suficiente y plazo de financiación hasta el 6 de mayo
+de 2027. El techo del proyecto sigue siendo **150 USD totales**. El importe real
+se mantiene fuera del repositorio público. Falta contrastarlo con AWS y revisar gasto.
+No se han creado
 recursos AWS desde esta sesión. Eso no demuestra gasto cero de la cuenta.
 
 ## Distribución propuesta del techo
@@ -37,33 +40,82 @@ con alertas 25/50/75/90/100%. Requiere correo y fechas reales de vigencia.
 AWS Budgets tiene demoras y no impone un corte rígido de gasto. Revisar costes de
 Budgets/alertas antes de crearlo; la plantilla no ha sido aplicada ni validada por AWS.
 
-## Kit oficial: ejecución y bloqueo actual
+## Conexión alternativa desde AWS CloudShell
+
+El usuario confirmó acceso a CloudShell; no puede acceder al Desktop compartido.
+`github-preflight.yaml` crea un rol OIDC de **solo lectura**, confiando exactamente
+en `repo:A-PerfectStranger/special-funicular:ref:refs/heads/main` y audiencia
+`sts.amazonaws.com`. Solo permite `freetier:GetAccountPlanState` y `ce:GetCostAndUsage`.
+No permite desplegar, modificar IAM, leer secretos o asumir el rol desde PR/forks.
+El proveedor OIDC existente se reutiliza sin modificarlo; si falta, se crea y retiene.
+
+Revisar el template/script en el commit que se va a ejecutar y, desde CloudShell:
+
+```bash
+retiro_sha=SHA_COMPLETO_REVISADO
+curl --proto '=https' --tlsv1.3 -fsSL \
+  "https://raw.githubusercontent.com/A-PerfectStranger/special-funicular/$retiro_sha/scripts/bootstrap-aws-preflight.sh" \
+  -o /tmp/retiro-bootstrap.sh
+bash /tmp/retiro-bootstrap.sh "$retiro_sha"
+```
+
+El script valida el template en AWS y aplica únicamente el stack
+`retiro-seguro-github-preflight`, sin claves permanentes. El ARN devuelto no es
+una credencial; permite lanzar desde main el workflow manual `AWS read-only preflight`.
+Su sesión efímera comprueba STS, la denegación de `iam:ListUsers`, créditos,
+vencimiento y gasto bruto mensual excluyendo créditos/reembolsos. Cost Explorer
+puede cobrar la consulta de su API. No crea recursos de aplicación.
+
+El repo es público: el artefacto contiene exclusivamente comprobaciones booleanas,
+sin balances, respuestas AWS, credenciales o correo de alertas. Un resultado ausente
+o permiso denegado en facturación mantiene el bloqueo. Tampoco un preflight aprobado
+acredita el presupuesto completo del proyecto: faltan cotización, alertas y costes
+de recursos/retención antes de aprovisionar. La autorización de despliegue/migración
+se configurará por separado; no ampliar este rol de lectura para ese fin.
+
+## Login interactivo: evidencia y selectores privados
+
+La variable `AWS_VERIFICATION_CODE` está disponible en la sesión del 7 de noviembre.
+Ese código corresponde a un intento anterior; **no es una credencial AWS ni permite
+iniciar un login nuevo**. La CLI genera `state`, un verificador PKCE y una clave
+privada por intento; un código de otro proceso no los reemplaza. No imprimirlo ni
+guardarlo en Git. No trasladar códigos entre contenedores reiniciados.
+
+La CLI 2.39.6 se reinstaló desde AWS con firma GPG verificada. STS devolvió
+`NoCredentials`, sin identidad autenticada. La herramienta de control de navegador
+sigue fallando con `the gaas-browser node_repl sandbox cannot be disabled`, pero
+se consiguió abrir Chromium directamente en **el escritorio compartido**. La
+pantalla de sign-in AWS fue observada; el login nuevo necesita la intervención
+del usuario en ese escritorio. Como el usuario no pudo acceder a Desktop, el
+intento se canceló y se preparó la ruta CloudShell/OIDC anterior.
+Un navegador abierto no acredita STS ni el toolkit.
+
+Todas las órdenes de la sesión deben usar los mismos selectores privados:
+
+```bash
+source scripts/aws-env.sh
+aws login --region us-east-1 --profile aesir
+aws sts get-caller-identity --profile aesir
+```
+
+El helper configura perfil, región, configuración y caché de login bajo `work/aws/`
+(ignorado); no escribe en el directorio personal. Si la CLI no existe, reinstalarla
+desde el instalador oficial con firma, usando `XDG_DATA_HOME="$PWD/work/tools"` y
+`XDG_BIN_HOME="$PWD/work/bin"`. No usar `--skip-signature-verification`.
+Si el navegador no se abre, `aws login --remote` requiere que el **mismo proceso**
+siga vivo y que el código nuevo se introduzca directamente en su terminal privada.
+Actualizar un secreto que solo llega a una instancia nueva no completa ese flujo.
+
+## Kit oficial: instalación después de autenticar
 
 Fuente solicitada:
 https://raw.githubusercontent.com/aws/agent-toolkit-for-aws/refs/heads/main/setup-instructions/setup.md
 
-Linux detectado; curl y uv disponibles. Acceso HTTPS a awscli.amazonaws.com verificado.
-CLI 2.39.6 instalada con el instalador oficial y firma GPG verificada.
-Ubicación local de esta sesión: `work/bin/aws`; configuración ignorada en
-`work/aws/config`. No se escribió ninguna clave en Git. Perfil `aesir`, región `us-east-1`.
-
-El navegador compartido falló con `the gaas-browser node_repl sandbox cannot be disabled`.
-`aws login --remote` abrió el flujo externo pero el usuario no tiene terminal
-del entorno para completar el intercambio. **Login, STS, wizard, MCP y catálogo no verificados.**
-No marcar setup completo ni cerrar la sesión como si el toolkit estuviera activo.
-
-Se probó como alternativa un secreto privado para el código temporal. El usuario
-confirmó que esa configuración solo se aplica a sesiones nuevas; no estuvo disponible
-en la instancia activa. Se canceló el flujo. El código ya guardado no puede iniciar
-otra autenticación: eliminarlo/renovarlo cuando haya terminal o navegador funcional.
-
-Para continuar en este entorno una vez reparado el navegador/terminal:
+Después de STS aprobado, continuar con el wizard y el catálogo. **Login, STS,
+wizard, MCP y catálogo aún no verificados.** No marcar setup completo sin evidencia.
 
 ```bash
-export PATH="$PWD/work/bin:$PATH"
-export AWS_CONFIG_FILE="$PWD/work/aws/config"
-aws login --region us-east-1 --profile aesir --remote
-aws sts get-caller-identity --profile aesir
+source scripts/aws-env.sh
 aws configure agent-toolkit --yes --region us-east-1 --profile aesir
 aws agent-toolkit list-available-skills --region us-east-1 --profile aesir
 ```
@@ -88,3 +140,25 @@ Las instrucciones propias del proyecto prevalecen. Verificar catálogo antes de
 declarar instalación completa. Para otra cuenta: `aws login --profile <nombre>`,
 añadir el nombre a la lista separada por espacios `AWS_MCP_PROXY_PROFILES` y reiniciar
 la herramienta de IA tras terminar la configuración.
+
+## Comprobaciones de la superficie pública E0
+
+Cuando exista el destino, ejecutar desde un runner con confianza CA normal:
+
+```bash
+uv run python scripts/verify_staging.py https://DOMINIO-STAGING --report work/staging-probes.json
+```
+
+Exige TLS 1.3 con certificado/hostname verificados, readiness DB, capabilities
+exactas con retiros deshabilitados, rutas de negocio/admin ausentes, escrituras
+rechazadas, cabeceras de seguridad y ausencia de cookies. No sigue redirecciones
+ni registra cuerpos, cookies o excepciones remotas. Un fallo devuelve 1;
+configuración inválida devuelve 2. Las pruebas usan un servidor HTTPS local real
+con certificado sintético y verifican también rechazo de TLS 1.2/certificado no
+confiable. No son evidencia de despliegue AWS.
+
+El reporte solo acredita esa superficie. No certifica IAM, presupuesto, SHA/digest
+de las tareas, IdP, WORM/KMS ni E1–E5. Si existe un proxy que intercepta TLS, el
+reporte señala el límite: la negociación cliente-proxy no acredita el TLS del
+origen. Completar la aceptación desde un runner sin interceptación y conservar
+por separado la evidencia del plano de control, costes y procedencia de release.

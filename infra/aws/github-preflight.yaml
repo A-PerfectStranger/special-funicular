@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Read-only AWS preflight for retiro seguro GitHub main (RFS22 / CA-S22)
+Parameters:
+  ExistingOidcProviderArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|arn:aws:iam::[0-9]{12}:oidc-provider/token\.actions\.githubusercontent\.com'
+Conditions:
+  CreateOidcProvider: !Equals [!Ref ExistingOidcProviderArn, '']
+Resources:
+  GitHubOidc:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateOidcProvider
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      Tags: [{Key: Project, Value: retiro-seguro}]
+  PreflightRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-seguro-github-preflight
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If [CreateOidcProvider, !Ref GitHubOidc, !Ref ExistingOidcProviderArn]
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: repo:A-PerfectStranger/special-funicular:ref:refs/heads/main
+      Policies:
+        - PolicyName: ReadCreditAndGrossUsageOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [freetier:GetAccountPlanState, ce:GetCostAndUsage]
+                Resource: '*'
+      Tags: [{Key: Project, Value: retiro-seguro}]
+Outputs:
+  PreflightRoleArn:
+    Value: !GetAtt PreflightRole.Arn
