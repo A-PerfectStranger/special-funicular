@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated artifacts, dependency trees and local secret stores are not source"
+paths = ['''(^|/)work/''', '''(^|/)node_modules/''', '''(^|/)\.venv/''', '''^\.env$''', '''apps/mobile/android/''', '''apps/mobile/dist/''']

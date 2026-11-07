@@ -1,0 +1,20 @@
+{
+  "environment": "production",
+  "provider": "aws",
+  "region": "us-east-1",
+  "account_id": null,
+  "deploy_role_arn": null,
+  "migration_role_arn": null,
+  "image_repository": null,
+  "cluster": null,
+  "service": null,
+  "task_definition": null,
+  "migration_task_definition": null,
+  "subnets": [],
+  "security_groups": [],
+  "base_url": null,
+  "budget_verified": false,
+  "credit_ceiling_usd": 150,
+  "pickup_enabled": false,
+  "synthetic_only": true
+}

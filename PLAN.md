@@ -2,7 +2,7 @@
 
 Proyecto: Aplicación Segura de Rastreo / retiro seguro de estudiantes. Base de ejecución: 6 de noviembre de 2026.
 
-Este plan transforma los requisitos en incrementos implementables. Todas las tareas comienzan pendientes: este documento no acredita código, infraestructura ni despliegues existentes. Contrato funcional: `Requerimientos_retiro_seguro_estudiantes.md`. Reglas del repositorio: `AGENTS.md`.
+Este plan transforma los requisitos en incrementos implementables. Las casillas reflejan el estado acreditado en PROGRESS.md; una base local o un build no acreditan despliegue AWS. Contrato funcional: `Requerimientos_retiro_seguro_estudiantes.md`. Reglas del repositorio: `AGENTS.md`.
 
 ## 1. Configuración de trabajo fijada
 
@@ -14,7 +14,7 @@ Este plan transforma los requisitos en incrementos implementables. Todas las tar
 | Backend | Django modular, PostgreSQL, OIDC/MFA, workers/outbox, KMS y WORM. |
 | Integración | GitHub Actions, checks obligatorios y artefactos vinculados al commit. |
 | Promoción | Staging y pruebas automáticas antes de producción automática, sin aprobación manual rutinaria. |
-| Infraestructura | Proveedor aún sin seleccionar; adaptadores/configuración por entorno, sin asumir AWS. |
+| Infraestructura | AWS seleccionado por el usuario; us-east-1, perfil aesir. Destinos aún sin aprovisionar; crédito total máximo 150 USD. |
 | Operaciones escolares | Escuela verifica los datos; equipo técnico ejecuta bulk, provisioning, bajas y cambios urgentes. |
 
 Se puede empezar repositorio, dominio, API, móvil y CI con datos sintéticos. La falta de proveedor impide conectar el destino real de despliegue y validar sus controles; no impide avanzar en esas tareas. Los adaptadores locales deben identificarse como simulaciones y nunca activarse en producción.
@@ -39,11 +39,14 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 
 ### E0 — Base y pipeline inicial
 
-- [ ] Inicializar monorepo, estructura, dependencias fijadas, configuración sintética y README de arranque.
-- [ ] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
-- [ ] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
-- [ ] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno.
-- [ ] Crear estructura de CD y validación obligatoria de configuración; conectar staging cuando exista proveedor.
+- [x] Inicializar monorepo, estructura, dependencias fijadas, configuración sintética y README de arranque.
+- [x] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
+- [x] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
+- [x] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno (firma de desarrollo; sin distribución productiva).
+- [x] Crear estructura de CD y validación obligatoria: destinos incompletos fallan con BLOCKED/NOT_CONFIGURED.
+- [ ] Conectar y verificar staging AWS: bloqueado por login/cuenta, recursos, dominio y configuración real. Kit AWS pendiente de autenticación/wizard.
+
+**Estado:** base técnica y artefactos E0 verificados en GitHub y localmente. Cierre operativo E0 abierto por conexión AWS; no confundirlo con un despliegue exitoso. Evidencia por commit en PROGRESS.md.
 
 **Aceptación:** un checkout limpio ejecuta los comandos documentados y CI; artefactos llevan SHA. Sin destino, el estado de deploy es bloqueado/no configurado y no se publica un éxito ficticio.
 
@@ -166,7 +169,7 @@ Estos valores completan la configuración; no reabren la arquitectura. No invent
 | Dato pendiente | Quién lo aporta / efecto |
 | --- | --- |
 | URL `organización/repositorio` y accesos GitHub | Equipo técnico; permite alojar código y activar Actions. |
-| Proveedor, cuenta/proyecto, región y presupuesto operativo | Equipo técnico con responsable del proyecto; habilita IaC y destinos de staging/producción. Sigue sin proveedor elegido. |
+| Proveedor, cuenta/proyecto, región y presupuesto operativo | Equipo técnico con responsable del proyecto; habilita IaC y destinos de staging/producción. AWS elegido; cuenta autenticada y recursos aún pendientes. |
 | Dominio, DNS y certificados | Equipo técnico; URLs API/web y callbacks OIDC reales. |
 | IdP, tenant, issuer, client IDs y métodos MFA | Equipo técnico; configuración de autenticación, enrolamiento y recuperación. |
 | PostgreSQL, WORM, KMS y políticas de retención por categoría | Equipo técnico configura; institución define plazos. Sin plazos no cargar datos reales ni fijar retención productiva irreversible por omisión. |

@@ -1,0 +1,19 @@
+name: retiro-seguro
+services:
+  db:
+    image: postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac
+    environment:
+      POSTGRES_DB: retiro
+      POSTGRES_PASSWORD: synthetic-bootstrap-only
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/local/init.sql:/docker-entrypoint-initdb.d/00-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d retiro"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  pgdata:

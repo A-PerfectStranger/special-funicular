@@ -1,0 +1,58 @@
+openapi: 3.1.0
+info:
+  title: Retiro seguro - E0 technical surface
+  version: 0.1.0
+paths:
+  /health/live:
+    get:
+      operationId: liveness
+      responses:
+        '200':
+          description: Process is alive; does not authorize pickups
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status: {const: ok}
+  /health/ready:
+    get:
+      operationId: readiness
+      responses:
+        '200':
+          description: Database connection available; does not authorize pickups
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status: {const: ready}
+        '503':
+          description: Technical dependency unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status: {const: unavailable}
+  /v1/capabilities:
+    get:
+      operationId: capabilities
+      responses:
+        '200':
+          description: Public capability flags; no identity or child data
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [api_version, pickup_enabled]
+                properties:
+                  api_version: {const: v1}
+                  pickup_enabled: {const: false}

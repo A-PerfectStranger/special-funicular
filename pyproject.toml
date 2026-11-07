@@ -1,0 +1,46 @@
+[project]
+name = "retiro-seguro"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["Django>=5.2,<5.3", "psycopg[binary]>=3.2,<4", "gunicorn>=23,<24"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<10",
+    "pytest-django>=4.9,<5",
+    "ruff>=0.14,<1",
+    "mypy>=1.18,<2",
+    "django-stubs>=5.2,<5.3",
+    "pip-audit>=2.9,<3",
+    "PyYAML>=6,<7",
+    "types-PyYAML>=6,<7",
+    "jsonschema>=4,<5",
+    "types-jsonschema>=4,<5",
+    "cfn-lint>=1.60.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = ["apps/backend", "."]
+testpaths = ["apps/backend/tests", "tests"]
+markers = ["integration: requires real PostgreSQL and separate migration credentials"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main"]
+mypy_path = "apps/backend"
+files = ["apps/backend", "scripts"]
+strict = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
