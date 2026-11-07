@@ -1,0 +1,23 @@
+{
+  "name": "retiro-seguro-monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/mobile"
+  ],
+  "engines": {
+    "node": ">=22.13 <25"
+  },
+  "scripts": {
+    "lint": "npm run lint --workspace apps/mobile",
+    "typecheck": "npm run typecheck --workspace apps/mobile",
+    "test": "npm test --workspace apps/mobile",
+    "mobile:export": "npm run export:android --workspace apps/mobile"
+  },
+  "overrides": {
+    "glob": "14.0.4",
+    "minimatch@>=7.0.0 <11.0.1": "11.0.5",
+    "zod": "4.6.7",
+    "deepmerge": "4.1.1"
+  }
+}

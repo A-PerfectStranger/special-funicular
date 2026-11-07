@@ -1,0 +1,161 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Retiro seguro \u2014 E0, sin operaciones de negocio",
+    "version": "0.0.1"
+  },
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "health_live",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Live",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Live"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "health_ready",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ready",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ready"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unavailable"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "operationId": "v1_capabilities",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Capabilities",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Live": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "const": "ok"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ready": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "const": "ready"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Unavailable": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "const": "unavailable"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Capabilities": {
+        "type": "object",
+        "required": [
+          "api_version",
+          "pickup_enabled",
+          "phase"
+        ],
+        "properties": {
+          "api_version": {
+            "const": "v1"
+          },
+          "pickup_enabled": {
+            "const": false
+          },
+          "phase": {
+            "const": "E0"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

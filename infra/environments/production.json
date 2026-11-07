@@ -1,0 +1,13 @@
+{
+  "environment": "production",
+  "provider": "aws",
+  "configured": false,
+  "account_id": "",
+  "region": "",
+  "deploy_role_arn": "",
+  "base_url": "",
+  "total_credit_limit_usd": 150,
+  "synthetic_only": true,
+  "pickup_enabled": false,
+  "staging_evidence_verified": false
+}

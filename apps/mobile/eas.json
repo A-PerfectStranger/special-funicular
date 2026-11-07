@@ -1,0 +1,6 @@
+{
+  "cli": {"version": ">= 16.0.0", "requireCommit": true},
+  "build": {
+    "development": {"distribution": "internal", "android": {"buildType": "apk", "gradleCommand": ":app:assembleRelease"}, "env": {"APP_ENV": "synthetic"}}
+  }
+}

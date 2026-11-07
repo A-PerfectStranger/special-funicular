@@ -1,0 +1,28 @@
+name: CD configuration gate
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-staging-production
+  cancel-in-progress: false
+jobs:
+  validate-staging:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - name: Validar destino staging (no despliega)
+        run: python scripts/validate_deploy.py staging
+      - name: Bloquear hasta aprovisionar e integrar el adaptador AWS real
+        run: |
+          echo 'DEPLOY BLOQUEADO: adaptador AWS, recursos y ensayos reales pendientes; no hubo despliegue.' >&2
+          exit 2

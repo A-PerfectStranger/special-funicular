@@ -2,7 +2,7 @@
 
 Proyecto: Aplicación Segura de Rastreo / retiro seguro de estudiantes. Base de ejecución: 6 de noviembre de 2026.
 
-Este plan transforma los requisitos en incrementos implementables. Todas las tareas comienzan pendientes: este documento no acredita código, infraestructura ni despliegues existentes. Contrato funcional: `Requerimientos_retiro_seguro_estudiantes.md`. Reglas del repositorio: `AGENTS.md`.
+Este plan transforma los requisitos en incrementos implementables. Estado inicial: todas las tareas pendientes. El estado de ejecución, evidencias y bloqueos actuales se registra en `PROGRESS.md`; este documento por sí solo no acredita despliegues. Contrato funcional: `Requerimientos_retiro_seguro_estudiantes.md`. Reglas del repositorio: `AGENTS.md`.
 
 ## 1. Configuración de trabajo fijada
 
@@ -14,10 +14,10 @@ Este plan transforma los requisitos en incrementos implementables. Todas las tar
 | Backend | Django modular, PostgreSQL, OIDC/MFA, workers/outbox, KMS y WORM. |
 | Integración | GitHub Actions, checks obligatorios y artefactos vinculados al commit. |
 | Promoción | Staging y pruebas automáticas antes de producción automática, sin aprobación manual rutinaria. |
-| Infraestructura | Proveedor aún sin seleccionar; adaptadores/configuración por entorno, sin asumir AWS. |
+| Infraestructura | AWS seleccionado por el usuario; configuración por entorno y presupuesto total de créditos USD150. |
 | Operaciones escolares | Escuela verifica los datos; equipo técnico ejecuta bulk, provisioning, bajas y cambios urgentes. |
 
-Se puede empezar repositorio, dominio, API, móvil y CI con datos sintéticos. La falta de proveedor impide conectar el destino real de despliegue y validar sus controles; no impide avanzar en esas tareas. Los adaptadores locales deben identificarse como simulaciones y nunca activarse en producción.
+Se puede empezar repositorio, dominio, API, móvil y CI con datos sintéticos. La falta de cuenta/destino configurados impide conectar AWS y validar sus controles; no impide avanzar en esas tareas. Los adaptadores locales deben identificarse como simulaciones y nunca activarse en producción.
 
 ## 2. Estructura y arranque del repositorio
 
@@ -43,7 +43,7 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 - [ ] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
 - [ ] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
 - [ ] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno.
-- [ ] Crear estructura de CD y validación obligatoria de configuración; conectar staging cuando exista proveedor.
+- [ ] Crear estructura de CD y validación obligatoria de configuración; conectar staging AWS cuando existan acceso y destino configurados.
 
 **Aceptación:** un checkout limpio ejecuta los comandos documentados y CI; artefactos llevan SHA. Sin destino, el estado de deploy es bloqueado/no configurado y no se publica un éxito ficticio.
 
@@ -166,7 +166,7 @@ Estos valores completan la configuración; no reabren la arquitectura. No invent
 | Dato pendiente | Quién lo aporta / efecto |
 | --- | --- |
 | URL `organización/repositorio` y accesos GitHub | Equipo técnico; permite alojar código y activar Actions. |
-| Proveedor, cuenta/proyecto, región y presupuesto operativo | Equipo técnico con responsable del proyecto; habilita IaC y destinos de staging/producción. Sigue sin proveedor elegido. |
+| AWS: cuenta/proyecto, región y saldo efectivo de créditos | Equipo técnico con responsable del proyecto; habilita IaC y destinos de staging/producción. AWS elegido; cuenta, región y acceso pendientes. |
 | Dominio, DNS y certificados | Equipo técnico; URLs API/web y callbacks OIDC reales. |
 | IdP, tenant, issuer, client IDs y métodos MFA | Equipo técnico; configuración de autenticación, enrolamiento y recuperación. |
 | PostgreSQL, WORM, KMS y políticas de retención por categoría | Equipo técnico configura; institución define plazos. Sin plazos no cargar datos reales ni fijar retención productiva irreversible por omisión. |

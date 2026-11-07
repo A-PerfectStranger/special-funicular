@@ -18,7 +18,7 @@ El MVP permite autorizar el retiro escolar, presentar un QR, verificar presencia
 | Identidad | IdP administrado OIDC y MFA para los cuatro roles. |
 | Evidencia | Eventos append-only, archivo WORM independiente, manifiestos verificables y claves KMS. |
 | Procesamiento | Workers de archivo y notificaciones; outbox transaccional y reintentos idempotentes. |
-| Despliegue | GitHub Actions: CI → staging → pruebas → producción automática. Proveedor todavía sin seleccionar; no se presupone nube concreta. |
+| Despliegue | GitHub Actions: CI → staging → pruebas → producción automática. AWS seleccionado por el usuario; cuenta/región y destinos pendientes de configuración. |
 
 La escuela verifica vínculos, contactos, restricciones y horarios antes de entregarlos. El equipo técnico del proyecto ejecuta bulk, altas/bajas de personal, cambios de principal, configuración e incidencias urgentes mediante procesos privados auditados. Estas tareas no añaden permisos al administrador de escuela ni al administrador de sistema.
 

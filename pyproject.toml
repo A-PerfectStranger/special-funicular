@@ -1,0 +1,45 @@
+[project]
+name = "retiro-seguro"
+version = "0.0.1"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "Django==5.2.19",
+  "psycopg[binary]==3.2.13",
+  "gunicorn==23.0.0",
+]
+
+[dependency-groups]
+dev = [
+  "django-stubs==5.2.9",
+  "mypy==1.19.1",
+  "pytest==9.0.3",
+  "pytest-django==4.12.0",
+  "ruff==0.14.14",
+  "pip-audit==2.10.0",
+  "jsonschema==4.26.0",
+  "PyYAML==6.0.3",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = ["apps/backend", "."]
+testpaths = ["apps/backend/core/tests", "tests/contracts", "tests/pipeline"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = ["work", "apps/mobile"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101"]
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+mypy_path = "apps/backend"
+files = ["apps/backend", "scripts"]
+strict = true
+exclude = ["tests/"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"

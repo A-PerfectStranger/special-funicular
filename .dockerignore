@@ -1,0 +1,8 @@
+*
+!requirements.txt
+!apps/
+!apps/backend/
+!apps/backend/**
+**/__pycache__/
+**/.pytest_cache/
+**/tests/

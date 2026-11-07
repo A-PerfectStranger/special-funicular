@@ -1,0 +1,109 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.13.5'
+          enable-cache: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: docker compose up -d --wait db
+      - run: uv sync --frozen
+      - name: Migraciones con identidad separada
+        env:
+          DB_USER: app_migrator
+          DB_PASSWORD: synthetic-migrator
+        run: uv run python apps/backend/manage.py migrate --noinput
+      - run: bash scripts/check.sh
+      - name: Verificar exportacion de dependencias de imagen
+        run: |
+          uv export --frozen --no-dev --format requirements-txt -o requirements.txt
+          git diff --exit-code -- requirements.txt
+      - run: bash scripts/security.sh
+      - if: always()
+        run: docker compose down -v
+  backend-image:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
+      - run: mkdir -p artifacts
+      - uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        id: image
+        with:
+          context: .
+          build-args: RELEASE_SHA=${{ github.sha }}
+          outputs: type=oci,dest=artifacts/backend-${{ github.sha }}.oci.tar
+          tags: retiro-backend:${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+      - name: Manifiesto imagen backend y worker
+        env:
+          SHA: ${{ github.sha }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          python -c 'import json,os; from pathlib import Path; Path("artifacts/image.json").write_text(json.dumps({"sha":os.environ["SHA"],"digest":os.environ["DIGEST"],"processes":["api","worker-check-only"]},indent=2))'
+          sha256sum artifacts/*.tar > artifacts/image.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
+  android-apk:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+      - run: npm ci
+      - name: APK sintetico firmado con clave debug de desarrollo
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+        run: bash scripts/build-apk.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: github.event.repository.private
+        with:
+          name: android-synthetic-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Informar distribucion privada pendiente en repositorio publico
+        if: ${{ !github.event.repository.private }}
+        run: echo 'APK construido; distribucion bloqueada. No se publica en repositorio publico.' >> "$GITHUB_STEP_SUMMARY"
