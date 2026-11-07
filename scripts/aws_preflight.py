@@ -20,7 +20,9 @@ from urllib.request import Request, urlopen
 ROLE = re.compile(r"arn:aws:iam::([0-9]{12}):role/retiro-seguro-github-preflight")
 
 
-def aws_read(env: dict[str, str], *args: str) -> dict[str, Any] | None:
+def aws_read(
+    env: dict[str, str], *args: str, errors: list[dict[str, str]] | None = None
+) -> dict[str, Any] | None:
     result = subprocess.run(
         ["aws", *args, "--region", "us-east-1", "--output", "json", "--no-cli-pager"],
         env=env,
@@ -30,7 +32,16 @@ def aws_read(env: dict[str, str], *args: str) -> dict[str, Any] | None:
         check=False,
     )
     if result.returncode:
-        return None  # Never print CLI stderr, balances, credentials, or remote bodies.
+        # Only an AWS error identifier is reportable, never free-form CLI stderr.
+        code = re.search(r"An error occurred \(([A-Za-z0-9_]{1,64})\)", result.stderr)
+        if errors is not None:
+            errors.append(
+                {
+                    "operation": ".".join(args[:2]),
+                    "code": code[1] if code else "CliRequestFailed",
+                }
+            )
+        return None
     value = json.loads(result.stdout)
     return value if isinstance(value, dict) else None
 
@@ -93,6 +104,8 @@ def main() -> int:
         "checked_at": datetime.now(UTC).isoformat(),
         "passed": False,
     }
+    errors: list[dict[str, str]] = []
+    report["errors"] = errors
     try:
         request_url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
         request_url += ("&" if "?" in request_url else "?") + urlencode(
@@ -127,12 +140,12 @@ def main() -> int:
                 AWS_EC2_METADATA_DISABLED="true",
                 AWS_STS_REGIONAL_ENDPOINTS="regional",
             )
-            identity = aws_read(env, "sts", "get-caller-identity")
+            identity = aws_read(env, "sts", "get-caller-identity", errors=errors)
             report["account_matches_role"] = bool(identity and identity.get("Account") == match[1])
             if report["account_matches_role"]:
                 report["unrelated_iam_access_denied"] = unrelated_iam_access_denied(env)
                 today = datetime.now(UTC).date()
-                plan = aws_read(env, "freetier", "get-account-plan-state")
+                plan = aws_read(env, "freetier", "get-account-plan-state", errors=errors)
                 cost = aws_read(
                     env,
                     "ce",
@@ -151,6 +164,7 @@ def main() -> int:
                             }
                         }
                     ),
+                    errors=errors,
                 )
                 report["checks"] = assess(plan, cost)
                 report["passed"] = report["unrelated_iam_access_denied"] and all(

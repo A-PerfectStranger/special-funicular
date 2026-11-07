@@ -2,6 +2,7 @@
 
 import io
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -74,7 +75,7 @@ def test_preflight_report_never_publishes_amounts_credentials_or_identity(
         aws_preflight, "urlopen", lambda *a, **kw: io.BytesIO(b'{"value":"synthetic-jwt"}')
     )
 
-    def read(env: dict[str, str], *args: str) -> dict[str, Any]:
+    def read(env: dict[str, str], *args: str, **kwargs: Any) -> dict[str, Any]:
         assert "AWS_ACCESS_KEY_ID" not in env
         assert Path(env["AWS_WEB_IDENTITY_TOKEN_FILE"]).stat().st_mode & 0o777 == 0o600
         if args[0] == "sts":
@@ -121,3 +122,20 @@ def test_non_main_cannot_even_request_an_oidc_token(
     )
     assert aws_preflight.main() == 2
     assert not (tmp_path / "report.json").exists()
+
+
+def test_cli_error_code_is_reported_without_remote_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        aws_preflight.subprocess,
+        "run",
+        lambda *a, **kw: subprocess.CompletedProcess(
+            args=[],
+            returncode=254,
+            stdout="private-financial-response",
+            stderr="An error occurred (DataUnavailableException): private-text",
+        ),
+    )
+    errors: list[dict[str, str]] = []
+    assert aws_preflight.aws_read({}, "ce", "get-cost-and-usage", errors=errors) is None
+    assert errors == [{"operation": "ce.get-cost-and-usage", "code": "DataUnavailableException"}]
+    assert "private" not in json.dumps(errors)

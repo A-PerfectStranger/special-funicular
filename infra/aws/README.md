@@ -4,7 +4,8 @@ Proveedor decidido por el usuario: AWS, `us-east-1`, perfil `aesir`.
 Techo total 150 USD para TODO el desarrollo y primer despliegue.
 El usuario confirmó saldo suficiente y plazo de financiación hasta el 6 de mayo
 de 2027. El techo del proyecto sigue siendo **150 USD totales**. El importe real
-se mantiene fuera del repositorio público. Falta contrastarlo con AWS y revisar gasto.
+se mantiene fuera del repositorio público. AWS ya confirmó créditos suficientes
+y vigencia; falta revisar gasto porque sus datos aún no están disponibles.
 No se ha aprovisionado aplicación ni BD. El usuario creó el stack OIDC de
 lectura desde CloudShell. Esto no demuestra gasto cero de la cuenta.
 
@@ -39,6 +40,32 @@ No destruir WORM ni claves retenidas: su coste debe quedar reservado hasta venci
 con alertas 25/50/75/90/100%. Requiere correo y fechas reales de vigencia.
 AWS Budgets tiene demoras y no impone un corte rígido de gasto. Revisar costes de
 Budgets/alertas antes de crearlo; la plantilla no ha sido aplicada ni validada por AWS.
+
+### Bloqueo comprobado de facturación
+
+El segundo preflight comprobó STS, denegación de acceso IAM ajeno y créditos/vigencia:
+https://github.com/A-PerfectStranger/special-funicular/actions/runs/42386350234.
+El gasto quedó pendiente. El usuario ejecutó la consulta desde CloudShell y AWS
+devolvió `DataUnavailableException`; también confirmó que Facturas no tiene datos.
+No equivale a coste cero y no se resuelve ampliando IAM.
+
+[AWS documenta](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-enable.html)
+que hay que abrir Cost Explorer y pulsar **Launch Cost Explorer** si aún no está
+habilitado; la API no puede habilitarlo. Los datos del mes suelen estar disponibles
+unas 24 horas después. Verificar el estado de la consola antes de asumir que ese
+plazo empezó. No aprovisionar mientras siga sin acreditarse el gasto.
+
+Cuando los datos estén disponibles, repetir el workflow manual con el mismo rol:
+
+```bash
+gh workflow run aws-preflight.yml --ref main \
+  -f role_arn=arn:aws:iam::CUENTA:role/retiro-seguro-github-preflight
+```
+
+Después de aprobarlo siguen siendo necesarios cotización completa, alertas,
+IaC de aplicación, identidades de despliegue/migración y adaptador live, antes
+de ejecutar los probes de staging. No marcar E0 terminado por aprobar solo OIDC.
+Ver [tarifas consultadas y límites de la estimación](cost-estimate.md).
 
 ## Conexión alternativa desde AWS CloudShell
 
