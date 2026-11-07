@@ -1,6 +1,6 @@
 # Estado de ejecución y continuidad
 
-7 de noviembre de 2026. **E0 parcial; no declarar entrega completa.** Sin recursos AWS, staging, producción ni retiros reales. Unidad de integración: PR1: https://github.com/A-PerfectStranger/special-funicular/pull/1 . La base se integra mediante PR y CI; Toolkit/staging continúan bloqueados. Consultar el estado de PR1 para confirmar la integración.
+7 de noviembre de 2026. **PAUSADO por solicitud del usuario. E0 parcial; no declarar entrega completa.** Sin recursos AWS, staging, producción ni retiros reales. Unidad de integración: PR1: https://github.com/A-PerfectStranger/special-funicular/pull/1 . PR1 permanece en borrador y NO se integra a main. El usuario continuará AWS y pendientes en otra sesión.
 
 ## Código y arquitectura
 
@@ -15,9 +15,9 @@
 | --- | --- |
 | A0: checkout y comandos | Verificado en checkout limpio de GitHub Actions: instalación bloqueada, migración separada y comandos de README. |
 | A1: Django/templates/health | Verificado: live sin DB, ready200 con PostgreSQL/migraciones, ready503 genérico ante fallo o migración pendiente; no-store; retiro siempre false; configuración externa falla sin secretos/hosts/TLS válidos. |
-| A2: móvil SDK56 | Esqueleto, lint/tsc/test, export Android y prebuild verificados. Plantilla nativa56.0.38 fijada por URL/SHA256. APK nativo, firma y paquete verificados en CI (run42346213379, BUILD SUCCESSFUL); retención local/entrega privada en curso. |
+| A2: móvil SDK56 | Esqueleto, lint/tsc/test, export Android y prebuild verificados. Plantilla nativa56.0.38 fijada por URL/SHA256. APK nativo, firma y paquete verificados en CI (run42346213379, BUILD SUCCESSFUL); copia local/entrega privada bloqueadas por red. |
 | A3: CI y seguridad | Run42346213379 job checks verde:16 pruebas con PostgreSQL real/contratos/configuración/integridad OCI, Ruff/formato/mypy, ESLint/tsc/test móvil, export de requirements sincronizado, pip-audit/npm audit0, Gitleaks sin secretos. Runtime sin DDL, TEMP, superusuario, BYPASSRLS, CREATEDB ni CREATEROLE. Actionlint local pasa. RLS de negocio pendiente E1. |
-| A4: imagen/APK por SHA | Imagen OCI construida una vez, cargada también a Docker y smoke con PostgreSQL real; config digest de la imagen probada coincide con OCI. APK de desarrollo generado y verificado en CI; retención privada/local en curso, sin publicación pública. |
+| A4: imagen/APK por SHA | Imagen OCI construida una vez, cargada también a Docker y smoke con PostgreSQL real; config digest de la imagen probada coincide con OCI. APK de desarrollo generado y verificado en CI; copia privada/local bloqueada por red, sin publicación pública. |
 | A5: CD | Estructura y validador implementados; CLI devuelve2 DEPLOY BLOQUEADO. Destinos configured=false; adaptador AWS real, recursos y ensayos de staging pendientes. Workflow bloquea explícitamente, sin permisos/secretos cloud ni éxito ficticio. |
 | A6: documentación/coste | README, contratos, arquitectura, runbooks y presupuesto actualizados. Toolkit no configurado; datos/acceso pendientes. |
 
@@ -36,8 +36,8 @@ Run: https://github.com/A-PerfectStranger/special-funicular/actions/runs/4234621
 
 1. **AWS Toolkit**: CLI ausente. Tras reinicio del entorno a las06:16 UTC, status seguía revisión1/enforced y sin awscli.amazonaws.com; request nuevo devolvió403 del proxy. Usuario está modificando red. Datos ya solicitados, sin respuesta todavía: perfil CLI, región, experiencia social con proyecto o avanzada. No pedir claves. Login y asistente requieren intervención humana según guía oficial. Estado/runbook: docs/runbooks/aws-toolkit.md. No añadir reglas de experiencia AWS a AGENTS hasta conocer el tipo correcto.
 2. **Staging/CD real**: falta cuenta/acceso/región, destino, dominios/TLS, identidades OIDC/separación de credenciales, infraestructura privada, permisos y ensayos. No cambiar booleanos del JSON para fingir validación. Antes de aprovisionar, plan concreto de recursos/precios/duración dentro de USD150. No hay saldo/facturación verificados, alertas ni recursos creados. Gasto AWS de esta sesión USD0.
-3. **APK**: job android-apk de run42346213379 verde: assembleRelease BUILD SUCCESSFUL en5m31s y verificación apksigner/paquete exitosa. El repositorio es público: CI nunca sube el APK interno a artifacts/releases públicos. Build local se interrumpió al reiniciar durante descarga de NDK; se retiró solo la instalación incompleta y NDK27.1.12297006/CMake3.22.1 ya reinstalados. Se repite build local con SHA b0f2a76; ver work/apk-build-final.log. No confundir éxito CI con una copia retenida del binario. Cuenta/proyecto Expo, firma/ID productivos y destino privado de distribución pendientes; desarrollo usa org.retiroseguro.synthetic y firma debug.
-4. **Integración**: La base verificada se entrega por PR1 y solo se integra con CI completo verde. Reglas de rama/checks obligatorios aún no configuradas/verificadas en ajustes de GitHub. E0 completa sigue bloqueada por Toolkit/staging; no declarar esos controles cumplidos al integrar código.
+3. **APK**: job android-apk de run42346213379 verde: assembleRelease BUILD SUCCESSFUL en5m31s y verificación apksigner/paquete exitosa. El repositorio es público: CI nunca sube el APK interno a artifacts/releases públicos. Build local se interrumpió al reiniciar durante descarga de NDK; se retiró solo la instalación incompleta y NDK27.1.12297006/CMake3.22.1 ya reinstalados. Build local de SHA b0f2a76 falló: Maven redirige react-android-0.85.3-release.aar a https://repo.reactnative.dev/maven2/com/facebook/react/react-android/0.85.3/react-android-0.85.3-release.aar y el proxy devuelve403. Falta permitir repo.reactnative.dev. Ver work/apk-build-final.log. No hay APK local retenido; no confundir éxito CI con entrega de binario. Cuenta/proyecto Expo, firma/ID productivos y destino privado de distribución pendientes; desarrollo usa org.retiroseguro.synthetic y firma debug.
+4. **Integración**: PR1 sigue borrador y no se integró por solicitud de pausa del usuario. Reglas de rama/checks obligatorios aún no configuradas/verificadas en ajustes de GitHub. E0 completa sigue bloqueada por Toolkit/staging; no declarar esos controles cumplidos al integrar código.
 
 ## Entorno local y continuación
 
@@ -46,4 +46,13 @@ Todo el código y documentos previos al último estado están publicados en la r
 - No hay API/worker de aplicación corriendo actualmente. Imagen provisional local retirada para liberar disco. Docker vfs consumió disco durante ensayos; evitar acumular imágenes/cachés innecesarias.
 - Volumen PostgreSQL local sintético de la primera prueba puede persistir con bootstrap anterior al cambio TEMP. Para pruebas actuales, reinicializar **solo ese volumen sintético** según README (down -v + up --wait); nunca aplicar bootstrap local ni este reinicio a AWS/datos reales. CI usa volumen nuevo y ya verifica el bootstrap actual.
 - Herramientas nativas locales: JDK17.0.21.0.2 oficial extraído/verificado en work/jdk-latest; SDK en work/android-sdk; GRADLE_USER_HOME=work/gradle; ANDROID_USER_HOME=work/android-user. Proxy Java y CA de la sesión se configuraron allí con TLS verificado. No copiar configuración de proxy/sesión a artefactos.
-- Retomar: fetch remoto y comprobar árbol; consultar run42346213379 y logs; completar APK/firma/paquete y entrega privada; cerrar revisión/CI del código; actualizar esta tabla y PR con resultados reales. Resolver datos/red de AWS, completar Toolkit y luego IaC/adaptador/staging con presupuesto antes de aceptar E0. E1–E5 siguen pendientes.
+- Retomar: fetch remoto y comprobar árbol; consultar run42346213379 y logs; completar APK/firma/paquete y entrega privada; cerrar revisión/CI del código únicamente al reanudar; actualizar esta tabla y PR con resultados reales. Resolver datos/red de AWS, completar Toolkit y luego IaC/adaptador/staging con presupuesto antes de aceptar E0. E1–E5 siguen pendientes.
+
+## Cierre solicitado por el usuario
+
+El usuario indicó: «deja el trabajo como esté, ya configuraré AWS y lo que falte en otra sesión». Se detuvo implementación, aprovisionamiento e integración. No iniciar Toolkit ni fusionar PR1 en esta sesión. Solo se guarda este cierre documental.
+
+- Último cambio funcional: b0f2a76, CI completo verde run42346213379 (16 pruebas + seguridad + imagen/smoke/integridad + APK/firma/paquete).
+- Última revisión documental publicada antes de este cierre: de664eaa542acfd2366f9dd69a91ff07aa9e134d. Run42346914828 estaba en progreso; no se afirma su resultado hasta consultarlo.
+- El cierre modifica únicamente PROGRESS.md, sin código ni configuración. La publicación puede disparar otro CI; consultar Actions al reanudar en lugar de asumir éxito.
+- No procesos API/worker ni builds locales activos; el último build local terminó con el403 de repo.reactnative.dev. Herramientas/cachés sintéticas permanecen en work para reanudar. Sin recursos AWS creados, gasto de esta sesión USD0.
