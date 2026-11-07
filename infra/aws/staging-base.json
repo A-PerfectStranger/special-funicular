@@ -338,7 +338,7 @@
         "MasterUsername": "retiro_bootstrap",
         "ManageMasterUserPassword": true,
         "StorageEncrypted": true,
-        "BackupRetentionPeriod": 7,
+        "BackupRetentionPeriod": 1,
         "DeletionProtection": true,
         "DBSubnetGroupName": {
           "Ref": "DbSubnets"

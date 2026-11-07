@@ -8,6 +8,7 @@ def test_staging_database_is_private_encrypted_and_bounded() -> None:
     resources = json.loads(Path("infra/aws/staging-base.json").read_text())["Resources"]
     db = resources["Database"]["Properties"]
     assert db["StorageEncrypted"] is True
+    assert db["BackupRetentionPeriod"] == 1
     assert db["DeletionProtection"] is True
     assert db["ServerlessV2ScalingConfiguration"] == {
         "MinCapacity": 0,

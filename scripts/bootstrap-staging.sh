@@ -40,5 +40,8 @@ aws cloudformation validate-template --region us-east-1 --template-body "file://
 curl --proto '=https' --tlsv1.3 -fsSL "https://raw.githubusercontent.com/A-PerfectStranger/special-funicular/$1/scripts/prepare_staging_account.py" -o "$retiro_stage_dir/prepare.py"
 python3 "$retiro_stage_dir/prepare.py" > "$retiro_stage_dir/existing-parameters.txt"
 mapfile -t retiro_existing_parameters < "$retiro_stage_dir/existing-parameters.txt"
-aws cloudformation deploy --region us-east-1 --stack-name retiro-staging-base --template-file "$retiro_stage_dir/staging-base.json" --capabilities CAPABILITY_NAMED_IAM --parameter-overrides "EngineVersion=$retiro_engine" "${retiro_existing_parameters[@]}" --tags Project=retiro-seguro Environment=staging --no-fail-on-empty-changeset
+if ! aws cloudformation deploy --region us-east-1 --stack-name retiro-staging-base --template-file "$retiro_stage_dir/staging-base.json" --capabilities CAPABILITY_NAMED_IAM --parameter-overrides "EngineVersion=$retiro_engine" "${retiro_existing_parameters[@]}" --tags Project=retiro-seguro Environment=staging --no-fail-on-empty-changeset; then
+  aws cloudformation describe-stack-events --region us-east-1 --stack-name retiro-staging-base --query "StackEvents[?ResourceStatus=='CREATE_FAILED'].[LogicalResourceId,ResourceStatusReason]" --output table
+  exit 2
+fi
 aws cloudformation describe-stacks --region us-east-1 --stack-name retiro-staging-base --query 'Stacks[0].Outputs[?OutputKey==`Deploy` || OutputKey==`Migrate`]' --output table

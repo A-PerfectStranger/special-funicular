@@ -12,7 +12,7 @@ total de 150 USD con las cinco alertas existentes y después la base CloudFormat
 
 - VPC dedicada, subredes públicas para tareas/ingreso y privadas para PostgreSQL,
   sin NAT Gateway ni acceso público a la base.
-- Aurora PostgreSQL Serverless v2 cifrado, PITR 7 días, auto-pause a 0 ACU tras
+- Aurora PostgreSQL Serverless v2 cifrado, backup/PITR de ensayo 1 día, auto-pause a 0 ACU tras
   300 s sin conexiones y máximo 1 ACU; motor seleccionado por la API regional,
   verificado como disponible y fijado como parámetro del stack.
 - Contraseñas/clave Django en Secrets Manager, cifrado KMS administrado por AWS.
@@ -78,3 +78,7 @@ El comando SQL privado de comisión verifica TLS real, RLS forzada con dos escue
 sintéticas, ausencia de fuga transaccional y denegación de mutaciones/DDL para
 runtime. Ejecuta migración con credencial distinta y diagnóstico worker; no
 arranca un worker ficticio: los handlers E1/E4 siguen pendientes.
+
+La cuenta Free Plan rechazó la retención automática inicial de siete días. Se
+usa un día para esta base sintética E0; no es una política de conservación de
+menores/evidencias ni una aceptación de recuperación E5. No se amplía el plan.
