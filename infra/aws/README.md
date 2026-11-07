@@ -52,6 +52,11 @@ El navegador compartido falló con `the gaas-browser node_repl sandbox cannot be
 del entorno para completar el intercambio. **Login, STS, wizard, MCP y catálogo no verificados.**
 No marcar setup completo ni cerrar la sesión como si el toolkit estuviera activo.
 
+Se probó como alternativa un secreto privado para el código temporal. El usuario
+confirmó que esa configuración solo se aplica a sesiones nuevas; no estuvo disponible
+en la instancia activa. Se canceló el flujo. El código ya guardado no puede iniciar
+otra autenticación: eliminarlo/renovarlo cuando haya terminal o navegador funcional.
+
 Para continuar en este entorno una vez reparado el navegador/terminal:
 
 ```bash

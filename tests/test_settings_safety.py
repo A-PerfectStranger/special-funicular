@@ -17,6 +17,16 @@ import pytest
 )
 def test_invalid_settings_cannot_start(override: dict[str, str]) -> None:
     env = os.environ.copy()
+    # Make the other cloud settings valid so each override exercises its own barrier.
+    env.update(
+        {
+            "DJANGO_SECRET_KEY": "test-only-key-0123456789012345678901234567890123456789",
+            "DJANGO_ALLOWED_HOSTS": "localhost",
+            "APP_ENV": "production",
+            "DJANGO_DEBUG": "false",
+            "PGSSLMODE": "verify-full",
+        }
+    )
     env.update(override)
     result = subprocess.run(
         [sys.executable, "apps/backend/manage.py", "check"],

@@ -2,7 +2,7 @@
 
 Proyecto: Aplicación Segura de Rastreo / retiro seguro de estudiantes. Base de ejecución: 6 de noviembre de 2026.
 
-Este plan transforma los requisitos en incrementos implementables. Todas las tareas comienzan pendientes: este documento no acredita código, infraestructura ni despliegues existentes. Contrato funcional: `Requerimientos_retiro_seguro_estudiantes.md`. Reglas del repositorio: `AGENTS.md`.
+Este plan transforma los requisitos en incrementos implementables. Las casillas reflejan el estado acreditado en PROGRESS.md; una base local o un build no acreditan despliegue AWS. Contrato funcional: `Requerimientos_retiro_seguro_estudiantes.md`. Reglas del repositorio: `AGENTS.md`.
 
 ## 1. Configuración de trabajo fijada
 
@@ -39,11 +39,14 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 
 ### E0 — Base y pipeline inicial
 
-- [ ] Inicializar monorepo, estructura, dependencias fijadas, configuración sintética y README de arranque.
-- [ ] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
-- [ ] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
-- [ ] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno.
-- [ ] Crear estructura de CD y validación obligatoria de configuración; conectar staging cuando exista proveedor.
+- [x] Inicializar monorepo, estructura, dependencias fijadas, configuración sintética y README de arranque.
+- [x] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
+- [x] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
+- [x] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno (firma de desarrollo; sin distribución productiva).
+- [x] Crear estructura de CD y validación obligatoria: destinos incompletos fallan con BLOCKED/NOT_CONFIGURED.
+- [ ] Conectar y verificar staging AWS: bloqueado por login/cuenta, recursos, dominio y configuración real. Kit AWS pendiente de autenticación/wizard.
+
+**Estado:** base técnica y artefactos E0 verificados en GitHub y localmente. Cierre operativo E0 abierto por conexión AWS; no confundirlo con un despliegue exitoso. Evidencia por commit en PROGRESS.md.
 
 **Aceptación:** un checkout limpio ejecuta los comandos documentados y CI; artefactos llevan SHA. Sin destino, el estado de deploy es bloqueado/no configurado y no se publica un éxito ficticio.
 
