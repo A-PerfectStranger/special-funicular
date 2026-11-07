@@ -4,9 +4,10 @@
 
 Base técnica E0 implementada y verificada. **Identidad AWS de lectura conectada
 por OIDC desde GitHub/main**; créditos y vigencia confirmados por AWS.
-**Staging/producción no aprovisionados**: Cost Explorer y Facturas aún no ofrecen
-datos de gasto. AWS indica que Cost Explorer acaba de habilitarse y que hay que
-volver a comprobar en unas 24 horas. No interpretar ausencia de datos como cero.
+**Staging aún en comisión, producción no aprovisionada**. Cost Explorer ya
+aprobó el preflight completo (42420579085). El presupuesto existe; se prepara la
+base real y el adaptador de staging. Los bloqueos históricos de gasto que figuran
+abajo ya no son el impedimento actual. No presentar la preparación como deploy.
 E1–E5 pendientes; ningún retiro real habilitado. El toolkit interactivo no está
 instalado/autenticado; OIDC de CI no se presenta como ese login humano.
 

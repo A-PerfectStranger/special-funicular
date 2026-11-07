@@ -82,3 +82,25 @@ arranca un worker ficticio: los handlers E1/E4 siguen pendientes.
 La cuenta Free Plan rechazó la retención automática inicial de siete días. Se
 usa un día para esta base sintética E0; no es una política de conservación de
 menores/evidencias ni una aceptación de recuperación E5. No se amplía el plan.
+
+## Comisión y despliegue continuo
+
+Después de publicar la imagen aprobada, `commission-staging.sh` descarga el mismo
+commit de código, aplica el stack IAM de lifecycle, ejecuta la prueba SQL privada,
+crea la API Express y arma retirada automática a las tres horas. Si no puede armar
+la retirada, solicita eliminar el servicio recién creado y falla. Publica evidencia
+sintética (SHA/digest/URL/tarea/probes); no lee contraseñas. Este script es operación
+inicial de CloudShell, no promoción manual rutinaria de producción.
+
+El CD posterior toma el mismo artefacto de CI y digest ECR, migra con el rol Migrate,
+despliega con Deploy y comprueba runtime/health/TLS antes de considerar staging
+aprobado. Rechaza candidatos que ya no son el último main antes de cada mutación,
+y serializa el workflow sin cancelar migraciones. Espera que todas las tareas de
+servicio usen la nueva definición; ACTIVE de Express por sí solo no acredita el
+final de una canary. Acepta digest de índice OCI o su manifest Linux amd64 solo
+tras verificar el hash del índice y la pertenencia criptográfica del hijo.
+
+La retirada programada afecta solo al servicio ECS de staging; Aurora/secretos
+persisten protegidos con coste residual reservado. Recrear API exige mismo digest
+verificado y vuelve a armar expiry. Producción sigue bloqueada hasta configuración
+y aceptación E5. Ningún probe E0 acredita OIDC humano, WORM o retiros de negocio.

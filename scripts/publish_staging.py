@@ -3,10 +3,22 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any
+
+
+def finish(report: dict[str, Any]) -> int:
+    Path("work/published-image.json").write_text(json.dumps(report, indent=2) + "\n")
+    if os.environ.get("GITHUB_OUTPUT"):
+        with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+            for field in ["git_sha", "oci_digest", "image"]:
+                stream.write(field + "=" + str(report[field]) + "\n")
+    print(json.dumps(report))
+    return 0
 
 
 def main() -> int:
@@ -54,11 +66,40 @@ def main() -> int:
         manifest["git_sha"] != sha
         or manifest["kind"] != "backend-oci"
         or manifest["sha256"] != checksum
+        or manifest.get("pickup_enabled") is not False
         or not re.fullmatch("sha256:[0-9a-f]{64}", digest)
     ):
         raise SystemExit("BLOCKED: artifact provenance/checksum")
     registry = "028364485203.dkr.ecr.us-east-1.amazonaws.com"
     repository = registry + "/retiro-staging/backend"
+    report = {
+        "git_sha": sha,
+        "oci_digest": digest,
+        "image": repository + "@" + digest,
+        "ci_run_id": args.run_id,
+    }
+    existing = subprocess.run(
+        [
+            "aws",
+            "ecr",
+            "describe-images",
+            "--repository-name",
+            "retiro-staging/backend",
+            "--image-ids",
+            "imageTag=" + sha,
+            "--output",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if existing.returncode == 0:
+        if json.loads(existing.stdout)["imageDetails"][0]["imageDigest"] != digest:
+            raise SystemExit("BLOCKED: immutable tag already names a different digest")
+        return finish(report)
+    if "ImageNotFoundException" not in existing.stderr:
+        raise SystemExit("BLOCKED: registry lookup failed; absence not established")
     with tempfile.TemporaryDirectory(prefix="retiro-registry-") as temporary:
         auth = str(Path(temporary) / "auth.json")
         password = subprocess.check_output(
@@ -109,15 +150,7 @@ def main() -> int:
     )
     if result["imageDetails"][0]["imageDigest"] != digest:
         raise SystemExit("BLOCKED: registry digest changed")
-    report = {
-        "git_sha": sha,
-        "oci_digest": digest,
-        "image": repository + "@" + digest,
-        "ci_run_id": args.run_id,
-    }
-    Path("work/published-image.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps(report))
-    return 0
+    return finish(report)
 
 
 if __name__ == "__main__":
