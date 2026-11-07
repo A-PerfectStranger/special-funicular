@@ -20,7 +20,7 @@ retiro real está habilitado. No se presenta el bloqueo como despliegue exitoso.
   `the gaas-browser node_repl sandbox cannot be disabled`; se abrió Chromium por
   el escritorio compartido y se observó la pantalla de login de AWS. El usuario
   no puede acceder a Desktop; se canceló ese intento. No hay STS/wizard/MCP/catálogo
-  acreditados ni recursos creados.
+  acreditados desde la CLI interactiva. No se han creado recursos de aplicación.
 - `scripts/aws-env.sh` fija perfil `aesir`, región y caché privada bajo `work/aws/`;
   evita que los comandos posteriores pierdan los selectores de login.
 - Se preparó `scripts/verify_staging.py` (RFS09/13/14, CA-S09/13/14): probes de
@@ -44,8 +44,16 @@ retiro real está habilitado. No se presenta el bloqueo como despliegue exitoso.
   y workflow manual `AWS read-only preflight`, restringidos a main/audiencia STS.
   Permisos exactos: lectura de plan/créditos y Cost Explorer. El reporte público
   usa booleanos; no publica saldos, respuestas AWS o credenciales. Pendiente de
-  ejecutar el bootstrap y verificar en AWS, sin presentarlo como conectado.
-  La consulta de cuenta/presupuesto y el adaptador live siguen pendientes.
+  El usuario ejecutó el bootstrap y devolvió el ARN del rol creado.
+- PR #3 integrado en `ab2f360c044a01f8b3dd0a8318ec7c32b0a380c7`, tras CI aprobada:
+  https://github.com/A-PerfectStranger/special-funicular/actions/runs/42385253070.
+  Primer preflight: https://github.com/A-PerfectStranger/special-funicular/actions/runs/42385863812,
+  bloqueado sin identidad; no pudo asumir el rol. Se consultó la personalización
+  OIDC real de GitHub: `use_immutable_subject=true`. El prefijo contiene IDs de
+  propietario/repositorio y difiere del formato clásico inicial. Se corrigió
+  el sujeto exacto en template y pruebas; requiere actualizar el stack desde
+  CloudShell antes de volver a comprobar AWS. Sin ampliar permisos ni wildcards.
+  Consulta de cuenta/presupuesto y adaptador live aún pendientes.
 
 El resto de este documento conserva la evidencia de la entrega anterior. Los
 artefactos de sus SHA no se atribuyen a los scripts nuevos ni a un deploy AWS.

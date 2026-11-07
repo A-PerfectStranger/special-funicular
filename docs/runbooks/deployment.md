@@ -7,7 +7,10 @@ de créditos para desarrollo/despliegue. No equivale a 150 USD mensuales.
 Cuenta no autenticada en este entorno. No se ha aprovisionado staging/producción.
 No hay adaptador live de despliegue; el workflow CD se detiene explícitamente.
 El usuario no tiene acceso al Desktop compartido. Se preparó la conexión
-CloudShell/OIDC de solo lectura en `infra/aws/README.md`; falta ejecutarla.
+CloudShell/OIDC de solo lectura en `infra/aws/README.md`; el usuario creó el rol.
+El primer preflight falló al asumirlo porque el repositorio usa sujetos OIDC con
+IDs inmutables. Actualizar el stack con la plantilla corregida y repetir el
+workflow antes de afirmar que la conexión está verificada.
 El código `AWS_VERIFICATION_CODE` pertenece a un intento anterior y no sustituye
 un login nuevo. Para el login interactivo alternativo, usar `source scripts/aws-env.sh`
 antes de las órdenes AWS y reutilizar la caché privada de la misma instancia.

@@ -28,7 +28,9 @@ def test_federation_is_exactly_main_and_read_only() -> None:
     )
     role = template["Resources"]["PreflightRole"]["Properties"]
     trust = role["AssumeRolePolicyDocument"]["Statement"][0]
-    expected_subject = "repo:A-PerfectStranger/special-funicular:ref:refs/heads/main"
+    expected_subject = (
+        "repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main"
+    )
     assert trust["Condition"] == {
         "StringEquals": {
             "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",

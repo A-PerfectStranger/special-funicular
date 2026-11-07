@@ -5,8 +5,8 @@ Techo total 150 USD para TODO el desarrollo y primer despliegue.
 El usuario confirmó saldo suficiente y plazo de financiación hasta el 6 de mayo
 de 2027. El techo del proyecto sigue siendo **150 USD totales**. El importe real
 se mantiene fuera del repositorio público. Falta contrastarlo con AWS y revisar gasto.
-No se han creado
-recursos AWS desde esta sesión. Eso no demuestra gasto cero de la cuenta.
+No se ha aprovisionado aplicación ni BD. El usuario creó el stack OIDC de
+lectura desde CloudShell. Esto no demuestra gasto cero de la cuenta.
 
 ## Distribución propuesta del techo
 
@@ -44,10 +44,17 @@ Budgets/alertas antes de crearlo; la plantilla no ha sido aplicada ni validada p
 
 El usuario confirmó acceso a CloudShell; no puede acceder al Desktop compartido.
 `github-preflight.yaml` crea un rol OIDC de **solo lectura**, confiando exactamente
-en `repo:A-PerfectStranger/special-funicular:ref:refs/heads/main` y audiencia
+en `repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main` y audiencia
 `sts.amazonaws.com`. Solo permite `freetier:GetAccountPlanState` y `ce:GetCostAndUsage`.
 No permite desplegar, modificar IAM, leer secretos o asumir el rol desde PR/forks.
 El proveedor OIDC existente se reutiliza sin modificarlo; si falta, se crea y retiene.
+
+GitHub confirmó mediante `GET /repos/A-PerfectStranger/special-funicular/actions/oidc/customization/sub`
+que `use_immutable_subject=true`, con el prefijo que incluye los IDs de propietario
+y repositorio. Se usa ese sujeto exacto con `:ref:refs/heads/main`; el formato
+antiguo sin IDs no coincide y el primer preflight no pudo asumir el rol.
+No sustituirlo por un wildcard para resolverlo. Un cambio de repositorio o de
+personalización OIDC requiere contrastar los metadatos y actualizar template/pruebas.
 
 Revisar el template/script en el commit que se va a ejecutar y, desde CloudShell:
 
