@@ -21,6 +21,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'light',
   runtimeVersion: '0.1.0',
   updates: { enabled: false },
+  plugins: ['./plugins/withPinnedGradle.cjs'],
   android: {
     package: process.env.ANDROID_PACKAGE_ID ?? 'org.example.retiro.development',
     versionCode: 1,
