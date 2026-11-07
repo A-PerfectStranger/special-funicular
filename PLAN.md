@@ -42,7 +42,7 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 - [x] Inicializar monorepo, estructura, dependencias fijadas, configuración sintética y README de arranque.
 - [x] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
 - [x] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
-- [ ] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno.
+- [x] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno. Generación/firma verificadas en CI; entrega privada y validación en dispositivos se registran aparte.
 - [ ] Crear estructura de CD y validación obligatoria de configuración; conectar staging AWS cuando existan acceso y destino configurados.
 
 Evidencia y pendientes por criterio: `PROGRESS.md` y `docs/E0-acceptance.md`. Los tres primeros ítems tienen evidencia de checks remotos; artefactos/CD se aceptan por separado.

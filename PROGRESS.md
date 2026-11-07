@@ -1,39 +1,49 @@
 # Estado de ejecución y continuidad
 
-Actualizado: 7 de noviembre de 2026, sesión E0. **E0 EN CURSO, no aceptada de extremo a extremo.** No hay despliegue ni retiro real habilitado.
+7 de noviembre de 2026. **E0 parcial; no declarar entrega completa.** Sin recursos AWS, staging, producción ni retiros reales. Unidad de integración: PR1: https://github.com/A-PerfectStranger/special-funicular/pull/1 . La base se integra mediante PR y CI; Toolkit/staging continúan bloqueados. Consultar el estado de PR1 para confirmar la integración.
 
-## Base y decisiones
+## Código y arquitectura
 
-- Remoto verificado con fetch/ls-remote: main `c711ff9ea266b8e797f4c207d813bfd18aae4762`. Solo AGENTS, PLAN y requisitos; no existía PROGRESS. Rama `feat/e0-foundation`, publicada en https://github.com/A-PerfectStranger/special-funicular/pull/1 (borrador). Main no modificado. Código actual `8e3a228f5592191003ccfe016628e5f452788175`.
-- Arquitectura original conservada. Python3.12.14/Django5.2.19 LTS, PostgreSQL16.11, Expo56.0.24/React19.2.3/RN0.85.3. Versiones y lockfiles reales de registros oficiales.
-- AWS elegido por el usuario, créditos **USD150 totales**. No recursos creados, gasto AWS de esta sesión USD0; saldo real sin consultar. Presupuesto y condiciones en docs/aws-budget.md.
-- Repositorio público confirmado vía GitHub. APK interno no se publicará en artifacts/releases públicos; build local firmado debug solo para ensayo. Registro privado/EAS/firma productiva pendientes.
+- Base remota verificada: main `c711ff9ea266b8e797f4c207d813bfd18aae4762`; solo contenía AGENTS/PLAN/requisitos. PROGRESS se creó en esta sesión.
+- Rama publicada `feat/e0-foundation`; último código probado `b0f2a76e13edee7b4cd8849f2f4c1bc4356d86c0` (ver git log para cambios documentales posteriores).
+- Django5.2.19/Python3.12.14, PostgreSQL16.11, Expo56.0.24/React19.2.3/RN0.85.3, JDK17 para APK. Lockfiles versionados. AWS elegido por el usuario, USD150 de créditos **totales**.
+- Backend único modular con templates; core solo contiene base/sondas. Móvil con vistas sintéticas padre/guardia sin sesión ni permisos. Sin Django Admin, QR, autorizaciones o datos de estudiantes. Worker solo `--check`; procesadores de outbox pendientes E1/E4. CA-F/CA-S y AT01–AT08 del producto no se acreditan con E0.
 
-## Implementado, sujeto a verificación final
+## Criterios E0 y evidencia real
 
-Django/templates, live/ready, capabilities v1 con retiro deshabilitado; esqueleto móvil sin PII/QR/sesiones; configuración sintética; PostgreSQL con migrador/runtime separados; Docker no root; contratos JSON; pruebas de fallos/migraciones/permisos; scripts de checks/seguridad; workflows CI/imagen/APK y CD fail-closed; README y runbooks. Worker solo --check: sin procesamiento de outbox aún.
+| Criterio | Estado y evidencia |
+| --- | --- |
+| A0: checkout y comandos | Verificado en checkout limpio de GitHub Actions: instalación bloqueada, migración separada y comandos de README. |
+| A1: Django/templates/health | Verificado: live sin DB, ready200 con PostgreSQL/migraciones, ready503 genérico ante fallo o migración pendiente; no-store; retiro siempre false; configuración externa falla sin secretos/hosts/TLS válidos. |
+| A2: móvil SDK56 | Esqueleto, lint/tsc/test, export Android y prebuild verificados. Plantilla nativa56.0.38 fijada por URL/SHA256. APK nativo, firma y paquete verificados en CI (run42346213379, BUILD SUCCESSFUL); retención local/entrega privada en curso. |
+| A3: CI y seguridad | Run42346213379 job checks verde:16 pruebas con PostgreSQL real/contratos/configuración/integridad OCI, Ruff/formato/mypy, ESLint/tsc/test móvil, export de requirements sincronizado, pip-audit/npm audit0, Gitleaks sin secretos. Runtime sin DDL, TEMP, superusuario, BYPASSRLS, CREATEDB ni CREATEROLE. Actionlint local pasa. RLS de negocio pendiente E1. |
+| A4: imagen/APK por SHA | Imagen OCI construida una vez, cargada también a Docker y smoke con PostgreSQL real; config digest de la imagen probada coincide con OCI. APK de desarrollo generado y verificado en CI; retención privada/local en curso, sin publicación pública. |
+| A5: CD | Estructura y validador implementados; CLI devuelve2 DEPLOY BLOQUEADO. Destinos configured=false; adaptador AWS real, recursos y ensayos de staging pendientes. Workflow bloquea explícitamente, sin permisos/secretos cloud ni éxito ficticio. |
+| A6: documentación/coste | README, contratos, arquitectura, runbooks y presupuesto actualizados. Toolkit no configurado; datos/acceso pendientes. |
 
-## Evidencia observada hasta ahora
+CI del código anterior y fallos corregidos: run42345649621 checks14 e imagen verdes, Android falló por paquete SDK obsoleto tools (sustituido por paquetes explícitos); run42345813117 detectó exportación Docker incompatible con attestations (retiradas; no se promete SBOM/provenance); run42346025225 checks16 verdes, smoke detectó ConnectionResetError durante arranque (retry de OSError limitado30 intentos, corregido). No presentar esos runs fallidos como CI completo aprobado.
 
-- CI remoto desde checkout limpio: https://github.com/A-PerfectStranger/special-funicular/actions/runs/42345649621 y run42345813117, job checks verde. Logs confirman14 pruebas PostgreSQL/contratos/configuración/workflows + lint/tipos/seguridad sin avisos. Run42346025225 también verifica16 pruebas y todos los checks. Se reforzó además la denegación de tablas temporales en la base de test (TEMP revocado igual que base local); CI del cambio pendiente.
-- PostgreSQL real con app_runtime: no superusuario, BYPASSRLS, CREATEDB, CREATEROLE ni CREATE en schema; DDL rechazado. No hay modelos de negocio/RLS hasta E1.
-- `scripts/security.sh`: exit0, pip-audit sin avisos, npm audit0, Gitleaks archivos/historial sin secretos. Se corrigió pytest vulnerable y overrides transitivos npm documentados; no se bajó SDK.
-- `npm run mobile:export`: bundle Android correcto tras overrides. Prebuild con plantilla fijada56.0.38 correcto. Prebuild sin fijar descargaba SDK57; corregido en script por URL+SHA256.
-- Imagen local provisional validó UID10001, home/live/capabilities200 no-store y ready503 con DB inaccesible. Imagen OCI remota del primer CI creada con artefacto backend-9e6f4cc5a14f988f9827738337e9cc9088e832bd (SHA de merge de PR). Segundo CI falló por exportar simultáneamente lista de attestations al formato Docker. Corregido: una plataforma sin attestations, mismo build OCI+Docker y verificación del digest/configuración cargada; smoke con PostgreSQL real agregado. Run42346025225 construye OCI+Docker correctamente; smoke detectó un ConnectionResetError transitorio durante arranque de Gunicorn. Corregido retry de errores de red con límite30 intentos; nuevo CI pendiente.
-- APK local: falló primero por Java sin proxy, luego por ausencia de JDK17. Se instaló JDK17.0.21.0.2 oficial en work con checksum, CA y proxy Java sin desactivar TLS. Compilación nativa en curso, log work/apk-build-jdk17.log. CI Android falló inicialmente porque setup-android solicitaba paquete obsoleto tools; corregido con paquetes explícitos. No APK aceptado todavía.
-- Disco se llenó por Docker vfs durante primeros intentos. Se retiró imagen/contenedor PostgreSQL de esta tarea tras tests; volumen sintético sigue presente. Docker API provisional detenido e imagen retirada para liberar disco. Para repetir suites levantar Compose (volverá a descargar imagen). No hay datos reales afectados.
+## Artefacto backend verificado
 
-## Bloqueos pendientes
+Run: https://github.com/A-PerfectStranger/special-funicular/actions/runs/42346213379 . SHA de merge de PR probado: `c6630a2fdcb472cdef71499bb3e6b40be62e07f3`; corresponde al head b0f2a76 y main base. No confundir SHA del merge de ensayo con SHA de head.
 
-1. Toolkit AWS: CLI ausente, awscli.amazonaws.com bloqueado403. Usuario respondió que está modificando red. Refrescar status y probar nuevo request tras confirmación. Preguntas pendientes: nombre de perfil, experiencia social/proyecto o avanzada, región. Guía exige estos datos y login/asistente humanos. No pedir secretos. Ver docs/runbooks/aws-toolkit.md.
-2. AWS staging/producción no aprovisionados; infra/environments/*.json configured=false. Validación retorna2; CD falla explícitamente. Adaptador AWS real, IaC, OIDC, TLS, permisos, dominios y ensayos aún pendientes. No marcar quinto ítem E0 completo.
-3. APK nativo, firma/paquete y entrega privada pendientes. CI checks verificado, CI completo del código actual pendiente. No confundir bundle con APK.
-4. PR1 borrador publicada; integración a main todavía no realizada. No hay permisos de rama/checks obligatorios configurados/verificados.
+- OCI digest: `sha256:28170f9ef542ff452e5ce2ba24315197923ddb437e2686f743835128f2d43f88`.
+- Config digest verificado contra Docker: `sha256:d719b123b990ead53b70e1270193fd774da164767bc529e424382445980875fb`.
+- Artefacto: https://github.com/A-PerfectStranger/special-funicular/actions/runs/42346213379/artifacts/13563408758 . Contiene OCI, image.json, lista de dependencias y checksum del tar. Expira14/nov/2026. Digest ZIP del artefacto (distinto al OCI): `sha256:8c4d7a2256edea1cdf99c0c1578fa07399665e1eb8ca578c3b9756c348a70d05`.
+- UID10001; APP_ENV por defecto unconfigured bloquea arranque sin configuración explícita. Smoke verifica migración por app_migrator, servicio/worker-check por app_runtime, capacidades false y worker sin handlers rechazado.
 
-## Próximos pasos inmediatos
+## Pendientes y bloqueos
 
-1. Revisar log work/apk-build-jdk17.log y completar build sin desactivar TLS ni proxy; documentar bloqueo si persiste.
-2. Revisión final, corregir problemas, suites13+ y smoke imagen con DB; check limpio independiente si recursos lo permiten.
-3. Código ya publicado; esperar CI de 8e3a228 y registrar digest/checksum de ese candidato. Builds locales iniciales sin commit son provisionales.
-4. Actualizar PR1 y documentación con evidencia final; no integrar con checks fallidos. Mantener E0 pendiente hasta criterios A0–A6 de docs/E0-acceptance.md verificados.
-5. Completar Toolkit y staging solo tras inputs/configuración reales. No habilitar retiros ni cargar datos reales; E1–E5 completamente pendientes.
+1. **AWS Toolkit**: CLI ausente. Tras reinicio del entorno a las06:16 UTC, status seguía revisión1/enforced y sin awscli.amazonaws.com; request nuevo devolvió403 del proxy. Usuario está modificando red. Datos ya solicitados, sin respuesta todavía: perfil CLI, región, experiencia social con proyecto o avanzada. No pedir claves. Login y asistente requieren intervención humana según guía oficial. Estado/runbook: docs/runbooks/aws-toolkit.md. No añadir reglas de experiencia AWS a AGENTS hasta conocer el tipo correcto.
+2. **Staging/CD real**: falta cuenta/acceso/región, destino, dominios/TLS, identidades OIDC/separación de credenciales, infraestructura privada, permisos y ensayos. No cambiar booleanos del JSON para fingir validación. Antes de aprovisionar, plan concreto de recursos/precios/duración dentro de USD150. No hay saldo/facturación verificados, alertas ni recursos creados. Gasto AWS de esta sesión USD0.
+3. **APK**: job android-apk de run42346213379 verde: assembleRelease BUILD SUCCESSFUL en5m31s y verificación apksigner/paquete exitosa. El repositorio es público: CI nunca sube el APK interno a artifacts/releases públicos. Build local se interrumpió al reiniciar durante descarga de NDK; se retiró solo la instalación incompleta y NDK27.1.12297006/CMake3.22.1 ya reinstalados. Se repite build local con SHA b0f2a76; ver work/apk-build-final.log. No confundir éxito CI con una copia retenida del binario. Cuenta/proyecto Expo, firma/ID productivos y destino privado de distribución pendientes; desarrollo usa org.retiroseguro.synthetic y firma debug.
+4. **Integración**: La base verificada se entrega por PR1 y solo se integra con CI completo verde. Reglas de rama/checks obligatorios aún no configuradas/verificadas en ajustes de GitHub. E0 completa sigue bloqueada por Toolkit/staging; no declarar esos controles cumplidos al integrar código.
+
+## Entorno local y continuación
+
+Todo el código y documentos previos al último estado están publicados en la rama; preservar cualquier actualización documental sin commit. `work/` contiene solo herramientas/logs ignorados, no entregables ni credenciales AWS.
+
+- No hay API/worker de aplicación corriendo actualmente. Imagen provisional local retirada para liberar disco. Docker vfs consumió disco durante ensayos; evitar acumular imágenes/cachés innecesarias.
+- Volumen PostgreSQL local sintético de la primera prueba puede persistir con bootstrap anterior al cambio TEMP. Para pruebas actuales, reinicializar **solo ese volumen sintético** según README (down -v + up --wait); nunca aplicar bootstrap local ni este reinicio a AWS/datos reales. CI usa volumen nuevo y ya verifica el bootstrap actual.
+- Herramientas nativas locales: JDK17.0.21.0.2 oficial extraído/verificado en work/jdk-latest; SDK en work/android-sdk; GRADLE_USER_HOME=work/gradle; ANDROID_USER_HOME=work/android-user. Proxy Java y CA de la sesión se configuraron allí con TLS verificado. No copiar configuración de proxy/sesión a artefactos.
+- Retomar: fetch remoto y comprobar árbol; consultar run42346213379 y logs; completar APK/firma/paquete y entrega privada; cerrar revisión/CI del código; actualizar esta tabla y PR con resultados reales. Resolver datos/red de AWS, completar Toolkit y luego IaC/adaptador/staging con presupuesto antes de aceptar E0. E1–E5 siguen pendientes.
