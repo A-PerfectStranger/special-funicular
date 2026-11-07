@@ -56,10 +56,16 @@ jobs:
         with:
           context: .
           build-args: RELEASE_SHA=${{ github.sha }}
-          outputs: type=oci,dest=artifacts/backend-${{ github.sha }}.oci.tar
+          outputs: |
+            type=oci,dest=artifacts/backend-${{ github.sha }}.oci.tar
+            type=docker
           tags: retiro-backend:${{ github.sha }}
           provenance: mode=max
           sbom: true
+      - name: Smoke de la imagen con PostgreSQL real y runtime separado
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: bash scripts/smoke-image.sh
       - name: Manifiesto imagen backend y worker
         env:
           SHA: ${{ github.sha }}
@@ -90,6 +96,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
       - run: npm ci
       - name: APK sintetico firmado con clave debug de desarrollo
         env:
