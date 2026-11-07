@@ -43,13 +43,22 @@ def main() -> None:
         assert resources is not None
         for resource in resources["StackResources"]:
             if (
-                resource["ResourceType"].startswith("AWS::RDS::")
+                resource["ResourceType"] in {"AWS::RDS::DBCluster", "AWS::RDS::DBInstance"}
                 and resource.get("PhysicalResourceId")
                 and resource["ResourceStatus"] not in {"DELETE_COMPLETE", "CREATE_FAILED"}
             ):
-                raise SystemExit(
-                    "BLOCKED: retained RDS resource needs operator recovery; nothing deleted"
+                cluster = resource["ResourceType"] == "AWS::RDS::DBCluster"
+                existing = read(
+                    "rds",
+                    "describe-db-clusters" if cluster else "describe-db-instances",
+                    "--db-cluster-identifier" if cluster else "--db-instance-identifier",
+                    resource["PhysicalResourceId"],
+                    absent="DBClusterNotFoundFault" if cluster else "DBInstanceNotFound",
                 )
+                if existing is not None:
+                    raise SystemExit(
+                        "BLOCKED: retained RDS resource needs operator recovery; nothing deleted"
+                    )
         read("cloudformation", "delete-stack", "--stack-name", "retiro-staging-base")
         subprocess.run(
             [
