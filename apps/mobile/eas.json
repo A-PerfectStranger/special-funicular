@@ -1,0 +1,8 @@
+{
+  "cli": {"version": ">=18.0.0", "appVersionSource": "local"},
+  "build": {
+    "development": {"distribution": "internal", "android": {"buildType": "apk"}, "env": {"APP_ENV": "development"}},
+    "staging": {"distribution": "internal", "android": {"buildType": "apk"}, "env": {"APP_ENV": "staging"}},
+    "production": {"distribution": "internal", "android": {"buildType": "apk"}, "env": {"APP_ENV": "production"}}
+  }
+}

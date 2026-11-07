@@ -1,0 +1,25 @@
+{
+  "name": "retiro-seguro",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/mobile"
+  ],
+  "engines": {
+    "node": ">=24.13.0 <25"
+  },
+  "packageManager": "npm@11.9.0",
+  "scripts": {
+    "lint": "npm run lint --workspace apps/mobile",
+    "typecheck": "npm run typecheck --workspace apps/mobile",
+    "test": "npm run test --workspace apps/mobile && node --test vendor/deepmerge/security.test.cjs",
+    "mobile:start": "npm run start --workspace apps/mobile",
+    "mobile:export": "npm run export --workspace apps/mobile"
+  },
+  "overrides": {
+    "zod": "4.6.7",
+    "glob": "14.0.4",
+    "minimatch@>=7": "11.0.5",
+    "deepmerge": "file:vendor/deepmerge"
+  }
+}

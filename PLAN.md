@@ -14,7 +14,7 @@ Este plan transforma los requisitos en incrementos implementables. Todas las tar
 | Backend | Django modular, PostgreSQL, OIDC/MFA, workers/outbox, KMS y WORM. |
 | Integración | GitHub Actions, checks obligatorios y artefactos vinculados al commit. |
 | Promoción | Staging y pruebas automáticas antes de producción automática, sin aprobación manual rutinaria. |
-| Infraestructura | Proveedor aún sin seleccionar; adaptadores/configuración por entorno, sin asumir AWS. |
+| Infraestructura | AWS seleccionado por el usuario; us-east-1, perfil aesir. Destinos aún sin aprovisionar; crédito total máximo 150 USD. |
 | Operaciones escolares | Escuela verifica los datos; equipo técnico ejecuta bulk, provisioning, bajas y cambios urgentes. |
 
 Se puede empezar repositorio, dominio, API, móvil y CI con datos sintéticos. La falta de proveedor impide conectar el destino real de despliegue y validar sus controles; no impide avanzar en esas tareas. Los adaptadores locales deben identificarse como simulaciones y nunca activarse en producción.
@@ -166,7 +166,7 @@ Estos valores completan la configuración; no reabren la arquitectura. No invent
 | Dato pendiente | Quién lo aporta / efecto |
 | --- | --- |
 | URL `organización/repositorio` y accesos GitHub | Equipo técnico; permite alojar código y activar Actions. |
-| Proveedor, cuenta/proyecto, región y presupuesto operativo | Equipo técnico con responsable del proyecto; habilita IaC y destinos de staging/producción. Sigue sin proveedor elegido. |
+| Proveedor, cuenta/proyecto, región y presupuesto operativo | Equipo técnico con responsable del proyecto; habilita IaC y destinos de staging/producción. AWS elegido; cuenta autenticada y recursos aún pendientes. |
 | Dominio, DNS y certificados | Equipo técnico; URLs API/web y callbacks OIDC reales. |
 | IdP, tenant, issuer, client IDs y métodos MFA | Equipo técnico; configuración de autenticación, enrolamiento y recuperación. |
 | PostgreSQL, WORM, KMS y políticas de retención por categoría | Equipo técnico configura; institución define plazos. Sin plazos no cargar datos reales ni fijar retención productiva irreversible por omisión. |

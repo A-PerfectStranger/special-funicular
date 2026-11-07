@@ -1,0 +1,30 @@
+name: AWS CD configuration gate
+on:
+  workflow_run:
+    workflows: [E0 CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aws-staging-production
+  cancel-in-progress: false
+jobs:
+  validate-targets:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - name: Require configured staging and production
+        run: |
+          python3 scripts/validate_deploy.py infra/environments/staging.json
+          python3 scripts/validate_deploy.py infra/environments/production.json
+      - name: Fail closed until live deployment adapter is commissioned
+        run: |
+          echo '::error::BLOCKED: AWS deployment resources, OIDC trust and live staging acceptance are not commissioned. See docs/runbooks/deployment.md.'
+          exit 2
