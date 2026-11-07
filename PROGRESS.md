@@ -1,51 +1,92 @@
 # Estado de ejecución — 7 de noviembre de 2026
 
-## Resultado real
+## Resultado actual: E0 sigue abierto
 
-Base técnica E0 implementada y verificada. **Cierre operativo pendiente de AWS**:
-no hay staging/producción ni toolkit autenticado. E1–E5 siguen pendientes; ningún
-retiro real está habilitado. No se presenta el bloqueo como despliegue exitoso.
+Base técnica E0 implementada y verificada. **Identidad AWS de lectura conectada
+por OIDC desde GitHub/main**; créditos y vigencia confirmados por AWS.
+**Staging/producción no aprovisionados**: Cost Explorer y Facturas aún no ofrecen
+datos de gasto. AWS indica que Cost Explorer acaba de habilitarse y que hay que
+volver a comprobar en unas 24 horas. No interpretar ausencia de datos como cero.
+E1–E5 pendientes; ningún retiro real habilitado. El toolkit interactivo no está
+instalado/autenticado; OIDC de CI no se presenta como ese login humano.
 
-### Continuación E0 en una instancia nueva — 7 de noviembre
+## Continuación E0 — evidencia actual
 
-- Base actual: `ebfa16a78dab201d665501d88783a1604c0b2e3e`, PR #2 integrado.
+- Base inicial: `ebfa16a78dab201d665501d88783a1604c0b2e3e`, PR #2 integrado.
   CI de main aprobada: https://github.com/A-PerfectStranger/special-funicular/actions/runs/42350965332.
-  CD falló por configuración ausente, como corresponde:
-  https://github.com/A-PerfectStranger/special-funicular/actions/runs/42351497824.
-- `AWS_VERIFICATION_CODE` sí está disponible en esta instancia; no se imprimió.
-  No hay caché del login anterior. La implementación oficial de AWS confirma
-  `state`/PKCE/clave privada por intento: ese código no permite iniciar otro login.
-- CLI oficial 2.39.6 reinstalada en `work/` con firma GPG verificada.
-  STS respondió `NoCredentials`. La herramienta del navegador repitió el fallo
-  `the gaas-browser node_repl sandbox cannot be disabled`; se abrió Chromium por
-  el escritorio compartido y se observó la pantalla de login de AWS. El usuario
-  no puede acceder a Desktop; se canceló ese intento. No hay STS/wizard/MCP/catálogo
-  acreditados ni recursos creados.
-- `scripts/aws-env.sh` fija perfil `aesir`, región y caché privada bajo `work/aws/`;
-  evita que los comandos posteriores pierdan los selectores de login.
-- Se preparó `scripts/verify_staging.py` (RFS09/13/14, CA-S09/13/14): probes de
-  disponibilidad, capabilities exactas, rutas de negocio ausentes, escrituras
-  rechazadas y cabeceras sin cookies. Solo HTTPS/TLS 1.3, sin redirecciones.
-  No registra cuerpos ni excepciones remotas. No sustituye pruebas de IAM,
-  presupuesto, SHA/digest ni funciones E1–E5; advierte el alcance ante proxy TLS.
-  Sus 16 pruebas locales con servidor TLS real pasaron, incluidos DB caída,
-  retiros habilitados, tipos JSON incorrectos, cookies, redirección, falta de
-  cabeceras, certificado no confiable y servidor limitado a TLS 1.2.
-- La base, probes y preflight pasaron `make check` con PostgreSQL real (36 Python y 3 JS,
-  más lint/typechecks, migraciones y Expo). `make security` pasó pip-audit, npm
-  audit y gitleaks de historial/árbol sin hallazgos. cfn-lint validó ambos templates;
-  actionlint 1.7.12 y `bash -n` validaron workflows y scripts shell.
-- Protección de main: HTTP 403 al consultar; no se declara configurada.
-  El usuario confirmó correo de alertas (se mantiene fuera del repo público),
-  saldo declarado suficiente y vencimiento 6 de mayo de 2027; el saldo exacto
-  se mantiene fuera del repo público. Techo del proyecto sigue 150 USD.
-  No hay dominio: se investigará URL administrada por AWS sin comprar uno.
-- El usuario confirmó acceso a CloudShell. Se preparó bootstrap OIDC solo lectura
-  y workflow manual `AWS read-only preflight`, restringidos a main/audiencia STS.
-  Permisos exactos: lectura de plan/créditos y Cost Explorer. El reporte público
-  usa booleanos; no publica saldos, respuestas AWS o credenciales. Pendiente de
-  ejecutar el bootstrap y verificar en AWS, sin presentarlo como conectado.
-  La consulta de cuenta/presupuesto y el adaptador live siguen pendientes.
+- PR #3 integrado en `ab2f360c044a01f8b3dd0a8318ec7c32b0a380c7`, tras CI aprobada:
+  https://github.com/A-PerfectStranger/special-funicular/actions/runs/42385253070.
+  CI de main también aprobada: https://github.com/A-PerfectStranger/special-funicular/actions/runs/42385848874.
+  CD conserva bloqueo real por destinos incompletos, sin deploy ficticio.
+- El usuario ejecutó en CloudShell `bootstrap-aws-preflight.sh` y creó el stack
+  OIDC de lectura. El primer preflight no asumió el rol:
+  https://github.com/A-PerfectStranger/special-funicular/actions/runs/42385863812.
+  Se consultó la personalización OIDC real: `use_immutable_subject=true`.
+  El prefijo contiene IDs de propietario/repositorio. El usuario aplicó la
+  plantilla corregida `c41946ccdcfd2882713a77c7d4c9919c86e3eef0` desde CloudShell;
+  las correcciones y diagnóstico están en PR #4, sin ampliar permisos ni wildcards.
+- Segundo preflight: https://github.com/A-PerfectStranger/special-funicular/actions/runs/42386350234.
+  Artefacto `13579866092`: `account_matches_role=true`,
+  `unrelated_iam_access_denied=true`, `credits_cover_150_usd=true` y
+  `credits_valid_through_2027_05_06=true`; `gross_usage_read=false` y resultado
+  global bloqueado. Sujeto exacto main, audiencia STS y permisos únicamente
+  `freetier:GetAccountPlanState` / `ce:GetCostAndUsage`.
+- El usuario comprobó la consulta CE desde CloudShell: `DataUnavailableException`.
+  Facturas tampoco muestra datos. Cost Explorer confirmó literalmente:
+  “Cost Explorer was just enabled - it will take some time to prepare your cost
+  and usage data. Please check back in 24 hours”. El retraso no se resuelve dando
+  permisos adicionales. Los reportes publican solo booleanos y códigos de error
+  AWS; nunca importes, respuestas financieras, credenciales ni correo de alertas.
+- El usuario confirmó saldo suficiente, plazo hasta el 6 de mayo de 2027 y correo
+  de alertas; los datos privados exactos quedan fuera del repo público. El techo
+  del proyecto sigue siendo 150 USD totales. No se aplicó el presupuesto ni se
+  crearon recursos de aplicación/BD. El stack IAM sí existe; no afirmar coste
+  cero de la cuenta ni que el presupuesto impone un corte rígido.
+- No hay dominio y el usuario delegó la elección. Se consultaron tarifas oficiales
+  `us-east-1`, incluyendo costes de Fargate/ALB/IP/Aurora/KMS/Secrets. Se registran
+  fuentes, SKU y límites en `infra/aws/cost-estimate.md`. App Runner ya no admite
+  clientes nuevos; ECS Express ofrece una URL administrada sin comprar dominio.
+  Es un candidato pendiente de implementación/verificación, no un staging creado.
+
+## Implementación y comprobaciones de esta continuación
+
+- `scripts/verify_staging.py`: probes públicos E0 (RFS09/13/14, CA-S09/13/14).
+  TLS 1.3 y certificado/hostname verificados, sin redirecciones; readiness DB,
+  capabilities exactas, rutas de negocio/admin ausentes, escrituras rechazadas,
+  cabeceras seguras y ausencia de cookies. No registra cuerpos ni excepciones.
+  Sus 16 pruebas usan servidor TLS local real, incluyendo fallo DB, QR habilitado,
+  tipo JSON incorrecto, cookies, redirección, falta de cabeceras, TLS 1.2 y CA no
+  confiable. No son una aceptación de AWS ni certifican IAM/presupuesto/digest.
+- `scripts/aws-env.sh`: CLI/perfil `aesir`/región y caché privada en `work/aws/`.
+  CLI oficial 2.39.6 instalada con firma GPG verificada. La variable
+  `AWS_VERIFICATION_CODE` llegó a esta instancia, sin imprimirse; el código es de
+  otro intento PKCE y no permite iniciar un login nuevo. STS local dio
+  `NoCredentials`. El control de navegador falló con
+  `the gaas-browser node_repl sandbox cannot be disabled`; se abrió Chromium en
+  el escritorio y se observó AWS sign-in, pero el usuario no pudo entrar a Desktop.
+  El intento se canceló y se usó CloudShell/OIDC. No se pidieron claves permanentes.
+- `github-preflight.yaml`, bootstrap CloudShell y workflow manual de lectura
+  (RFS22 / CA-S22). Regresiones de sujeto/audiencia/acciones, aislamiento de
+  credenciales temporales, ausencia de saldos en el reporte y códigos de error
+  redactados. Las denegaciones y datos ausentes mantienen el bloqueo.
+- Validación local final: `make check` con PostgreSQL real, 37 pruebas Python y
+  3 JS, lint/typechecks, migraciones, Django y Expo; `make security` sin hallazgos;
+  cfn-lint para ambos templates, actionlint 1.7.12 y sintaxis Bash.
+  La evidencia de CI por commit se consulta en los PR #3/#4; no atribuir un build
+  a otro SHA ni confundir las pruebas TLS locales con despliegue.
+- Protección de main: consulta HTTP 403. Los checks se ejecutan, pero no se ha
+  acreditado que GitHub imponga la protección de rama.
+
+## Siguiente paso para cerrar E0
+
+1. Cuando AWS publique gasto, repetir `AWS read-only preflight` desde main con el
+   mismo ARN de lectura; no cambiar el secreto del código OAuth ni rehacer login.
+2. Contrastar gasto/saldo con cotización completa, ajustar reserva entre fases y
+   aplicar presupuesto/alertas con el contacto confirmado, sin datos privados en Git.
+3. Preparar/aplicar IaC y permisos separados de despliegue/migración/runtime;
+   implementar el adaptador live y verificar staging por SHA/digest y probes TLS.
+4. Conservar evidencia real por commit antes de marcar staging/E0 terminados.
+   No incorporar datos de escuelas ni habilitar funciones E1–E5.
 
 El resto de este documento conserva la evidencia de la entrega anterior. Los
 artefactos de sus SHA no se atribuyen a los scripts nuevos ni a un deploy AWS.

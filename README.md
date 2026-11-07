@@ -96,8 +96,10 @@ es privado. Para distribución interna en este repositorio falta conectar un des
 No hay código privilegiado ejecutado desde forks ni `pull_request_target`.
 
 CD conserva una estructura serializada y validación obligatoria. Actualmente **falla
-con `BLOCKED/NOT_CONFIGURED`**: falta cuenta autenticada, recursos, OIDC y aceptación
-real de staging. No hay despliegue ni promoción implementados como éxitos ficticios.
+con `BLOCKED/NOT_CONFIGURED`**: OIDC de lectura, cuenta y créditos ya se verificaron,
+pero AWS todavía no ofrece datos de gasto. Faltan presupuesto/alertas aplicados,
+recursos, identidades de despliegue/migración y aceptación real de staging.
+No hay despliegue ni promoción implementados como éxitos ficticios.
 Ver [runbook](docs/runbooks/deployment.md) y [presupuesto AWS](infra/aws/README.md).
 `scripts/verify_staging.py` prepara los probes públicos E0 sobre HTTPS/TLS 1.3,
 con pruebas de fallos mediante un servidor TLS local real. Solo acredita el plano

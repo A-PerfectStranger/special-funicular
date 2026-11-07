@@ -44,9 +44,10 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 - [x] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
 - [x] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno (firma de desarrollo; sin distribución productiva).
 - [x] Crear estructura de CD y validación obligatoria: destinos incompletos fallan con BLOCKED/NOT_CONFIGURED.
-- [ ] Conectar y verificar staging AWS: bloqueado por login/cuenta, recursos, dominio y configuración real. Kit AWS pendiente de autenticación/wizard.
+- [x] Conectar identidad OIDC de lectura para GitHub/main y verificar en AWS cuenta, créditos y denegación de acceso ajeno (evidencia en PROGRESS.md).
+- [ ] Aprovisionar y verificar staging AWS: bloqueado por gasto no disponible en Cost Explorer/Facturas; faltan presupuesto/alertas aplicados, recursos y adaptador live. Kit interactivo aún pendiente.
 
-**Estado:** base técnica y artefactos E0 verificados en GitHub y localmente. Cierre operativo E0 abierto por conexión AWS; no confundirlo con un despliegue exitoso. Evidencia por commit en PROGRESS.md.
+**Estado:** base técnica, artefactos e identidad AWS de lectura verificados. Cierre operativo E0 abierto: AWS confirma créditos/vigencia, pero Cost Explorer devuelve `DataUnavailableException` y Facturas tampoco muestra gasto. No aprovisionar antes de completar la comprobación presupuestaria. No hay staging desplegado. Evidencia por commit en PROGRESS.md.
 
 **Aceptación:** un checkout limpio ejecuta los comandos documentados y CI; artefactos llevan SHA. Sin destino, el estado de deploy es bloqueado/no configurado y no se publica un éxito ficticio.
 
