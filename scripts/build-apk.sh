@@ -22,5 +22,6 @@ cd "$repo_root"
 : "${ANDROID_HOME:?Configurar ANDROID_HOME}"
 "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "artifacts/retiro-synthetic-${RELEASE_SHA}.apk" > "artifacts/apk-signature-${RELEASE_SHA}.txt"
 "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "artifacts/retiro-synthetic-${RELEASE_SHA}.apk" > "work/apk-badging-${RELEASE_SHA}.txt"
-rg -q "package: name='org.retiroseguro.synthetic'" "work/apk-badging-${RELEASE_SHA}.txt"
+badging="$(cat "work/apk-badging-${RELEASE_SHA}.txt")"
+[[ "$badging" == *"package: name='org.retiroseguro.synthetic'"* ]]
 sha256sum "artifacts/retiro-synthetic-${RELEASE_SHA}.apk" > "artifacts/apk-${RELEASE_SHA}.sha256"

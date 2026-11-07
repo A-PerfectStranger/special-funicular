@@ -10,8 +10,8 @@ trap cleanup EXIT
 test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$RELEASE_SHA"
 test "$(docker image inspect "$image" --format '{{.Config.User}}')" = '10001:10001'
 docker compose -p e0 up -d --wait db
-docker run --rm --network e0_default -e DB_HOST=db -e DB_USER=app_migrator -e DB_PASSWORD=synthetic-migrator "$image" python manage.py migrate --noinput
-docker run -d --name e0-api --network e0_default -p 127.0.0.1:8000:8000 -e DB_HOST=db "$image"
+docker run --rm --network e0_default -e APP_ENV=test -e DB_HOST=db -e DB_USER=app_migrator -e DB_PASSWORD=synthetic-migrator "$image" python manage.py migrate --noinput
+docker run -d --name e0-api --network e0_default -p 127.0.0.1:8000:8000 -e APP_ENV=test -e DB_HOST=db "$image"
 python - <<'PY'
 import json
 import time

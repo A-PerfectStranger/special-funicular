@@ -60,18 +60,18 @@ jobs:
             type=oci,dest=artifacts/backend-${{ github.sha }}.oci.tar
             type=docker
           tags: retiro-backend:${{ github.sha }}
-          provenance: mode=max
-          sbom: true
+          provenance: false
+          sbom: false
       - name: Smoke de la imagen con PostgreSQL real y runtime separado
         env:
           RELEASE_SHA: ${{ github.sha }}
         run: bash scripts/smoke-image.sh
-      - name: Manifiesto imagen backend y worker
+      - name: Verificar manifiesto OCI contra imagen probada
         env:
           SHA: ${{ github.sha }}
-          DIGEST: ${{ steps.image.outputs.digest }}
         run: |
-          python -c 'import json,os; from pathlib import Path; Path("artifacts/image.json").write_text(json.dumps({"sha":os.environ["SHA"],"digest":os.environ["DIGEST"],"processes":["api","worker-check-only"]},indent=2))'
+          python scripts/image_manifest.py "$SHA"
+          cp requirements.txt artifacts/backend-dependencies.txt
           sha256sum artifacts/*.tar > artifacts/image.sha256
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

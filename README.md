@@ -52,11 +52,11 @@ Construir solo desde un commit con código limpio para que RELEASE_SHA identifiq
 
 ```sh
 docker build --build-arg RELEASE_SHA=$(git rev-parse HEAD) -t retiro-backend:local .
-docker run --rm --network special-funicular_default -p 127.0.0.1:8000:8000 -e DB_HOST=db retiro-backend:local
-docker run --rm --network special-funicular_default -e DB_HOST=db retiro-backend:local python manage.py worker --check
+docker run --rm --network special-funicular_default -p 127.0.0.1:8000:8000 -e APP_ENV=local -e DB_HOST=db retiro-backend:local
+docker run --rm --network special-funicular_default -e APP_ENV=local -e DB_HOST=db retiro-backend:local python manage.py worker --check
 ```
 
-Adaptar el nombre de red al nombre de proyecto Compose si el directorio difiere. En Codex Cloud con proxy TLS, añadir al build `--secret id=proxy_ca,src=/etc/ssl/certs/ca-certificates.crt`. No deshabilitar verificación TLS. La imagen usa UID10001, misma revisión para API y futuro worker. `worker --check` solo prueba DB; `worker` sin --check falla explícitamente porque outbox aún no está implementado. No hay procesamiento silencioso simulado.
+Adaptar el nombre de red al nombre de proyecto Compose si el directorio difiere. En Codex Cloud con proxy TLS, añadir al build `--secret id=proxy_ca,src=/etc/ssl/certs/ca-certificates.crt`. No deshabilitar verificación TLS. La imagen exige APP_ENV explícito (por defecto unconfigured impide arrancar) y usa UID10001, misma revisión para API y futuro worker. `worker --check` solo prueba DB; `worker` sin --check falla explícitamente porque outbox aún no está implementado. No hay procesamiento silencioso simulado.
 
 ```sh
 export ANDROID_HOME=/ruta/al/android-sdk
@@ -66,7 +66,7 @@ bash scripts/build-apk.sh
 
 El script descarga una plantilla Expo56 por URL/checksum, regenera solo android ignorado, produce release arm64 con bundle embebido y firma **debug de desarrollo**, y escribe APK/checksum con SHA en artifacts/. Nunca usar esa clave para producción. No requiere cuenta Expo para build nativo local. eas.json prepara perfil interno de desarrollo; EAS real requiere cuenta/proyecto y su CLI/configuración verificadas, todavía pendientes. Package ID provisional sintético `org.retiroseguro.synthetic`; producción tendrá ID/firma custodiados y configuración propia.
 
-CI construye imagen OCI con digest/provenance/SBOM y APK por SHA. Los APK solo se suben como artifacts cuando el repositorio es privado. Este repositorio es público: el job informa distribución privada pendiente, sin publicar APK en enlaces públicos. Publicación no equivale a instalación en teléfonos.
+CI construye imagen OCI con digest verificado contra la configuración de imagen cargada y lista de dependencias y APK por SHA. Los APK solo se suben como artifacts cuando el repositorio es privado. Este repositorio es público: el job informa distribución privada pendiente, sin publicar APK en enlaces públicos. Publicación no equivale a instalación en teléfonos.
 
 ## AWS y CD
 
