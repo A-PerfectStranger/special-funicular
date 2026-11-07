@@ -37,5 +37,8 @@ v=tuple(map(int,sys.argv[1].split('.')[:2])); assert v>=(16,3), 'BLOCKED: auto-p
 PY
 [[ "$(aws rds describe-orderable-db-instance-options --region us-east-1 --engine aurora-postgresql --engine-version "$retiro_engine" --db-instance-class db.serverless --query 'length(OrderableDBInstanceOptions)' --output text)" -gt 0 ]] || { echo 'BLOCKED: serverless not orderable'; exit 2; }
 aws cloudformation validate-template --region us-east-1 --template-body "file://$retiro_stage_dir/staging-base.json" >/dev/null
-aws cloudformation deploy --region us-east-1 --stack-name retiro-staging-base --template-file "$retiro_stage_dir/staging-base.json" --capabilities CAPABILITY_NAMED_IAM --parameter-overrides "EngineVersion=$retiro_engine" --tags Project=retiro-seguro Environment=staging --no-fail-on-empty-changeset
+curl --proto '=https' --tlsv1.3 -fsSL "https://raw.githubusercontent.com/A-PerfectStranger/special-funicular/$1/scripts/prepare_staging_account.py" -o "$retiro_stage_dir/prepare.py"
+python3 "$retiro_stage_dir/prepare.py" > "$retiro_stage_dir/existing-parameters.txt"
+mapfile -t retiro_existing_parameters < "$retiro_stage_dir/existing-parameters.txt"
+aws cloudformation deploy --region us-east-1 --stack-name retiro-staging-base --template-file "$retiro_stage_dir/staging-base.json" --capabilities CAPABILITY_NAMED_IAM --parameter-overrides "EngineVersion=$retiro_engine" "${retiro_existing_parameters[@]}" --tags Project=retiro-seguro Environment=staging --no-fail-on-empty-changeset
 aws cloudformation describe-stacks --region us-east-1 --stack-name retiro-staging-base --query 'Stacks[0].Outputs[?OutputKey==`Deploy` || OutputKey==`Migrate`]' --output table

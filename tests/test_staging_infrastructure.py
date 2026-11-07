@@ -25,7 +25,10 @@ def test_runtime_execution_cannot_read_migration_or_master_credentials() -> None
     secrets = next(p for p in policies if p["Action"] == ["secretsmanager:GetSecretValue"])[
         "Resource"
     ]
-    assert secrets == [{"Ref": "RuntimePassword"}, {"Ref": "DjangoSecret"}]
+    assert secrets == [
+        {"Fn::If": ["Create" + name, {"Ref": name}, {"Ref": "Existing" + name}]}
+        for name in ["RuntimePassword", "DjangoSecret"]
+    ]
     for name in ["Deploy", "Migrate"]:
         trust = resources[name]["Properties"]["AssumeRolePolicyDocument"]["Statement"][0]
         assert (

@@ -5,6 +5,21 @@
     "EngineVersion": {
       "Type": "String",
       "AllowedPattern": "[0-9]+\\.[0-9]+.*"
+    },
+    "ExistingRuntimePassword": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/.*"
+    },
+    "ExistingMigrationPassword": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/.*"
+    },
+    "ExistingDjangoSecret": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/.*"
     }
   },
   "Resources": {
@@ -393,7 +408,8 @@
         ]
       },
       "DeletionPolicy": "Retain",
-      "UpdateReplacePolicy": "Retain"
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateRuntimePassword"
     },
     "MigrationPassword": {
       "Type": "AWS::SecretsManager::Secret",
@@ -415,7 +431,8 @@
         ]
       },
       "DeletionPolicy": "Retain",
-      "UpdateReplacePolicy": "Retain"
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateMigrationPassword"
     },
     "DjangoSecret": {
       "Type": "AWS::SecretsManager::Secret",
@@ -437,7 +454,8 @@
         ]
       },
       "DeletionPolicy": "Retain",
-      "UpdateReplacePolicy": "Retain"
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateDjangoSecret"
     },
     "Repository": {
       "Type": "AWS::ECR::Repository",
@@ -558,10 +576,26 @@
                   ],
                   "Resource": [
                     {
-                      "Ref": "RuntimePassword"
+                      "Fn::If": [
+                        "CreateRuntimePassword",
+                        {
+                          "Ref": "RuntimePassword"
+                        },
+                        {
+                          "Ref": "ExistingRuntimePassword"
+                        }
+                      ]
                     },
                     {
-                      "Ref": "DjangoSecret"
+                      "Fn::If": [
+                        "CreateDjangoSecret",
+                        {
+                          "Ref": "DjangoSecret"
+                        },
+                        {
+                          "Ref": "ExistingDjangoSecret"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -641,10 +675,26 @@
                   ],
                   "Resource": [
                     {
-                      "Ref": "MigrationPassword"
+                      "Fn::If": [
+                        "CreateMigrationPassword",
+                        {
+                          "Ref": "MigrationPassword"
+                        },
+                        {
+                          "Ref": "ExistingMigrationPassword"
+                        }
+                      ]
                     },
                     {
-                      "Ref": "DjangoSecret"
+                      "Fn::If": [
+                        "CreateDjangoSecret",
+                        {
+                          "Ref": "DjangoSecret"
+                        },
+                        {
+                          "Ref": "ExistingDjangoSecret"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -730,13 +780,37 @@
                       ]
                     },
                     {
-                      "Ref": "RuntimePassword"
+                      "Fn::If": [
+                        "CreateRuntimePassword",
+                        {
+                          "Ref": "RuntimePassword"
+                        },
+                        {
+                          "Ref": "ExistingRuntimePassword"
+                        }
+                      ]
                     },
                     {
-                      "Ref": "MigrationPassword"
+                      "Fn::If": [
+                        "CreateMigrationPassword",
+                        {
+                          "Ref": "MigrationPassword"
+                        },
+                        {
+                          "Ref": "ExistingMigrationPassword"
+                        }
+                      ]
                     },
                     {
-                      "Ref": "DjangoSecret"
+                      "Fn::If": [
+                        "CreateDjangoSecret",
+                        {
+                          "Ref": "DjangoSecret"
+                        },
+                        {
+                          "Ref": "ExistingDjangoSecret"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -1077,17 +1151,41 @@
     },
     "RuntimePassword": {
       "Value": {
-        "Ref": "RuntimePassword"
+        "Fn::If": [
+          "CreateRuntimePassword",
+          {
+            "Ref": "RuntimePassword"
+          },
+          {
+            "Ref": "ExistingRuntimePassword"
+          }
+        ]
       }
     },
     "MigrationPassword": {
       "Value": {
-        "Ref": "MigrationPassword"
+        "Fn::If": [
+          "CreateMigrationPassword",
+          {
+            "Ref": "MigrationPassword"
+          },
+          {
+            "Ref": "ExistingMigrationPassword"
+          }
+        ]
       }
     },
     "DjangoSecret": {
       "Value": {
-        "Ref": "DjangoSecret"
+        "Fn::If": [
+          "CreateDjangoSecret",
+          {
+            "Ref": "DjangoSecret"
+          },
+          {
+            "Ref": "ExistingDjangoSecret"
+          }
+        ]
       }
     },
     "Cluster": {
@@ -1123,6 +1221,32 @@
       "Value": {
         "Ref": "Logs"
       }
+    }
+  },
+  "Conditions": {
+    "CreateRuntimePassword": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingRuntimePassword"
+        },
+        ""
+      ]
+    },
+    "CreateMigrationPassword": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingMigrationPassword"
+        },
+        ""
+      ]
+    },
+    "CreateDjangoSecret": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingDjangoSecret"
+        },
+        ""
+      ]
     }
   }
 }
