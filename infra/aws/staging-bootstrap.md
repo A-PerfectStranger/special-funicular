@@ -97,7 +97,10 @@ inicial de CloudShell, no promoción manual rutinaria de producción.
 El CD posterior toma el mismo artefacto de CI y digest ECR, migra con el rol Migrate,
 despliega con Deploy y comprueba runtime/health/TLS antes de considerar staging
 aprobado. Rechaza candidatos que ya no son el último main antes de cada mutación,
-y serializa el workflow sin cancelar migraciones. Espera que todas las tareas de
+y serializa el workflow sin cancelar migraciones. El comando privado
+`migrate_locked` exige la identidad SQL migradora y mantiene un advisory lock
+de sesión PostgreSQL hasta completar la migración, incluso si otro runner
+comienza después de que expire la espera externa. Espera que todas las tareas de
 servicio usen la nueva definición; ACTIVE de Express por sí solo no acredita el
 final de una canary. Acepta digest de índice OCI o su manifest Linux amd64 solo
 tras verificar el hash del índice y la pertenencia criptográfica del hijo.

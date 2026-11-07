@@ -83,7 +83,9 @@ def main() -> None:
     env.update(PGUSER="retiro_migrator", PGPASSWORD=os.environ["MIGRATOR_PASSWORD"])
     for key in ["MIGRATOR_PASSWORD", "RUNTIME_PASSWORD"]:
         env.pop(key, None)
-    subprocess.run([sys.executable, "manage.py", "migrate", "--noinput"], env=env, check=True)
+    subprocess.run(
+        [sys.executable, "manage.py", "migrate_locked", "--noinput"], env=env, check=True
+    )
     env.update(PGUSER="retiro_runtime", PGPASSWORD=os.environ["RUNTIME_PASSWORD"])
     subprocess.run([sys.executable, "manage.py", "runworker", "--check"], env=env, check=True)
     print(

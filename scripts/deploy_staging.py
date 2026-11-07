@@ -21,7 +21,7 @@ def migration_definition(outputs: dict[str, str], image: str, sha: str) -> dict[
     task["executionRoleArn"] = outputs["MigrationExecution"]
     container = task["containerDefinitions"][0]
     container.pop("portMappings", None)
-    container["command"] = ["python", "manage.py", "migrate", "--noinput"]
+    container["command"] = ["python", "manage.py", "migrate_locked", "--noinput"]
     for item in container["environment"]:
         if item["name"] == "PGUSER":
             item["value"] = "retiro_migrator"

@@ -56,7 +56,7 @@ def test_migration_task_cannot_carry_root_or_runtime_secrets() -> None:
     assert task["family"] == "retiro-staging-migrate"
     assert "portMappings" not in container
     assert {s["valueFrom"] for s in container["secrets"]} == {"MigrationPassword", "DjangoSecret"}
-    assert container["command"] == ["python", "manage.py", "migrate", "--noinput"]
+    assert container["command"] == ["python", "manage.py", "migrate_locked", "--noinput"]
 
 
 def test_index_provenance_selects_only_linux_amd64(monkeypatch: pytest.MonkeyPatch) -> None:

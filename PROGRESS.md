@@ -11,6 +11,29 @@ abajo ya no son el impedimento actual. No presentar la preparación como deploy.
 E1–E5 pendientes; ningún retiro real habilitado. El toolkit interactivo no está
 instalado/autenticado; OIDC de CI no se presenta como ese login humano.
 
+## Comisión actual: PostgreSQL privado y ventana limitada
+
+- Preflight completo aprobado: [42420579085](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42420579085).
+  Presupuesto total creado desde CloudShell; no publica correo ni importes de cuenta.
+- La cuenta Free Plan rechazó Aurora sin Express Configuration. Ese modo obliga
+  a una pasarela de Internet y no admite la VPC privada requerida. Se reemplazó
+  por RDS PostgreSQL 17 privado, cifrado, db.t4g.micro/20 GB, sin ampliar el plan.
+  Fuente y costes residuales en `infra/aws/staging-bootstrap.md`.
+- IaC `0579bf3c330e8861ba3276defc771cc084d82f61` aprobó los checks required,
+  quality, backend-image y development-apk del PR #5. El reintento de CloudShell
+  está pendiente de resultado; todavía no hay aceptación de staging.
+- Guarda horaria de parada de RDS fuera de la ventana activa; retirada del
+  servicio Express a tres horas. La base retenida conserva coste de storage,
+  backups y secretos: detener compute no acredita coste cero.
+- CD separa Deploy/Migrate, verifica SHA/digest y la red ALB→tarea real, y espera
+  tareas nuevas antes de aceptar canary. Las migraciones usan un advisory lock
+  PostgreSQL bajo la identidad migradora; no se cancelan al llegar otro commit.
+- Último `make check`: 59 pruebas Python y 3 JS, PostgreSQL real, lint/tipos,
+  cfn-lint, migraciones, Django y Expo aprobados. Esto es evidencia local;
+  las pruebas de nube siguen pendientes.
+- La API de rama confirmó main protegido y check obligatorio `required`.
+  Los 403 históricos al endpoint detallado no significan ausencia de protección.
+
 ## Continuación E0 — evidencia actual
 
 - Base inicial: `ebfa16a78dab201d665501d88783a1604c0b2e3e`, PR #2 integrado.
