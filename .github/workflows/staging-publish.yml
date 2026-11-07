@@ -1,0 +1,36 @@
+name: Publish approved E0 image to staging
+on:
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        type: string
+        required: true
+        description: Successful E0 CI main push run
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+concurrency:
+  group: staging-image-publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - run: sudo apt-get update && sudo apt-get install -y skopeo
+      - name: Publish and verify approved digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+        run: python3 scripts/aws_oidc.py --role Deploy -- python3 scripts/publish_staging.py --run-id "$CI_RUN_ID"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: staging-published-image
+          path: work/published-image.json
+          if-no-files-found: error
+          retention-days: 7

@@ -52,3 +52,29 @@ coste residual reservado. No afirmar gasto cero por detenerla.
 red privada, cifrado, capacidad y separación de secretos. Estos checks no son
 una prueba de IAM/RDS real. El bootstrap valida también la plantilla en AWS antes
 de aplicarla y devuelve los ARN de Deploy/Migrate; no devuelve claves.
+
+## Estado de la aplicación inicial
+
+El presupuesto se creó realmente desde CloudShell. El primer stack de base falló
+en ECS por ausencia/propagación de `AWSServiceRoleForECS`, antes de publicar API.
+`prepare_staging_account.py` comprueba/crea esa identidad de servicio. Solo elimina
+un stack `ROLLBACK_COMPLETE` si no conserva recursos RDS; los secretos retenidos
+se reutilizan por ARN tras comprobar etiqueta Project y ausencia de borrado
+pendiente. No se leen valores ni se destruyen secretos para reintentar.
+
+`staging-publish.yml` publica exclusivamente artefactos OCI de un `E0 CI` aprobado,
+disparado por push en main del repositorio esperado. Comprueba SHA/checksum y
+conserva/verifica digest en ECR. OIDC efímero bajo el rol Deploy, sin claves en
+GitHub. Este workflow manual de comisión publica una imagen; no afirma despliegue.
+
+La imagen incorpora el bundle CA regional oficial de RDS en `/app/rds-ca.pem`.
+Las tareas cloud usarán `PGSSLMODE=verify-full` y `PGSSLROOTCERT` con esa ruta.
+`TRUSTED_INGRESS=ecs-express` habilita confianza en X-Forwarded-Proto solo tras
+restringir ingreso de la tarea al ALB administrado. No habilitarlo con ingreso
+directo a la tarea. Liveness se exime de redirect para la sonda privada de ALB;
+la entrada pública debe seguir usando TLS 1.3 verificado.
+
+El comando SQL privado de comisión verifica TLS real, RLS forzada con dos escuelas
+sintéticas, ausencia de fuga transaccional y denegación de mutaciones/DDL para
+runtime. Ejecuta migración con credencial distinta y diagnóstico worker; no
+arranca un worker ficticio: los handlers E1/E4 siguen pendientes.

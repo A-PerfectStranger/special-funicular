@@ -7,6 +7,7 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then export SSL_CERT_FILE=/run/secrets/proxy_ca; fi; \
     uv sync --frozen --no-dev --no-cache
+COPY --chmod=0444 infra/aws/rds-ca.pem /app/rds-ca.pem
 COPY --chmod=0555 apps/backend ./apps/backend
 ARG GIT_SHA
 LABEL org.opencontainers.image.revision=$GIT_SHA

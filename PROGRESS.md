@@ -191,3 +191,15 @@ claves retenidas para ahorrar.
 4. Configurar custodia/firma estable y destino privado de APK; build no equivale a instalación.
 5. Avanzar E1: IdP/MFA, modelos, RLS de dominio, evidencia y WORM/KMS reales sintéticos.
    Ningún requisito E1–E5 queda implementado por esta base E0.
+
+## Reanudación: Cost Explorer disponible
+
+El usuario confirmó disponibilidad y el preflight completo aprobó:
+https://github.com/A-PerfectStranger/special-funicular/actions/runs/42420579085.
+El presupuesto `retiro-seguro-budget` se creó desde CloudShell. El primer stack
+`retiro-staging-base` falló al crear ECS Cluster: no pudo asumir el rol de servicio
+ECS. Se preparó recuperación que comprueba/crea AWSServiceRoleForECS y preserva
+secretos retenidos; se solicitó ejecutar `ef3f2d0c00e5a459bdd617a9d66204bdce0ab362`.
+La base tiene validación estática, pero no se presenta como aprovisionada aún.
+Publicador de imagen por digest, CA RDS e ingreso explícito están preparados;
+faltan comisión SQL y despliegue/probes reales. E0 permanece abierto.

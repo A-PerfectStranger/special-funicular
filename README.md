@@ -108,3 +108,8 @@ presupuesto o procedencia del artefacto. No se ha ejecutado contra AWS.
 
 Los requisitos de producto permanecen en `Requerimientos_retiro_seguro_estudiantes.md`;
 `PLAN.md` fija E0–E5 y `AGENTS.md` las convenciones de trabajo.
+
+La preparación actual de staging se documenta en
+[bootstrap sintético](infra/aws/staging-bootstrap.md). El preflight de facturación
+ya pasó; el presupuesto existe, pero la base y publicación deben verificarse
+contra AWS antes de cerrar E0. CI valida también `infra/aws/staging-base.json`.
