@@ -41,6 +41,8 @@ def test_runtime_cannot_escalate_or_create_tables() -> None:
         assert cursor.fetchone() == (False,)
     with pytest.raises(ProgrammingError), transaction.atomic(), connection.cursor() as cursor:
         cursor.execute("CREATE TABLE forbidden_table (id integer)")
+    with pytest.raises(ProgrammingError), transaction.atomic(), connection.cursor() as cursor:
+        cursor.execute("CREATE TEMPORARY TABLE forbidden_temp_table (id integer)")
 
 
 def test_e0_has_no_operational_endpoints(client: Client) -> None:

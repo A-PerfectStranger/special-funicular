@@ -16,7 +16,6 @@ python - <<'PY'
 import json
 import time
 from urllib.request import urlopen
-from urllib.error import URLError
 for attempt in range(30):
     try:
         with urlopen('http://127.0.0.1:8000/health/ready', timeout=5) as response:
@@ -24,7 +23,7 @@ for attempt in range(30):
             assert json.load(response) == {'status': 'ready'}
             assert response.headers['Cache-Control'] == 'no-store'
         break
-    except URLError:
+    except OSError:
         time.sleep(1)
 else:
     raise SystemExit('Imagen no alcanzo readiness')

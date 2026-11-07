@@ -13,6 +13,8 @@ ALTER DEFAULT PRIVILEGES FOR ROLE app_migrator IN SCHEMA public GRANT USAGE, SEL
 -- E0 solo contiene tablas operativas de sesiones. En E1, grants por tabla/funcion;
 -- NO crear evidencia bajo estos default privileges.
 \connect test_retiro_synthetic
+REVOKE ALL ON DATABASE test_retiro_synthetic FROM PUBLIC;
+GRANT CONNECT ON DATABASE test_retiro_synthetic TO app_runtime;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO app_runtime;
 ALTER DEFAULT PRIVILEGES FOR ROLE app_migrator IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;

@@ -39,11 +39,13 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 
 ### E0 — Base y pipeline inicial
 
-- [ ] Inicializar monorepo, estructura, dependencias fijadas, configuración sintética y README de arranque.
-- [ ] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
-- [ ] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
+- [x] Inicializar monorepo, estructura, dependencias fijadas, configuración sintética y README de arranque.
+- [x] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
+- [x] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
 - [ ] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno.
 - [ ] Crear estructura de CD y validación obligatoria de configuración; conectar staging AWS cuando existan acceso y destino configurados.
+
+Evidencia y pendientes por criterio: `PROGRESS.md` y `docs/E0-acceptance.md`. Los tres primeros ítems tienen evidencia de checks remotos; artefactos/CD se aceptan por separado.
 
 **Aceptación:** un checkout limpio ejecuta los comandos documentados y CI; artefactos llevan SHA. Sin destino, el estado de deploy es bloqueado/no configurado y no se publica un éxito ficticio.
 
