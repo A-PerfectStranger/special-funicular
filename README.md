@@ -57,9 +57,14 @@ procedencia, límites y cuándo retirarla; npm audit no analiza ese código loca
 Para APK, instalar SDK `platforms;android-36`, `build-tools;36.0.0`,
 `ndk;27.1.12297006` y `cmake;3.22.1`, aceptar sus licencias y exportar
 `ANDROID_HOME`. El wrapper fija Gradle y la plantilla Expo se fija a
-`expo-template-bare-minimum@56.0.38`. El APK debug requiere Metro (`npm run mobile:start`)
-y conexión local; **no es una release productiva ni acredita prueba en teléfono**.
+`expo-template-bare-minimum@56.0.38`. Se compila la variante release con bundle
+incluido, **firmada solo con la clave debug/de desarrollo** de la plantilla.
+No requiere Metro; sin endpoint configurado muestra servicio no disponible.
+**No es una release productiva ni acredita prueba en teléfono**.
 Salida: `work/artifacts/mobile-development-<SHA>.apk` y manifiesto SHA-256.
+`make apk` y `make image` exigen un árbol limpio para identificar el código real
+por su commit. La configuración fija Gradle 8.14.3 con checksum oficial para
+evitar la incompatibilidad de Foojay/RN 0.85 con Gradle 9.
 `eas.json` define los perfiles futuros; cuenta Expo, firma estable y package IDs cloud
 siguen sin configurar. OTA permanece deshabilitado.
 

@@ -32,6 +32,7 @@ mobile:
 apk:
 	bash scripts/build-apk.sh
 image:
+	test -z "$$(git status --porcelain --untracked-files=normal)"
 	docker build --secret id=proxy_ca,src=/etc/ssl/certs/ca-certificates.crt --build-arg GIT_SHA=$$(git rev-parse HEAD) -t retiro-backend:$$(git rev-parse HEAD) .
 security:
 	mkdir -p work

@@ -100,7 +100,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
-      - name: Compile arm64 development APK with SDK 56 and debug signing
+      - name: Compile standalone arm64 development APK with SDK 56 and debug signing
         env:
           GIT_SHA: ${{ github.sha }}
         run: bash scripts/build-apk.sh
