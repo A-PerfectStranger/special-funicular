@@ -10,12 +10,9 @@ def test_staging_database_is_private_encrypted_and_bounded() -> None:
     assert db["StorageEncrypted"] is True
     assert db["BackupRetentionPeriod"] == 1
     assert db["DeletionProtection"] is True
-    assert db["ServerlessV2ScalingConfiguration"] == {
-        "MinCapacity": 0,
-        "MaxCapacity": 1,
-        "SecondsUntilAutoPause": 300,
-    }
-    assert resources["DbInstance"]["Properties"]["PubliclyAccessible"] is False
+    assert db["DBInstanceClass"] == "db.t4g.micro"
+    assert db["AllocatedStorage"] == "20"
+    assert db["PubliclyAccessible"] is False
     assert resources["Database"]["DeletionPolicy"] == "Retain"
     assert "SecurityGroupIngress" not in resources["AppSecurityGroup"]["Properties"]
 

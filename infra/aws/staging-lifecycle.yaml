@@ -1,5 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Synthetic staging expiry and narrowly scoped lifecycle permissions
+Parameters:
+  StopNotBefore:
+    Type: String
+    Description: UTC ISO8601 end of initial active staging window
 Resources:
   Expiry:
     Type: AWS::IAM::Role
@@ -24,7 +28,23 @@ Resources:
               - Effect: Allow
                 Action: ecs:DeleteExpressGatewayService
                 Resource: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/retiro-staging/retiro-api
+              - Effect: Allow
+                Action: rds:StopDBInstance
+                Resource: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:retiro-staging
       Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: staging}]
+  DatabaseIdleGuard:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: retiro-staging-db-idle-guard
+      ScheduleExpression: rate(1 hour)
+      ScheduleExpressionTimezone: UTC
+      StartDate: !Ref StopNotBefore
+      FlexibleTimeWindow: {Mode: 'OFF'}
+      Target:
+        Arn: arn:aws:scheduler:::aws-sdk:rds:stopDBInstance
+        RoleArn: !GetAtt Expiry.Arn
+        Input: '{"DbInstanceIdentifier":"retiro-staging"}'
+        RetryPolicy: {MaximumEventAgeInSeconds: 60, MaximumRetryAttempts: 0}
   LifecyclePermissions:
     Type: AWS::IAM::Policy
     Properties:
@@ -39,13 +59,24 @@ Resources:
             Condition:
               StringEquals: {aws:RequestTag/Project: retiro-seguro}
           - Effect: Allow
-            Action: [scheduler:CreateSchedule, scheduler:GetSchedule, scheduler:DeleteSchedule]
+            Action: [scheduler:CreateSchedule, scheduler:GetSchedule, scheduler:UpdateSchedule, scheduler:DeleteSchedule]
             Resource: !Sub arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/retiro-staging-expiry-*
+          - Effect: Allow
+            Action: [scheduler:GetSchedule, scheduler:UpdateSchedule]
+            Resource: !Sub arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/retiro-staging-db-idle-guard
+          - Effect: Allow
+            Action: [rds:DescribeDBInstances, rds:StartDBInstance]
+            Resource: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:retiro-staging
           - Effect: Allow
             Action: iam:PassRole
             Resource: !GetAtt Expiry.Arn
             Condition:
               StringEquals: {iam:PassedToService: scheduler.amazonaws.com}
+          - Effect: Allow
+            Action: [ec2:DescribeSecurityGroups, elasticloadbalancing:DescribeTargetGroups, elasticloadbalancing:DescribeLoadBalancers]
+            Resource: '*'
+            Condition:
+              StringEquals: {aws:RequestedRegion: us-east-1}
           - Effect: Allow
             Action: cloudformation:DescribeStacks
             Resource: !Sub arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-lifecycle/*

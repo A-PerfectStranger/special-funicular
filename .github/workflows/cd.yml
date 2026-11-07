@@ -32,9 +32,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CI_RUN_ID: ${{ github.event.workflow_run.id }}
         run: python3 scripts/aws_oidc.py --role Deploy -- python3 scripts/publish_staging.py --run-id "$CI_RUN_ID"
-  migrate:
+  prepare:
     permissions: {contents: read, id-token: write}
     needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.publish.outputs.sha }}
+          persist-credentials: false
+      - name: Open bounded active window for private RDS
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+        run: python3 scripts/aws_oidc.py --role Deploy -- python3 -m scripts.prepare_staging_run --sha "$RELEASE_SHA"
+  migrate:
+    permissions: {contents: read, id-token: write}
+    needs: [publish, prepare]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

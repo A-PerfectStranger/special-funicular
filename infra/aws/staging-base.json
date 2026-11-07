@@ -327,32 +327,31 @@
       }
     },
     "Database": {
-      "Type": "AWS::RDS::DBCluster",
+      "Type": "AWS::RDS::DBInstance",
       "Properties": {
-        "DBClusterIdentifier": "retiro-staging",
-        "DatabaseName": "retiro",
-        "Engine": "aurora-postgresql",
+        "DBInstanceIdentifier": "retiro-staging",
+        "DBName": "retiro",
+        "Engine": "postgres",
         "EngineVersion": {
           "Ref": "EngineVersion"
         },
+        "DBInstanceClass": "db.t4g.micro",
+        "AllocatedStorage": "20",
+        "StorageType": "gp3",
         "MasterUsername": "retiro_bootstrap",
         "ManageMasterUserPassword": true,
         "StorageEncrypted": true,
         "BackupRetentionPeriod": 1,
         "DeletionProtection": true,
+        "PubliclyAccessible": false,
         "DBSubnetGroupName": {
           "Ref": "DbSubnets"
         },
-        "VpcSecurityGroupIds": [
+        "VPCSecurityGroups": [
           {
             "Ref": "DbSecurityGroup"
           }
         ],
-        "ServerlessV2ScalingConfiguration": {
-          "MinCapacity": 0,
-          "MaxCapacity": 1,
-          "SecondsUntilAutoPause": 300
-        },
         "Tags": [
           {
             "Key": "Project",
@@ -366,27 +365,6 @@
       },
       "DeletionPolicy": "Retain",
       "UpdateReplacePolicy": "Retain"
-    },
-    "DbInstance": {
-      "Type": "AWS::RDS::DBInstance",
-      "Properties": {
-        "DBClusterIdentifier": {
-          "Ref": "Database"
-        },
-        "DBInstanceClass": "db.serverless",
-        "Engine": "aurora-postgresql",
-        "PubliclyAccessible": false,
-        "Tags": [
-          {
-            "Key": "Project",
-            "Value": "retiro-seguro"
-          },
-          {
-            "Key": "Environment",
-            "Value": "staging"
-          }
-        ]
-      }
     },
     "RuntimePassword": {
       "Type": "AWS::SecretsManager::Secret",

@@ -12,9 +12,10 @@ total de 150 USD con las cinco alertas existentes y después la base CloudFormat
 
 - VPC dedicada, subredes públicas para tareas/ingreso y privadas para PostgreSQL,
   sin NAT Gateway ni acceso público a la base.
-- Aurora PostgreSQL Serverless v2 cifrado, backup/PITR de ensayo 1 día, auto-pause a 0 ACU tras
-  300 s sin conexiones y máximo 1 ACU; motor seleccionado por la API regional,
-  verificado como disponible y fijado como parámetro del stack.
+- RDS PostgreSQL 17 privado y cifrado, db.t4g.micro/20 GB, backup de ensayo de
+  un día. Motor disponible seleccionado por la API regional y fijado por parámetro.
+  Parada programada independiente del stack de datos, para no dejar compute
+  encendido tras los ensayos ni después del reinicio automático de siete días.
 - Contraseñas/clave Django en Secrets Manager, cifrado KMS administrado por AWS.
   La credencial API solo permite leer su contraseña y clave Django; la credencial
   de migración y el bootstrap inicial tienen permisos separados. No son aún los
@@ -28,23 +29,24 @@ No crea servicio API/ALB todavía. Eso requiere publicar el artefacto aprobado,
 crear roles SQL con la tarea privada de bootstrap, aplicar migraciones y verificar
 canal/aislamiento; se completa durante la comisión de staging. La base y secretos
 se retienen ante borrado/reemplazo; no hay borrados genéricos ni evidencia WORM.
-La protección contra borrado de Aurora está habilitada.
+La protección contra borrado de RDS está habilitada.
 
 ## Coste y límites
 
-Tarifas oficiales/SKU en `cost-estimate.md`. Hasta 1 ACU activo: 0.12 USD/h;
-pausado no cobra ACU, pero sí almacenamiento/backup/secrets. Para planificación,
-10 GB de datos y cuatro secretos suman aproximadamente 2.60 USD/mes antes de
-requests, I/O, logs, backup adicional y ECR. Se reservan hasta 18 USD de la reserva
-existente de 30 USD para esos costes de base hasta el vencimiento del crédito;
-si crecimiento/retención lo supera, recalcular antes de continuar. No es garantía
-ni corte de gasto. No crear funciones WORM/E1 con esos supuestos por omisión.
+Tarifas oficiales/SKU en `cost-estimate.md`. RDS db.t4g.micro: 0.016 USD/h
+cuando está activo. Detenido no cobra compute, pero sí almacenamiento/backups/secrets.
+Con 20 GB y cuatro secretos, el coste residual previsto es aproximadamente 3.90
+USD/mes antes de requests, I/O, logs, backup adicional y ECR. Se reserva hasta 27
+USD de la reserva existente de 30 USD hasta el vencimiento del crédito; si el
+crecimiento/retención lo supera, recalcular antes de continuar. No es garantía
+ni corte de gasto. El stop de RDS dura como máximo siete días: la guarda horaria
+vuelve a pararlo tras reinicios, salvo durante la ventana activa de staging.
 
 El ensayo inicial de compute/ingreso de E0 debe limitarse a tres horas y 3 USD,
 reasignados de la bolsa E1 (25 a 22 USD), conservando total 150 USD. La retirada
 verificada del servicio/ALB es necesaria al terminar esa ventana: bajar tareas
-solamente no elimina el coste de ALB/IP. La base puede quedar pausada, con su
-coste residual reservado. No afirmar gasto cero por detenerla.
+solamente no elimina el coste de ALB/IP. La base puede quedar detenida, con su
+coste residual reservado y una guarda horaria que cubra el reinicio automático. No afirmar gasto cero por detenerla.
 
 ## Validación de preparación
 
@@ -100,7 +102,21 @@ servicio usen la nueva definición; ACTIVE de Express por sí solo no acredita e
 final de una canary. Acepta digest de índice OCI o su manifest Linux amd64 solo
 tras verificar el hash del índice y la pertenencia criptográfica del hijo.
 
-La retirada programada afecta solo al servicio ECS de staging; Aurora/secretos
+La retirada programada afecta solo al servicio ECS de staging; RDS/secretos
 persisten protegidos con coste residual reservado. Recrear API exige mismo digest
 verificado y vuelve a armar expiry. Producción sigue bloqueada hasta configuración
 y aceptación E5. Ningún probe E0 acredita OIDC humano, WORM o retiros de negocio.
+
+## Decisión final de base para Free Plan
+
+Aurora Free Plan exige WithExpressConfiguration. La documentación oficial indica
+que ese modo no admite VPC y obliga a una pasarela de Internet, por lo que se
+rechaza para este contrato. Se usa RDS PostgreSQL privado, documentado para cuentas
+Free Plan, sin cambiar el requisito de PostgreSQL administrado ni ampliar el plan.
+
+- https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/CHAP_GettingStartedAurora.AuroraPostgreSQL.ExpressConfig.html
+- https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_GettingStarted.CreatingConnecting.PostgreSQL.html
+
+La primera limitación observada de backup y el experimento Aurora anteriores son
+históricos, no configuración productiva. La retención de un día aquí es un backup
+técnico de ensayo; no define conservación de datos personales/evidencia E1–E5.

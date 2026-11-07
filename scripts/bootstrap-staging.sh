@@ -30,18 +30,28 @@ PY
 )"
 # Two budgets are not created: reuse this single total 150 USD project budget.
 aws cloudformation deploy --region us-east-1 --stack-name retiro-seguro-budget --template-file "$retiro_stage_dir/budget.yaml" --parameter-overrides "AlertEmail=$2" BudgetStartEpoch=1793923200 "BudgetEndEpoch=$retiro_expiry" --no-fail-on-empty-changeset
-retiro_engine="$(aws rds describe-db-engine-versions --region us-east-1 --engine aurora-postgresql --default-only --query 'DBEngineVersions[0].EngineVersion' --output text)"
-python3 - "$retiro_engine" <<'PY'
-import sys
-v=tuple(map(int,sys.argv[1].split('.')[:2])); assert v>=(16,3), 'BLOCKED: auto-pause needs a supported engine'
-PY
-[[ "$(aws rds describe-orderable-db-instance-options --region us-east-1 --engine aurora-postgresql --engine-version "$retiro_engine" --db-instance-class db.serverless --query 'length(OrderableDBInstanceOptions)' --output text)" -gt 0 ]] || { echo 'BLOCKED: serverless not orderable'; exit 2; }
+aws rds describe-db-engine-versions --region us-east-1 --engine postgres --output json > "$retiro_stage_dir/engines.json"
+retiro_engine="$(python3 - "$retiro_stage_dir/engines.json" <<'PYCODE'
+import json,sys,re
+v=[e['EngineVersion'] for e in json.load(open(sys.argv[1]))['DBEngineVersions'] if e['EngineVersion'].startswith('17.')]
+assert v, 'BLOCKED: supported PostgreSQL 17 minor not available'
+print(max(v,key=lambda s:tuple(map(int,re.findall(r'\d+',s)))))
+PYCODE
+)"
+[[ "$(aws rds describe-orderable-db-instance-options --region us-east-1 --engine postgres --engine-version "$retiro_engine" --db-instance-class db.t4g.micro --query 'length(OrderableDBInstanceOptions)' --output text)" -gt 0 ]] || { echo 'BLOCKED: private PostgreSQL micro instance not orderable'; exit 2; }
 aws cloudformation validate-template --region us-east-1 --template-body "file://$retiro_stage_dir/staging-base.json" >/dev/null
 curl --proto '=https' --tlsv1.3 -fsSL "https://raw.githubusercontent.com/A-PerfectStranger/special-funicular/$1/scripts/prepare_staging_account.py" -o "$retiro_stage_dir/prepare.py"
 python3 "$retiro_stage_dir/prepare.py" > "$retiro_stage_dir/existing-parameters.txt"
 mapfile -t retiro_existing_parameters < "$retiro_stage_dir/existing-parameters.txt"
 if ! aws cloudformation deploy --region us-east-1 --stack-name retiro-staging-base --template-file "$retiro_stage_dir/staging-base.json" --capabilities CAPABILITY_NAMED_IAM --parameter-overrides "EngineVersion=$retiro_engine" "${retiro_existing_parameters[@]}" --tags Project=retiro-seguro Environment=staging --no-fail-on-empty-changeset; then
   aws cloudformation describe-stack-events --region us-east-1 --stack-name retiro-staging-base --query "StackEvents[?ResourceStatus=='CREATE_FAILED'].[LogicalResourceId,ResourceStatusReason]" --output table
+  exit 2
+fi
+curl --proto '=https' --tlsv1.3 -fsSL "https://raw.githubusercontent.com/A-PerfectStranger/special-funicular/$1/infra/aws/staging-lifecycle.yaml" -o "$retiro_stage_dir/staging-lifecycle.yaml"
+retiro_stop_after="$(python3 -c 'from datetime import datetime,UTC,timedelta; print((datetime.now(UTC)+timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+if ! aws cloudformation deploy --region us-east-1 --stack-name retiro-staging-lifecycle --template-file "$retiro_stage_dir/staging-lifecycle.yaml" --capabilities CAPABILITY_NAMED_IAM --parameter-overrides "StopNotBefore=$retiro_stop_after" --tags Project=retiro-seguro Environment=staging --no-fail-on-empty-changeset; then
+  aws cloudformation describe-stack-events --region us-east-1 --stack-name retiro-staging-lifecycle --query "StackEvents[?ResourceStatus=='CREATE_FAILED'].[LogicalResourceId,ResourceStatusReason]" --output table
+  aws cloudformation describe-stacks --region us-east-1 --stack-name retiro-staging-base --query 'Stacks[0].Outputs[?OutputKey==`Deploy` || OutputKey==`Migrate`]' --output table
   exit 2
 fi
 aws cloudformation describe-stacks --region us-east-1 --stack-name retiro-staging-base --query 'Stacks[0].Outputs[?OutputKey==`Deploy` || OutputKey==`Migrate`]' --output table

@@ -94,3 +94,36 @@ def test_changed_manifest_bytes_cannot_attest_runtime(monkeypatch: pytest.Monkey
     monkeypatch.setattr(commission_staging, "aws", lambda *a: {"images": [{"imageManifest": "{}"}]})
     with pytest.raises(RuntimeError, match="manifest bytes"):
         commission_staging.runtime_digests("sha256:" + "a" * 64)
+
+
+@pytest.mark.parametrize("exists", [False, True])
+def test_expiry_is_replaced_not_accumulated(exists: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    import json
+    from datetime import datetime
+
+    from scripts import commission_staging
+
+    calls: list[tuple[str, ...]] = []
+    deadlines: list[datetime] = []
+
+    def read(*args: str) -> dict[str, object]:
+        calls.append(args)
+        if args[0] == "cloudformation":
+            return {
+                "Stacks": [
+                    {"Outputs": [{"OutputKey": "ExpiryRoleArn", "OutputValue": "expiry-role"}]}
+                ]
+            }
+        if args[1] == "get-schedule" and not exists:
+            raise RuntimeError("ResourceNotFoundException")
+        return {}
+
+    monkeypatch.setattr(commission_staging, "aws", read)
+    monkeypatch.setattr(commission_staging, "defer_idle_stop", deadlines.append)
+    expiry = datetime.fromisoformat(commission_staging.arm_expiry("service"))
+    mutation = next(c for c in calls if c[1] in {"create-schedule", "update-schedule"})
+    assert mutation[1] == ("update-schedule" if exists else "create-schedule")
+    assert mutation[mutation.index("--name") + 1] == "retiro-staging-expiry-api"
+    target = json.loads(mutation[mutation.index("--target") + 1])
+    assert json.loads(target["Input"]) == {"ServiceArn": "service"}
+    assert (deadlines[0] - expiry).total_seconds() == 900

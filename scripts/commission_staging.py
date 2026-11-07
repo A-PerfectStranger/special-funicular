@@ -11,20 +11,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from scripts.aws_cli import aws
+from scripts.prepare_staging_run import defer_idle_stop
 from scripts.verify_staging import verify
-
-
-def aws(*args: str) -> dict[str, Any]:
-    result = subprocess.run(
-        ["aws", *args, "--region", "us-east-1", "--output", "json"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode:
-        code = re.search(r"An error occurred \(([A-Za-z0-9_]+)\)", result.stderr)
-        raise RuntimeError(".".join(args[:2]) + ": " + (code[1] if code else "CliRequestFailed"))
-    return json.loads(result.stdout) if result.stdout.strip() else {}
+from scripts.verify_staging_network import verify_ingress
 
 
 def register(data: dict[str, Any]) -> str:
@@ -144,12 +134,19 @@ def arm_expiry(service: str) -> str:
     ][0]["Outputs"]
     role = next(item["OutputValue"] for item in outputs if item["OutputKey"] == "ExpiryRoleArn")
     expiry = datetime.now(UTC) + timedelta(hours=3)
-    time.sleep(15)
+    name = "retiro-staging-expiry-api"
+    action = "update-schedule"
+    try:
+        aws("scheduler", "get-schedule", "--name", name)
+    except RuntimeError as exc:
+        if "ResourceNotFoundException" not in str(exc):
+            raise
+        action = "create-schedule"
     aws(
         "scheduler",
-        "create-schedule",
+        action,
         "--name",
-        "retiro-staging-expiry-" + str(int(time.time())),
+        name,
         "--schedule-expression",
         "at(" + expiry.strftime("%Y-%m-%dT%H:%M:%S") + ")",
         "--schedule-expression-timezone",
@@ -163,11 +160,12 @@ def arm_expiry(service: str) -> str:
             {
                 "Arn": "arn:aws:scheduler:::aws-sdk:ecs:deleteExpressGatewayService",
                 "RoleArn": role,
-                "Input": json.dumps({"serviceArn": service}),
+                "Input": json.dumps({"ServiceArn": service}),
                 "RetryPolicy": {"MaximumEventAgeInSeconds": 3600, "MaximumRetryAttempts": 2},
             }
         ),
     )
+    defer_idle_stop(expiry + timedelta(minutes=15))
     return expiry.isoformat()
 
 
@@ -183,6 +181,9 @@ def main() -> int:
     identity = aws("sts", "get-caller-identity")
     if identity["Account"] != "028364485203":
         raise SystemExit("BLOCKED: wrong account")
+    from scripts.prepare_staging_run import open_window
+
+    open_window()
     outputs = {
         v["OutputKey"]: v["OutputValue"]
         for v in aws("cloudformation", "describe-stacks", "--stack-name", "retiro-staging-base")[
@@ -292,6 +293,7 @@ def main() -> int:
     if not endpoint:
         raise RuntimeError("ECS commissioning timeout; expiry remains armed")
     origin = endpoint if endpoint.startswith("https://") else "https://" + endpoint
+    network_evidence = verify_ingress(outputs["Cluster"], service, outputs["AppSecurityGroup"])
     report: dict[str, Any] = {}
     for _ in range(12):
         report = verify(origin)
@@ -317,6 +319,7 @@ def main() -> int:
         "origin": origin,
         "bootstrap_task": task,
         "same_digest_running": same_digest,
+        "network": network_evidence,
         "expires_at": expiry,
         "public_probes": report,
     }

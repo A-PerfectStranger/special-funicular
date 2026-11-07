@@ -9,8 +9,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-from scripts.commission_staging import arm_expiry, aws, register, runtime_digests, task_definition
+from scripts.aws_cli import aws
+from scripts.commission_staging import arm_expiry, register, runtime_digests, task_definition
 from scripts.verify_staging import verify
+from scripts.verify_staging_network import verify_ingress
 
 
 def migration_definition(outputs: dict[str, str], image: str, sha: str) -> dict[str, Any]:
@@ -198,6 +200,7 @@ def main() -> int:
         if "FAILED" in state["status"]["statusCode"]:
             break
         time.sleep(15)
+    network_evidence = verify_ingress(outputs["Cluster"], service, outputs["AppSecurityGroup"])
     report: dict[str, Any] = {}
     if origin:
         for _ in range(12):
@@ -226,6 +229,7 @@ def main() -> int:
         "service": service,
         "task_definition": definition,
         "runtime_digest_verified": correct,
+        "network": network_evidence,
         "expires_at": expiry,
         "probes": report,
         "passed": passed,

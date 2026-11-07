@@ -50,3 +50,13 @@ El techo total sigue siendo 150 USD y la reserva de 30 USD no se consume sin
 contabilizar las obligaciones futuras de almacenamiento/claves. Ajustar la
 distribución propuesta entre fases antes de un E0 con recursos de pago; la fila
 E0 de 0 USD del README describe la base local/CI, sin certificar gasto cero de cuenta.
+
+## Selección compatible con Free Plan: RDS privado
+
+Aurora Express no admite VPC; se descarta. RDS PostgreSQL db.t4g.micro Single-AZ
+está tarifado a 0.016 USD/h (`9HPEGXQTDDGH53C9`, mismo catálogo AmazonRDS citado).
+La instancia se limita a 20 GB y se detiene fuera de ensayos, con guarda para el
+reinicio automático semanal. Almacenamiento y cuatro secretos se estiman en
+3.90 USD/mes, sin confundir detención con gasto cero. La reserva destinada a base
+hasta mayo se ajusta a 27 USD dentro de los 30 existentes. Es una estimación,
+pendiente de confirmar con el inventario real y gasto facturado.
