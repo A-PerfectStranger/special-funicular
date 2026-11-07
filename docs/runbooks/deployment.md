@@ -6,6 +6,11 @@ AWS elegido: región `us-east-1`, perfil humano `aesir`, máximo TOTAL 150 USD
 de créditos para desarrollo/despliegue. No equivale a 150 USD mensuales.
 Cuenta no autenticada en este entorno. No se ha aprovisionado staging/producción.
 No hay adaptador live de despliegue; el workflow CD se detiene explícitamente.
+El usuario no tiene acceso al Desktop compartido. Se preparó la conexión
+CloudShell/OIDC de solo lectura en `infra/aws/README.md`; falta ejecutarla.
+El código `AWS_VERIFICATION_CODE` pertenece a un intento anterior y no sustituye
+un login nuevo. Para el login interactivo alternativo, usar `source scripts/aws-env.sh`
+antes de las órdenes AWS y reutilizar la caché privada de la misma instancia.
 
 ```bash
 uv run python scripts/validate_deploy.py infra/environments/staging.json
@@ -31,6 +36,10 @@ acredita estructura; no prueba IAM, coste, TLS, recursos ni despliegue.
 5. Ejecutar migraciones expand/contract como tarea única con identidad propia.
    No migrar al iniciar cada réplica. Desplegar API/web/workers de la misma revisión.
 6. Probar probes y funciones disponibles de la etapa con servicios reales de ensayo.
+   Para la superficie pública E0:
+   `uv run python scripts/verify_staging.py https://DOMINIO-STAGING --report work/staging-probes.json`.
+   Comprobar además SHA/digest de las tareas y la identidad real en AWS; este
+   reporte de probes no acredita el plano de control ni un despliegue por sí solo.
    Para habilitar negocio se requieren IdP/MFA, KMS/WORM y los controles E1–E5.
    Datos sintéticos siempre; no importar familias ni emitir invitaciones al publicar.
 7. Promover automáticamente solo después de staging aprobado; ninguna aprobación

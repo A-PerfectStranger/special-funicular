@@ -13,7 +13,7 @@ migrate:
 lint:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run cfn-lint infra/aws/budget.yaml
+	uv run cfn-lint infra/aws/*.yaml
 	npm run lint
 typecheck:
 	set -a; source .env; set +a; uv run mypy

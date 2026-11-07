@@ -6,6 +6,50 @@ Base técnica E0 implementada y verificada. **Cierre operativo pendiente de AWS*
 no hay staging/producción ni toolkit autenticado. E1–E5 siguen pendientes; ningún
 retiro real está habilitado. No se presenta el bloqueo como despliegue exitoso.
 
+### Continuación E0 en una instancia nueva — 7 de noviembre
+
+- Base actual: `ebfa16a78dab201d665501d88783a1604c0b2e3e`, PR #2 integrado.
+  CI de main aprobada: https://github.com/A-PerfectStranger/special-funicular/actions/runs/42350965332.
+  CD falló por configuración ausente, como corresponde:
+  https://github.com/A-PerfectStranger/special-funicular/actions/runs/42351497824.
+- `AWS_VERIFICATION_CODE` sí está disponible en esta instancia; no se imprimió.
+  No hay caché del login anterior. La implementación oficial de AWS confirma
+  `state`/PKCE/clave privada por intento: ese código no permite iniciar otro login.
+- CLI oficial 2.39.6 reinstalada en `work/` con firma GPG verificada.
+  STS respondió `NoCredentials`. La herramienta del navegador repitió el fallo
+  `the gaas-browser node_repl sandbox cannot be disabled`; se abrió Chromium por
+  el escritorio compartido y se observó la pantalla de login de AWS. El usuario
+  no puede acceder a Desktop; se canceló ese intento. No hay STS/wizard/MCP/catálogo
+  acreditados ni recursos creados.
+- `scripts/aws-env.sh` fija perfil `aesir`, región y caché privada bajo `work/aws/`;
+  evita que los comandos posteriores pierdan los selectores de login.
+- Se preparó `scripts/verify_staging.py` (RFS09/13/14, CA-S09/13/14): probes de
+  disponibilidad, capabilities exactas, rutas de negocio ausentes, escrituras
+  rechazadas y cabeceras sin cookies. Solo HTTPS/TLS 1.3, sin redirecciones.
+  No registra cuerpos ni excepciones remotas. No sustituye pruebas de IAM,
+  presupuesto, SHA/digest ni funciones E1–E5; advierte el alcance ante proxy TLS.
+  Sus 16 pruebas locales con servidor TLS real pasaron, incluidos DB caída,
+  retiros habilitados, tipos JSON incorrectos, cookies, redirección, falta de
+  cabeceras, certificado no confiable y servidor limitado a TLS 1.2.
+- La base, probes y preflight pasaron `make check` con PostgreSQL real (36 Python y 3 JS,
+  más lint/typechecks, migraciones y Expo). `make security` pasó pip-audit, npm
+  audit y gitleaks de historial/árbol sin hallazgos. cfn-lint validó ambos templates;
+  actionlint 1.7.12 y `bash -n` validaron workflows y scripts shell.
+- Protección de main: HTTP 403 al consultar; no se declara configurada.
+  El usuario confirmó correo de alertas (se mantiene fuera del repo público),
+  saldo declarado suficiente y vencimiento 6 de mayo de 2027; el saldo exacto
+  se mantiene fuera del repo público. Techo del proyecto sigue 150 USD.
+  No hay dominio: se investigará URL administrada por AWS sin comprar uno.
+- El usuario confirmó acceso a CloudShell. Se preparó bootstrap OIDC solo lectura
+  y workflow manual `AWS read-only preflight`, restringidos a main/audiencia STS.
+  Permisos exactos: lectura de plan/créditos y Cost Explorer. El reporte público
+  usa booleanos; no publica saldos, respuestas AWS o credenciales. Pendiente de
+  ejecutar el bootstrap y verificar en AWS, sin presentarlo como conectado.
+  La consulta de cuenta/presupuesto y el adaptador live siguen pendientes.
+
+El resto de este documento conserva la evidencia de la entrega anterior. Los
+artefactos de sus SHA no se atribuyen a los scripts nuevos ni a un deploy AWS.
+
 Base revisada: `c711ff9`, igual a `origin/main` al comenzar, tras fetch remoto.
 Solo existían AGENTS, PLAN y requisitos; se leyeron completos. No había PROGRESS,
 código ni pruebas. Rama `feat/e0-foundation`, PR:
@@ -69,7 +113,7 @@ revisiones posteriores aparecen en el PR; no atribuir estos artefactos a otro SH
 - Protección de rama/permisos de Actions: lectura HTTP 403. No se verificó que
   GitHub imponga E0 CI / required; los checks sí se ejecutaron y revisaron.
 
-## AWS: estado exacto y siguiente acción
+## AWS: evidencia de la sesión anterior
 
 Usuario confirmó perfil aesir, experiencia avanzada (sin proyecto), us-east-1 y
 máximo TOTAL 150 USD de créditos. Linux/curl/uv/red comprobados. CLI 2.39.6 instalada

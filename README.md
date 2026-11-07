@@ -7,6 +7,7 @@ El estado verificable y los bloqueos están en [PROGRESS.md](PROGRESS.md).
 ## Requisitos y arranque
 
 Python 3.12, uv 0.13.5, Node 24.22.1/npm 11.9.0, Docker Engine con Compose.
+OpenSSL 3 en PATH para los ensayos HTTPS locales de aceptación de staging.
 Versiones Python en `uv.lock`, npm en `package-lock.json`, imágenes por digest.
 No usar SQLite como sustituto de PostgreSQL para las pruebas.
 
@@ -98,6 +99,10 @@ CD conserva una estructura serializada y validación obligatoria. Actualmente **
 con `BLOCKED/NOT_CONFIGURED`**: falta cuenta autenticada, recursos, OIDC y aceptación
 real de staging. No hay despliegue ni promoción implementados como éxitos ficticios.
 Ver [runbook](docs/runbooks/deployment.md) y [presupuesto AWS](infra/aws/README.md).
+`scripts/verify_staging.py` prepara los probes públicos E0 sobre HTTPS/TLS 1.3,
+con pruebas de fallos mediante un servidor TLS local real. Solo acredita el plano
+de datos público al ejecutarlo contra un destino real; no provisiona ni certifica IAM,
+presupuesto o procedencia del artefacto. No se ha ejecutado contra AWS.
 
 Los requisitos de producto permanecen en `Requerimientos_retiro_seguro_estudiantes.md`;
 `PLAN.md` fija E0–E5 y `AGENTS.md` las convenciones de trabajo.

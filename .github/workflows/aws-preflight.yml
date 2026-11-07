@@ -1,0 +1,35 @@
+name: AWS read-only preflight
+on:
+  workflow_dispatch:
+    inputs:
+      role_arn:
+        description: ARN returned by the reviewed CloudShell bootstrap
+        required: true
+        type: string
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: aws-read-only-preflight
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main' && github.repository == 'A-PerfectStranger/special-funicular'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Verify identity, credits and gross monthly usage without provisioning
+        env:
+          PREFLIGHT_ROLE_ARN: ${{ inputs.role_arn }}
+        run: python3 scripts/aws_preflight.py --role-arn "$PREFLIGHT_ROLE_ARN" --report work/aws-preflight.json
+      # Public repository: publish booleans only, never balances or raw CLI responses.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: aws-preflight-${{ github.run_id }}
+          path: work/aws-preflight.json
+          retention-days: 3
+          if-no-files-found: error
