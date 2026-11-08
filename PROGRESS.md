@@ -13,7 +13,9 @@ retiros y producción continúan desactivados. La continuación está en
 - AWS: operador confirmó actualización del stack desde 0dd67fb; Managed Login v2
   devuelve formulario 200. No se han provisionado fixtures ni probado MFA real.
 - CI main 42447792803 aprobada. CD 42448253673: publish/prepare/migrate
-  aprobados; staging todavía en curso al guardar este checkpoint. Migraciones
+  y staging aprobados. Producción bloqueada E5 (fallo previsto); no se desplegó.
+  Reporte verificado y preservado en docs/evidence/e1-base-staging-26d7d47.json.
+  Migraciones
   identity 0003 y evidence 0011/0012 aplicadas en RDS. Producción sigue E5.
 - Solicitada al operador la provisión sintética desde 26d7d47 con SDK de hashes
   fijados y scripts.provision_e1_fixtures --synthetic-only; resultado pendiente.

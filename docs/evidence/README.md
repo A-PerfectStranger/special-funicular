@@ -22,3 +22,10 @@ Publish/prepare/migrate/staging aprobados, CI main 42441266774 aprobada. La imag
 se contrastó con las tareas en ejecución. Los probes siguen siendo E0 y
 `E1_IDENTITY_ENABLED=false`: este reporte no acepta identidad, MFA, WORM o portal
 E1. Producción permanece bloqueada hasta E5.
+
+`e1-base-staging-26d7d47.json`: artefacto 13605265154 del CD
+[42448253673](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42448253673).
+Publish/prepare/migrate/staging aprobados; CI main 42447792803 aprobada. Se
+comprobó el SHA-256 del ZIP original y el SHA/digest/probes del reporte. Incluye
+las migraciones identity 0003/evidence 0011–0012. E1 desactivada, e1_accepted=false;
+no acredita MFA/fixtures/archivo E1 reales. Producción bloqueada hasta E5.
