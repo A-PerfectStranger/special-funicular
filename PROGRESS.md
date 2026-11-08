@@ -13,6 +13,16 @@ instalado/autenticado; OIDC de CI no se presenta como ese login humano.
 
 ## Comisión actual: PostgreSQL privado y ventana limitada
 
+La configuración staging incorpora los identificadores reales devueltos por
+Express desde CloudShell (API :1, URL, subredes y security groups), roles ya
+creados y repositorio ECR verificado. Esto configura el destino de CD, no lo
+acredita como sano: los probes desde el entorno gestionado recibieron 503.
+Se reprodujo que CommonMiddleware devuelve 400 a la sonda ALB con Host=IP
+privada. Liveness stateless GET/HEAD se atiende antes de esa validación solo
+bajo TRUSTED_INGRESS=ecs-express; las demás rutas siguen exigiendo Host permitido.
+El cierre depende del nuevo artefacto y del CD real, todavía pendientes.
+
+
 La comisión del artefacto `9f988a1` completó SQL y creó la API Express, estado
 ACTIVE según CloudShell. URL observada:
 https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws.

@@ -22,6 +22,7 @@ INSTALLED_APPS = ["core"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "core.middleware.SafeResponsesMiddleware",
+    "core.middleware.LivenessMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",

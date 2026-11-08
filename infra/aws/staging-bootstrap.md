@@ -144,5 +144,13 @@ lifecycle añade solo esa lectura regional, sin acceso a valores de secretos.
 `commission-staging.sh SOURCE_SHA IMAGE_SHA DIGEST --existing-service` actualiza
 lifecycle, repite las comprobaciones SQL sintéticas y acepta la API existente sin
 crearla otra vez. Comprueba el presupuesto real y emite configuración pública de
-entorno, digest y probes. La configuración solo se integra tras passed=true y
-posterior verificación del CD con los roles separados. RFS09/13/14/22 y CA-S09/13/14/22.
+entorno, digest y probes. La configuración identifica un destino provisionado; no acredita aceptación.
+E0 requiere passed=true y verificación del CD con los roles separados. RFS09/13/14/22 y CA-S09/13/14/22.
+
+La sonda interna ALB envía Host=IP privada. Bajo TRUSTED_INGRESS=ecs-express,
+LivenessMiddleware responde exclusivamente GET/HEAD de /health/live antes de
+CommonMiddleware, conservando cabeceras seguras y sin consulta SQL ni estado.
+El resto de rutas y métodos mantiene ALLOWED_HOSTS/CSRF/redirección HTTPS.
+La configuración de entorno registra la infraestructura observada; el adaptador
+resuelve revisiones, red y URL vigentes desde AWS en cada despliegue. Que el
+validador estructural apruebe el destino no acredita probes ni aceptación E0.

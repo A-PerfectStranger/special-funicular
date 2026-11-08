@@ -50,3 +50,27 @@ def test_only_explicit_verified_ingress_can_trust_forwarded_proto() -> None:
         response = Client().get("/v1/capabilities", HTTP_X_FORWARDED_PROTO="https")
         assert response.status_code == 200
         assert response.json()["pickup_enabled"] is False
+
+
+def test_alb_private_ip_liveness_does_not_relax_other_host_validation() -> None:
+    from django.test import Client, override_settings
+
+    with override_settings(
+        ALLOWED_HOSTS=["stage.example"], SECURE_SSL_REDIRECT=True, TRUSTED_INGRESS="ecs-express"
+    ):
+        client = Client()
+        response = client.get(
+            "/health/live", HTTP_HOST="10.61.0.25:8000", HTTP_USER_AGENT="ELB-HealthChecker/2.0"
+        )
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+        assert response["Cache-Control"] == "no-store"
+        assert not response.cookies
+        for path in ["/health/ready", "/v1/capabilities", "/v1/me/students"]:
+            assert client.get(path, secure=True, HTTP_HOST="untrusted.example").status_code == 400
+        assert (
+            client.post("/health/live", secure=True, HTTP_HOST="untrusted.example").status_code
+            == 400
+        )
+    with override_settings(ALLOWED_HOSTS=["stage.example"], TRUSTED_INGRESS=""):
+        assert Client().get("/health/live", HTTP_HOST="10.61.0.25:8000").status_code == 400
