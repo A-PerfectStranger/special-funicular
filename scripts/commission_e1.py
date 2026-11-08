@@ -27,16 +27,16 @@ def outputs(stack: str) -> dict[str, str]:
     }
 
 
-def operator_principal(identity: dict[str, Any]) -> str:
-    arn = identity["Arn"]
-    if arn.startswith("arn:aws:sts::028364485203:assumed-role/"):
-        name = arn.split("assumed-role/", 1)[1].split("/", 1)[0]
-        arn = aws("iam", "get-role", "--role-name", name)["Role"]["Arn"]
-    if not re.fullmatch(r"arn:aws:iam::028364485203:(role|user)/[A-Za-z0-9+=,.@_/-]+", arn):
-        raise RuntimeError("Exact operator IAM principal required")
-    if ":role/retiro-staging-" in arn:
+def validate_operator(identity: dict[str, Any]) -> None:
+    if identity.get("Account") != "028364485203":
+        raise RuntimeError("Wrong AWS account")
+    arn = identity.get("Arn", "")
+    if not isinstance(arn, str) or not arn.startswith(
+        ("arn:aws:iam::028364485203:", "arn:aws:sts::028364485203:")
+    ):
+        raise RuntimeError("Verified AWS operator identity required")
+    if ":role/retiro-staging-" in arn or ":assumed-role/retiro-staging-" in arn:
         raise RuntimeError("CI/runtime roles are not provisioning operators")
-    return str(arn)
 
 
 def billing_preflight() -> dict[str, bool]:
@@ -118,13 +118,14 @@ def main() -> int:
     if subprocess.check_output(["git", "status", "--porcelain"], text=True).strip():
         raise RuntimeError("Clean reviewed checkout required")
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    print("E1 step: identity", flush=True)
     identity = aws("sts", "get-caller-identity")
-    if identity["Account"] != "028364485203":
-        raise RuntimeError("Wrong AWS account")
-    principal = operator_principal(identity)
+    validate_operator(identity)
+    print("E1 step: billing preflight", flush=True)
     billing = billing_preflight()
     base = outputs("retiro-staging-base")
     log_arn = f"arn:aws:logs:us-east-1:028364485203:log-group:{base['Logs']}:*"
+    print("E1 step: CloudFormation", flush=True)
     result = subprocess.run(
         [
             "aws",
@@ -142,7 +143,6 @@ def main() -> int:
             "--parameter-overrides",
             f"WebOrigin={args.web_origin}",
             f"ExistingLogsArn={log_arn}",
-            f"OperatorPrincipalArn={principal}",
             "--tags",
             "Project=retiro-seguro",
             "Environment=staging",
@@ -155,6 +155,7 @@ def main() -> int:
     if result.returncode:
         raise RuntimeError("CloudFormation E1 commissioning failed; inspect stack events privately")
     e1 = outputs("retiro-staging-e1")
+    print("E1 step: private database role bootstrap", flush=True)
     open_window()
     previous = aws("ecs", "describe-task-definition", "--task-definition", "retiro-staging-api")[
         "taskDefinition"
@@ -220,6 +221,11 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
+    except RuntimeError as exc:
+        # All RuntimeErrors originate in explicit constant barriers or aws_cli,
+        # which reports only service/operation and the AWS error identifier.
+        print("BLOCKED: " + str(exc))
+        raise SystemExit(2) from None
     except Exception:
         print(
             "BLOCKED: E1 commissioning failed; inspect private AWS events/logs. No E1 acceptance."

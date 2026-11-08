@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from cfnlint.decode import decode
 
-from scripts.commission_e1 import billing_preflight, bootstrap_definition, operator_principal
+from scripts.commission_e1 import billing_preflight, bootstrap_definition, validate_operator
 
 
 def test_e1_stack_has_mandatory_mfa_worm_and_distinct_keys() -> None:
@@ -39,14 +39,23 @@ def test_e1_stack_has_mandatory_mfa_worm_and_distinct_keys() -> None:
 
 
 def test_ci_or_runtime_identity_cannot_commission() -> None:
-    with patch(
-        "scripts.commission_e1.aws",
-        return_value={"Role": {"Arn": "arn:aws:iam::028364485203:role/retiro-staging-Deploy"}},
-    ):
-        with pytest.raises(RuntimeError, match="not provisioning operators"):
-            operator_principal(
-                {"Arn": "arn:aws:sts::028364485203:assumed-role/retiro-staging-Deploy/session"}
-            )
+    with pytest.raises(RuntimeError, match="not provisioning operators"):
+        validate_operator(
+            {
+                "Account": "028364485203",
+                "Arn": "arn:aws:sts::028364485203:assumed-role/retiro-staging-Deploy/session",
+            }
+        )
+    validate_operator({"Account": "028364485203", "Arn": "arn:aws:iam::028364485203:root"})
+    with pytest.raises(RuntimeError, match="Wrong AWS account"):
+        validate_operator({"Account": "000000000000", "Arn": "arn:aws:iam::000000000000:root"})
+    trust = decode("infra/aws/e1-staging.yaml")[0]["Resources"]["Verifier"]["Properties"][
+        "AssumeRolePolicyDocument"
+    ]["Statement"][0]
+    assert trust["Action"] == "sts:AssumeRoleWithWebIdentity"
+    assert trust["Condition"]["StringEquals"]["token.actions.githubusercontent.com:sub"].endswith(
+        ":ref:refs/heads/main"
+    )
 
 
 def test_billing_checks_whole_custom_budget_not_just_current_month() -> None:

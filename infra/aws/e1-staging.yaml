@@ -10,10 +10,6 @@ Parameters:
     AllowedValues: [retiro-seguro-staging://auth/callback]
   ExistingLogsArn:
     Type: String
-  OperatorPrincipalArn:
-    Type: String
-    Description: Exact IAM role/user allowed to assume the independent verifier (not an STS session ARN).
-    AllowedPattern: 'arn:aws:iam::028364485203:(role|user)/[A-Za-z0-9+=,.@_/-]+'
 Resources:
   Pool:
     Type: AWS::Cognito::UserPool
@@ -251,7 +247,15 @@ Resources:
       RoleName: retiro-staging-E1Verifier
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
-        Statement: [{Effect: Allow, Principal: {AWS: !Ref OperatorPrincipalArn}, Action: 'sts:AssumeRole'}]
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: 'repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main'
       Policies:
         - PolicyName: IndependentVerifyOnly
           PolicyDocument:

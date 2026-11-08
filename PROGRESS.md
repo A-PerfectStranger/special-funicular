@@ -39,7 +39,10 @@ retiros, invitaciones, operaciones E2–E5 y producción sin habilitar.
 
 ### Pendiente y orden de continuación
 
-1. Revisar CI/artefactos del commit y PR; no integrar main con criterios pendientes.
+1. PR #8 abierto como borrador. CI de `2b1355e` aprobada (quality, imagen/smoke,
+   APK y required): https://github.com/A-PerfectStranger/special-funicular/actions/runs/42439770486.
+   La repetición de PR y los commits posteriores se verifican por separado.
+   No integrar main con criterios pendientes.
 2. Comisionar Cognito/WORM/KMS/roles SQL usando el runbook E1 y operador AWS acreditado.
    No hay credenciales de operador en esta sesión; CI/main no es ese login.
    No reutilizar el código OAuth antiguo ni pedir claves permanentes.
@@ -57,6 +60,22 @@ retiros, invitaciones, operaciones E2–E5 y producción sin habilitar.
 interrupción y se recuperó con árbol/logs intactos. El parche interrumpido de fechas
 se reaplicó y verificó. Se guardó una nota mínima pública, autorizada por el usuario,
 en `docs/e1-session-recovery`; es documentación histórica, no la implementación.
+
+### Comisión: primer intento y corrección
+
+El usuario ejecutó el candidato `2b1355e` en CloudShell. El primer intento se
+detuvo antes de CloudFormation: `Exact operator IAM principal required`.
+Diagnóstico de lectura posterior: `billing=PASS`; stack E1 no acreditado
+(`ValidationError` al describirlo). No atribuir recursos creados a ese intento.
+Se elimina la dependencia innecesaria del ARN humano para el verificador: usará
+OIDC GitHub/main con sujeto inmutable y audiencia STS exactos, separado de Deploy.
+La identidad de operador valida cuenta y excluye roles runtime/CI; conserva la
+autoridad real de la sesión CloudShell sin crear un usuario IAM adicional.
+Los errores de comisión ahora muestran etapa y barrera/código AWS saneado.
+Preparadas y probadas las definiciones API/worker E1: mismo digest y credenciales
+por proceso, worker acotado a tres horas; falta conectarlas al despliegue real.
+Último `make check` con estas correcciones: 117 Python y siete JS aprobado.
+Comisión corregida aún pendiente de ejecución real.
 
 ## E0 completada
 
