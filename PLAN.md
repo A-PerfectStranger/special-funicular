@@ -47,27 +47,30 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 - [x] Conectar identidad OIDC de lectura para GitHub/main y verificar en AWS cuenta, créditos y denegación de acceso ajeno (evidencia en PROGRESS.md).
 - [x] Aprovisionar y verificar staging AWS privado, presupuesto/alertas y CD real con OIDC, roles separados, SHA/digest y probes TLS; evidencia en PROGRESS.md.
 
-**Estado:** E0 completada y aceptada en staging sintético. CI, publicación OCI, preparación RDS, migración aislada y despliegue/probes reales aprobados. Producción y negocio permanecen pendientes de E1–E5. El kit interactivo no se acredita como instalado; la identidad operativa verificada es CloudShell/OIDC de CI. Evidencia por SHA/digest en PROGRESS.md.
+**Estado:** E0 completada y aceptada en staging sintético. CI, publicación OCI, preparación RDS, migración aislada y despliegue/probes reales aprobados. Producción y negocio de retiros permanecen pendientes de E2–E5. El kit interactivo no se acredita como instalado; la identidad operativa verificada es CloudShell/OIDC de CI. Evidencia por SHA/digest en PROGRESS.md.
 
 **Aceptación:** un checkout limpio ejecuta los comandos documentados y CI; artefactos llevan SHA. Sin destino, el estado de deploy es bloqueado/no configurado y no se publica un éxito ficticio.
 
 ### E1 — Identidad, aislamiento y base de evidencia
 
-- [ ] Implementar cuatro roles, OIDC/MFA móvil/web, sesiones, reautenticación y revocación online.
-- [ ] Crear escuelas, estudiantes, padres, vínculos y restricciones de principal único.
-- [ ] Configurar RLS y credenciales separadas; probar conexión reutilizada y límites por escuela/familia.
-- [ ] Implementar eventos canónicos, funciones de escritura restringidas, outbox y worker de archivo.
-- [ ] Conectar WORM/KMS de ensayo, recibos por versión, manifiestos y verificador externo.
-- [ ] Registrar login escolar protegido antes de abrir sesión; pantalla de accesos para admin. sistema sin datos de menores.
+- [x] Implementar cuatro roles, OIDC/MFA móvil/web, sesiones, reautenticación y revocación online.
+- [x] Crear escuelas, estudiantes, padres, vínculos y restricciones de principal único.
+- [x] Configurar RLS y credenciales separadas; probar conexión reutilizada y límites por escuela/familia.
+- [x] Implementar eventos canónicos, funciones de escritura restringidas, outbox y worker de archivo.
+- [x] Conectar WORM/KMS de ensayo, recibos por versión, manifiestos y verificador externo.
+- [x] Registrar login escolar protegido antes de abrir sesión; pantalla de accesos para admin. sistema sin datos de menores.
 
 **Aceptación:** AT02, AT04 y parte correspondiente de AT05/AT06; acceso cruzado y mutación denegados; portal bloqueado ante evidencia no protegida. La falta del proveedor deja pendientes los ensayos reales de adaptadores, no se reemplazan por un aprobado con mocks.
 
-**En ejecución:** implementación local de identidad, modelos/RLS, evidencia,
-archivo y clientes, con rutas deshabilitadas por defecto. Cognito de ensayo y
-retención COMPLIANCE sintética de siete días elegidos por el usuario. E1 permanece
-sin marcar hasta cerrar integración/CD y ensayos reales por commit/digest.
-Matriz concreta en `docs/e1-acceptance.md`; comisión y límites en
-`docs/runbooks/e1.md`.
+**Aceptación funcional aprobada:** ensayo 42501830048 y recuperación independiente
+42507955250 sobre 0ca4374; reportes originales verificados en docs/evidence.
+Identidad web/móvil, revocación, aislamiento, permisos efectivos, WORM/KMS,
+archivo ausente/tardío y copia SQL divergente acreditados. El controlador privado
+36954c0 mide crecimiento nativo con cotas de RPC y conserva el roster original.
+La configuración de staging habilita E1 y exige el gate compartido en cada CD;
+la promoción requiere sus cuatro jobs aprobados. Retiros y producción siguen
+bloqueados; E2–E5 y Android físico conservan sus criterios pendientes.
+Matriz y límites: docs/e1-acceptance.md; operación: docs/runbooks/e1.md.
 
 ### E2 — Bulk, activación y autorización familiar
 

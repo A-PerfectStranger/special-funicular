@@ -1,56 +1,49 @@
-# Estado de ejecución — ensayo integrado E1 aprobado
+# Estado de ejecución — E1 aceptada funcionalmente
 
-## Estado actual
+## Resultado acreditado
 
-E1 sigue pendiente de cierre: resta el control privado Cognito/SQL y activar y
-verificar el gate continuo. No se marcan las casillas del plan por el ensayo solo.
+E1-01–E1-06 tienen evidencia real sintética. La configuración versionada habilita
+identidad E1 en staging y obliga browser/cloud/APK/archive-drill en cada CD;
+ningún fallo de esos jobs permite promoción. Producción permanece bloqueada E5;
+retiros, avisos y datos reales siguen apagados. Ver PLAN y docs/e1-acceptance.md.
 
-- Main: `0ca43742fd1a5ad77311a64ee522ef932682922d`, PR #13 integrado después de
-  checks push 42500314751 y PR 42500319404 aprobados. PR #12 corrigió recreación
-  desde INACTIVE. PR #13 añadió etiquetado de creación acotado y alineó el origen.
-- CI main 42501082447 aprobada: 160 Python/nueve JS, PostgreSQL/RLS, Chromium,
-  lint/tipos/migraciones, auditorías, imagen/APK y required.
-- CD 42501790742: publish/prepare/migrate/staging aprobados; producción bloqueada
-  E5, gate E1 omitido por false. Reporte e1-base-staging-0ca4374.json.
-- Ensayo 42501830048: TODOS los jobs aprobados. API/archivador por OCI
-  `sha256:9faea8109c88f3cc94718868dfa9bbb05e100fb56b93832ed4c47b10b6c544a8`;
-  origen https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws.
-- Cognito/TOTP real en los cuatro roles; BFF escolar protegido, lector mínimo,
-  protocolo móvil compartido PADRE/GUARDIA, reauth/refresh/logout y baja/restauración
-  con access no vencido denegado y sin reactivar la sesión vieja. APK de staging
-  compilado/configurado/firma de desarrollo; no prueba Android física ni distribución.
-- Archivo AWS ausente: callback/portal denegados. Intento 86 conservó DENIED tras
-  recuperar el worker y archivar tarde; login nuevo sí abrió. WORM/KMS y denegaciones
-  reales aprobados; high-water EXTERNO 91 / digest
-  e7ae0bde5be75547d0116fbe9a9b000bb12ff7e7e42309069b7e36a25b066804.
-- Reportes originales *-0ca4374.json conservados con SHA-256 de los ZIP verificados;
-  procedencia en docs/evidence/README.md. Matriz actual en docs/e1-acceptance.md.
-- El operador confirmó TagResource denegado en CloudTrail y aplicó lifecycle e328c43.
-  Express cambió la URL al recrearse; el origen anterior de 8bb56b8 falló antes de
-  login, conservado como FAIL. WebOrigin solicitado sobre plantilla existente:
-  CloudFormation respondió que no había diferencias; ensayo real posterior aprobado.
-- El control privado llegó a native exponential lockout y terminó BLOCKED antes
-  de exportar SQL; no se emitieron metadatos ni se acredita ese control. El nuevo
-  diagnóstico usa barreras y resultados/duración por intento con etiquetas
-  fijas, sin mensajes del proveedor, contraseñas, TOTP, sesiones o tokens.
-- Diagnóstico de 41d73fe: cinco rechazos de contraseña (203–231 ms), primer
-  bloqueo explícito (146 ms), pero el sexto intento tras la espera fija siguió
-  bloqueado (150 ms). Se sustituye la suposición temporal por medición de límites
-  conservadores: vencimiento observado + sexto fallo ordinario + segunda ventana
-  con límite inferior superior al límite superior de la primera. Se conservan
-  rechazo de throttling/errores ajenos, MFA y fallo cerrado ante medición ambigua.
-- En curso con operador: prepare_e1_snapshot --synthetic-only --exercise-cognito-controls,
-  desde el SHA aceptado. Credenciales y copias SQL permanecen en AWS privado.
-  Se esperan únicamente report_key/report_version/report_sha256. Después ejecutar
-  e1-recovery con mínimo externo 91; ningún mínimo se obtiene de la BD investigada.
-- Luego: completar matriz, habilitar E1 en staging por PR/checks y verificar CD
-  con browser/cloud/APK/archive-drill obligatorios. Configuración continua aún false;
-  retiros false, datos solo sintéticos y producción bloqueada E5.
+- Base funcional main `0ca43742fd1a5ad77311a64ee522ef932682922d`; CI 42501082447
+  aprobada. OCI sha256:9faea8109c88f3cc94718868dfa9bbb05e100fb56b93832ed4c47b10b6c544a8.
+- CD 42501790742: publish/prepare/migrate/staging aprobados, E1 false en esa base;
+  producción bloqueada E5. Reporte técnico conservado separado de la aceptación.
+- Ensayo 42501830048: TODOS los jobs aprobados. API/archivador por digest; IdP/MFA
+  de los cuatro roles; BFF escolar protegido y DTO/lector mínimo; protocolo móvil
+  PADRE/GUARDIA con PKCE/reauth/refresh/logout, baja/restauración online y access
+  no vencido denegado. APK configurado/firma de desarrollo, sin afirmar teléfono físico.
+- Archivo ausente/tardío real: intento 86 siguió DENIED tras recuperación y archivo;
+  un login nuevo protegido sí abrió. Verificación externa posterior hasta 91.
+- Control privado del operador 36954c0: recuperación con MFA reciente conserva
+  subject y contraseña nueva/MFA; primer bloqueo y crecimiento nativo probados con
+  cotas de RPC (primera ≤2,069 s; segunda ≥2,169 s; vencimiento ≤3,216 s).
+- Recuperación independiente 42507955250: PASS. Diez límites SQL/IAM/KMS y roster
+  original cerrado aprobados. Identidad E1Verifier sin SQL/Sign/Put aceptó original
+  y rechazó específicamente reescritura con cadena local válida. High-water EXTERNO
+  92 / 652b549d1379afc24fc184c1c4a590aa7d64ad0259f62c54feb38dabe0d3a90f.
+- Reportes originales *-0ca4374.json y procedencia/ZIP SHA-256 en docs/evidence.
+  Cada reporte conserva su alcance e1_accepted=false; esta matriz combina las
+  pruebas, sin reinterpretar ni modificar esos reportes parciales.
+- PR #12 corrigió INACTIVE; PR #13 incorporó TagResource de creación acotado y
+  el origen observado. CloudTrail confirmó el permiso faltante y el operador lo
+  comisionó. Origen actual: https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws.
+- Último make check del controlador: 164 Python/nueve JS, PostgreSQL real,
+  Ruff/mypy/TypeScript/ESLint/cfn-lint, migraciones/Django/Expo; gitleaks limpio.
+  Las regresiones aceptan crecimiento 2→4 con latencia y rechazan 2→2. Los checks
+  por commit y el resultado de activación se conservan en Actions; CD verifica
+  nuevamente el digest y el gate compartido del commit integrado.
 
-Cognito exponencial y backend 5/15 son políticas autorizadas distintas. El sondeo
-real backend 42456781366 pasó sobre 5ac4f02 (denegado a 890,272 s; permitido a
-905,530 s); no se atribuye su medición al SHA nuevo. COMPLIANCE siete días solo
-sintéticos. No recrear usuarios para restaurar cuentas, ni borrar evidencia/claves.
+Cognito exponencial y backend 5/15 son políticas autorizadas distintas. Sondeo
+backend real 42456781366 sobre 5ac4f02: denegación 890,272 s y recuperación 905,530 s;
+no se atribuye esa medición a otro SHA. COMPLIANCE siete días solo sintéticos.
+E2–E5 conservan sus pendientes; Android físico, retención institucional, producción,
+QR/retiros/avisos y restauración integral del dominio no se aceptan aquí.
+La ventana API/worker es acotada a tres horas; recrear Express puede cambiar la
+URL y exige alinear configuración/callback. No borrar usuarios, datos, evidencia
+o claves para reiniciar ensayos. Credenciales y copias SQL permanecen privadas.
 
 ## Historial del checkpoint inicial (7 de noviembre de 2026, America/Bogota)
 
@@ -146,7 +139,8 @@ verificador externo contra copia de BD, pruebas integradas y aceptación E1.
 
 ## E0 completada
 
-E0 está aceptada en staging AWS con datos sintéticos. E1–E5 siguen pendientes;
+En ese checkpoint E0 quedó aceptada en staging AWS con datos sintéticos y E1–E5
+seguían pendientes; el estado actual de E1 figura al principio de este documento.
 la autenticación funcional de usuarios, los datos de menores, los retiros,
 los avisos y la producción permanecen sin habilitar.
 

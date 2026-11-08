@@ -129,3 +129,16 @@ Workflow [42501830048](https://github.com/A-PerfectStranger/special-funicular/ac
 | e1-archive-drill | 13626034115 | 9e0b587b85b029cf651742fb93ca9928de17ef123192967f2f0ed7c189076267 |
 
 Browser aprobó web y protocolo móvil PADRE/GUARDIA, MFA, baja/restauración y sesiones. Cloud inicial verificó 82 eventos; después del drill verificó 91. El intento 86 siguió DENIED tras archivo tardío y el worker se recuperó. No acredita todavía recuperación Cognito/copia SQL ni Android físico.
+
+## Recuperación privada independiente 0ca4374
+
+`e1-recovery-0ca4374.json`: workflow
+[42507955250](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42507955250),
+artefacto 13628600924, ZIP SHA-256
+ d964e798a802a0473bc6418522d9bbbe3358b7315831b2d51e14690c8f68731d
+verificado. El operador ejecutó el controlador 36954c0 contra API/SQL 0ca4374.
+Los diez límites efectivos y seis controles Cognito aprobaron; las cotas nativas
+se conservan en el reporte. Verificador sin SQL/Sign/Put: original coincide con 92
+eventos, reescritura con cadena local válida rechazada específicamente contra el
+archivo protegido. Mínimo externo suministrado: 91. Las copias/contraseñas/semillas
+permanecen privadas; el JSON público solo contiene resultados y high-water.

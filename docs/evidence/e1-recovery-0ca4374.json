@@ -1,0 +1,42 @@
+{
+  "passed": true,
+  "e1_accepted": false,
+  "sql_credentials_used": false,
+  "operator_inspected_boundaries": {
+    "EncryptionKeyArn_application_admin_denied": true,
+    "SigningKeyArn_application_admin_denied": true,
+    "api_task_has_only_pool_policy_reads": true,
+    "definer_functions_have_fixed_search_path": true,
+    "domain_rls_enabled_forced_and_service_not_owner": true,
+    "no_service_can_write_evidence_or_assume_writer": true,
+    "roster_matches_original_import": true,
+    "separate_nonprivileged_sql_roles": true,
+    "system_reader_has_no_minor_or_full_evidence_tables": true,
+    "writer_cannot_login": true
+  },
+  "operator_cognito_controls": {
+    "native_expiry_mfa_verified": true,
+    "native_first_lockout_observed": true,
+    "native_lockout_measurement": {
+      "first_lockout_upper_seconds": 2.069,
+      "second_expiry_upper_seconds": 3.216,
+      "second_lockout_lower_seconds": 2.169
+    },
+    "native_second_lockout_longer_than_first": true,
+    "password_recovery_required_recent_mfa": true,
+    "recovered_password_mfa_verified": true,
+    "recovery_preserved_original_subject": true
+  },
+  "original_matches_external_archive": true,
+  "rewritten_local_chain_valid": true,
+  "external_rejected_rewritten_copy": true,
+  "external_high_water": {
+    "passed": true,
+    "verified_events": 92,
+    "last_sequence": 92,
+    "last_digest": "652b549d1379afc24fc184c1c4a590aa7d64ad0259f62c54feb38dabe0d3a90f",
+    "database_used": false,
+    "database_snapshot_compared": true
+  },
+  "checked_at": "2026-11-08T18:03:13.242660+00:00"
+}

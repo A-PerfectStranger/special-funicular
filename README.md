@@ -1,8 +1,9 @@
 # Retiro seguro de estudiantes
 
 Monorepo Django/PostgreSQL y Expo SDK 56. E0 está aceptada en staging.
-E1 incorpora identidad/aislamiento/evidencia en desarrollo, con sus rutas
-**desactivadas por defecto; el workflow E1 synthetic trial permite un ensayo acotado antes de la aceptación**.
+E1 tiene aceptación funcional sintética de identidad, aislamiento y evidencia.
+La configuración de staging habilita E1 con browser/cloud/APK/archive-drill
+obligatorios en CD; desarrollo conserva las rutas desactivadas por defecto.
 Los retiros permanecen deshabilitados. Solo datos sintéticos.
 El estado verificable y los bloqueos están en [PROGRESS.md](PROGRESS.md).
 
@@ -108,7 +109,9 @@ escolares de salidas corresponden a E4 y los retiros a E3.
 `.github/workflows/ci.yml` usa los mismos comandos. Checks de PR sin secretos,
 acciones por SHA, imagen OCI con digest y manifiestos por commit. El job `required`
 exige calidad y ambos builds. Las pruebas locales E1 incluyen roles/familias y RLS
-con PostgreSQL real; no sustituyen IdP/WORM/KMS reales ni todos los ensayos AT01–AT08.
+con PostgreSQL real. Los ensayos 42501830048 y 42507955250 acreditan IdP/MFA,
+WORM/KMS, revocación, archivo tardío y copia SQL con servicios sintéticos reales.
+Los AT01–AT08 completos y operación de retiros corresponden a E2–E5.
 
 El repositorio es público. El APK interno no se sube como artefacto público:
 se conserva el checksum; el binario solo se sube automáticamente si el repositorio
