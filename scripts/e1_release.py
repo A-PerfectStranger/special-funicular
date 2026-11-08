@@ -41,7 +41,11 @@ def require_configuration(config: dict[str, str]) -> None:
 
 
 def api_definition(
-    base: dict[str, str], config: dict[str, str], image: str, sha: str
+    base: dict[str, str],
+    config: dict[str, str],
+    image: str,
+    sha: str,
+    enable_family: bool = False,
 ) -> dict[str, Any]:
     require_configuration(config)
     definition = copy.deepcopy(task_definition(base, image, sha, False))
@@ -51,6 +55,7 @@ def api_definition(
     environment.update(
         {
             "E1_IDENTITY_ENABLED": "true",
+            "E2_FAMILY_ENABLED": "true" if enable_family else "false",
             "AWS_REGION": "us-east-1",
             "OIDC_ISSUER": config["Issuer"],
             "OIDC_COGNITO_POOL_ID": config["PoolId"],

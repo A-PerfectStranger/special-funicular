@@ -42,7 +42,7 @@ Resources:
       GenerateSecret: false
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows: [code]
-      AllowedOAuthScopes: [openid]
+      AllowedOAuthScopes: [openid, email]
       SupportedIdentityProviders: [COGNITO]
       CallbackURLs: [!Sub '${WebOrigin}/auth/callback']
       ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
@@ -60,7 +60,7 @@ Resources:
       GenerateSecret: false
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows: [code]
-      AllowedOAuthScopes: [openid]
+      AllowedOAuthScopes: [openid, email]
       SupportedIdentityProviders: [COGNITO]
       CallbackURLs: [!Ref MobileRedirect]
       ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]

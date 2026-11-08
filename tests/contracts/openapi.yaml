@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: Retiro seguro - E1 identity (disabled until commissioned)
-  version: 0.2.0
-  description: E1 routes require E1_IDENTITY_ENABLED. Pickups remain disabled. IdP tokens never leave
-    the BFF. Web POSTs require Django CSRF.
+  title: Retiro seguro - identidad y autorización familiar
+  version: 0.3.0
+  description: E1 requires E1_IDENTITY_ENABLED; E2 requires E2_FAMILY_ENABLED as well. Pickups remain
+    disabled. IdP credentials never leave the BFF; family commands accept only mobile Bearer sessions.
 paths:
   /health/live:
     get:
@@ -328,6 +328,344 @@ paths:
           format: date
       description: ADMIN_SISTEMA web session only. Date filters are inclusive UTC dates. Every read and
         its audit event commit together. Keyset pagination.
+  /v1/activation/redeem:
+    post:
+      operationId: activatePreloadedParent
+      description: Start mobile OIDC with purpose=activate, then redeem Code/PKCE and invitation here.
+        Signed email_verified=true and matching preloaded contact required; MFA and issuer/sub checked
+        by server. One use, 24h expiry. No child data/session returned; perform a new ordinary login.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Activated'
+        '400':
+          description: Invalid input or incompatible replay; no side effects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Denied without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Activation'
+  /v1/students:
+    get:
+      operationId: ownStudents
+      description: Own active students only, capabilities derived per current link. Secondary may consult;
+        cannot authorize. E2 flag required.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Students'
+        '400':
+          description: Invalid input or incompatible replay; no side effects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Denied without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - MobileBearer: []
+  /v1/students/{student_id}/family:
+    get:
+      operationId: familyRecords
+      description: Only linked PADRE. Current caregiver versions and authorization schedules/revocations.
+        Does not grant pickup permission.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Family'
+        '400':
+          description: Invalid input or incompatible replay; no side effects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Denied without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - MobileBearer: []
+      parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema: &id002
+          type: string
+          format: uuid
+  /v1/caregivers:
+    post:
+      operationId: createCaregiver
+      description: Principal only, MFA no older than 5 min. Complete name/document/photo required; no
+        caregiver account.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Invalid input or incompatible replay; no side effects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Denied without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - MobileBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaregiverCreate'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id002
+        description: Actor/body-bound UUID. Preserve it and the exact body after a lost response.
+  /v1/caregivers/{caregiver_id}/update:
+    post:
+      operationId: updateCaregiver
+      description: Principal, recent MFA, optimistic version and student lock. All associated authorizations
+        are revoked atomically.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Invalid input or incompatible replay; no side effects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Denied without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - MobileBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaregiverUpdate'
+      parameters:
+      - name: caregiver_id
+        in: path
+        required: true
+        schema: *id002
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id002
+        description: Actor/body-bound UUID. Preserve it and the exact body after a lost response.
+  /v1/authorizations:
+    post:
+      operationId: createAuthorization
+      description: Principal and recent MFA. Finite weekly recurrence (up to 366 days), same date for
+        one-off; ISO weekdays. School IANA timezone, complete interval within approved windows, future
+        only, no blocked student. Missing/ambiguous DST times rejected. Schedule is not a QR.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Invalid input or incompatible replay; no side effects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Denied without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - MobileBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizationCreate'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id002
+        description: Actor/body-bound UUID. Preserve it and the exact body after a lost response.
+  /v1/authorizations/{authorization_id}/revoke:
+    post:
+      operationId: revokeAuthorization
+      description: Principal and recent MFA; atomically invalidates authorization version. A subsequent
+        issuance/decision must reject it.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Invalid input or incompatible replay; no side effects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Denied without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - MobileBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeAuthorization'
+      parameters:
+      - name: authorization_id
+        in: path
+        required: true
+        schema: *id002
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id002
+        description: Actor/body-bound UUID. Preserve it and the exact body after a lost response.
+  /v1/caregivers/{caregiver_id}/photo:
+    get:
+      operationId: caregiverPhoto
+      security:
+      - MobileBearer: []
+      parameters:
+      - name: caregiver_id
+        in: path
+        required: true
+        schema: *id002
+      description: Authenticated linked parent only. Reencoded JPEG; no-store, no public URL.
+      responses:
+        '200':
+          description: JPEG image
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Denied
+        '503':
+          description: Unavailable
+  /v1/family/capabilities:
+    get:
+      operationId: familyCapabilities
+      description: Only registered when E2 is enabled. Availability never grants pickup permission.
+      responses:
+        '200':
+          description: Family feature available
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - family_enabled
+                - pickup_enabled
+                properties:
+                  family_enabled:
+                    const: true
+                  pickup_enabled:
+                    const: false
+        '404':
+          description: E2 disabled
 components:
   schemas:
     Error:
@@ -353,6 +691,7 @@ components:
           enum:
           - login
           - reauth
+          - activate
     LoginStart:
       type: object
       additionalProperties: false
@@ -394,7 +733,7 @@ components:
       properties:
         access_token: *id001
         refresh_token: *id001
-        expires_in: &id002
+        expires_in: &id003
           const: 300
     MobileLogin:
       type: object
@@ -407,7 +746,7 @@ components:
       properties:
         access_token: *id001
         refresh_token: *id001
-        expires_in: *id002
+        expires_in: *id003
         role:
           enum:
           - PADRE
@@ -496,6 +835,276 @@ components:
           - integer
           - 'null'
           minimum: 1
+    Window:
+      type: object
+      additionalProperties: false
+      required:
+      - weekday
+      - from
+      - until
+      - start_date
+      - end_date
+      properties:
+        weekday:
+          type: integer
+          minimum: 1
+          maximum: 7
+        from:
+          type: string
+          pattern: ^([01]\d|2[0-3]):[0-5]\d$
+        until:
+          type: string
+          pattern: ^([01]\d|2[0-3]):[0-5]\d$
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+    Recurrence:
+      type: object
+      additionalProperties: false
+      required:
+      - start_date
+      - end_date
+      - weekdays
+      - from
+      - until
+      properties:
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        weekdays:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+            maximum: 7
+        from:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        until:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+    Student:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - site_id
+      - timezone
+      - principal
+      - link_version
+      - can_authorize
+      - windows
+      - blocked
+      properties:
+        id: *id002
+        name: &id004
+          type: string
+          minLength: 1
+          maxLength: 160
+        site_id: *id002
+        timezone:
+          type: string
+        principal:
+          type: boolean
+        link_version:
+          type: integer
+          minimum: 1
+        can_authorize:
+          type: boolean
+        windows:
+          type: array
+          items:
+            $ref: '#/components/schemas/Window'
+        blocked:
+          type: boolean
+    Students:
+      type: object
+      additionalProperties: false
+      required:
+      - students
+      properties:
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/Student'
+    Caregiver:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - document
+      - version
+      properties:
+        id: *id002
+        name: *id004
+        document:
+          type: string
+          minLength: 1
+          maxLength: 40
+        version:
+          type: integer
+          minimum: 1
+    CaregiverCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - student_id
+      - name
+      - document
+      - photo
+      properties:
+        student_id: *id002
+        name: *id004
+        document: &id005
+          type: string
+          minLength: 1
+          maxLength: 40
+        photo: &id006
+          type: string
+          contentEncoding: base64
+          maxLength: 400000
+          description: JPEG/PNG up to 300000 decoded bytes and 4 million pixels. Server reencodes RGB
+            JPEG, strips metadata and limits dimensions to 640px.
+    CaregiverUpdate:
+      type: object
+      additionalProperties: false
+      required:
+      - student_id
+      - name
+      - document
+      - photo
+      - version
+      properties:
+        student_id: *id002
+        name: *id004
+        document: *id005
+        photo: *id006
+        version:
+          type: integer
+          minimum: 1
+    AuthorizationCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - student_id
+      - caregiver_id
+      - recurrence
+      properties:
+        student_id: *id002
+        caregiver_id: *id002
+        recurrence:
+          $ref: '#/components/schemas/Recurrence'
+    Authorization:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - caregiver_id
+      - schedule
+      - version
+      - revoked
+      properties:
+        id: *id002
+        caregiver_id: *id002
+        schedule:
+          type: array
+          minItems: 1
+          maxItems: 366
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - from
+            - until
+            properties:
+              from:
+                type: string
+                format: date-time
+              until:
+                type: string
+                format: date-time
+        version:
+          type: integer
+          minimum: 1
+        revoked:
+          type: boolean
+    Family:
+      type: object
+      additionalProperties: false
+      required:
+      - caregivers
+      - authorizations
+      properties:
+        caregivers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Caregiver'
+        authorizations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Authorization'
+    Applied:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - status
+      - event_sequence
+      properties:
+        id: *id002
+        status:
+          const: APPLIED
+        event_sequence:
+          type: integer
+          minimum: 1
+    Activation:
+      type: object
+      additionalProperties: false
+      required:
+      - state
+      - exchange_key
+      - code
+      - code_verifier
+      - invitation
+      properties:
+        state: &id007
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+        exchange_key: *id007
+        code:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        code_verifier:
+          type: string
+          pattern: ^[A-Za-z0-9._~-]{43,128}$
+        invitation: *id007
+    Activated:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      properties:
+        status:
+          const: activated
+    RevokeAuthorization:
+      type: object
+      additionalProperties: false
+      required:
+      - student_id
+      properties:
+        student_id: *id002
   securitySchemes:
     MobileBearer:
       type: http

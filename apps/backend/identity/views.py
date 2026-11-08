@@ -103,7 +103,12 @@ def mobile_start(request: HttpRequest) -> JsonResponse:
     try:
         existing = principal(request) if data.get("purpose") == "reauth" else None
         binding = secrets.token_urlsafe(32)
-        result = services.begin_login("mobile", data["code_challenge"], binding, existing)
+        activate = data.get("purpose") == "activate"
+        from django.conf import settings
+
+        if activate and not settings.E2_FAMILY_ENABLED:
+            raise IdentityRejected()
+        result = services.begin_login("mobile", data["code_challenge"], binding, existing, activate)
         return JsonResponse({**result, "exchange_key": binding})
     except IdentityRejected:
         services.failed_entry(key)

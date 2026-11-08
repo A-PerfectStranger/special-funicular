@@ -15,7 +15,14 @@ def test_public_surface_is_technical_only() -> None:
         "api_version": "v1",
         "pickup_enabled": False,
     }
-    for path in ["/admin/", "/v1/guard/confirm-pickup", "/v1/me/students"]:
+    for path in [
+        "/admin/",
+        "/v1/guard/confirm-pickup",
+        "/v1/me/students",
+        "/v1/students",
+        "/v1/family/capabilities",
+        "/v1/activation/redeem",
+    ]:
         assert client.get(path).status_code == 404
     assert "Retiros deshabilitados" in client.get("/").content.decode()
 

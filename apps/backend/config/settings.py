@@ -1,4 +1,4 @@
-"""E0: technical availability only. No identity or pickup routes are enabled."""
+"""Environment configuration; E1/E2 are gated independently and pickups remain disabled."""
 
 import os
 from pathlib import Path
@@ -18,7 +18,14 @@ if APP_ENV in {"staging", "production"} and (DEBUG or SECRET_KEY.startswith("syn
 ALLOWED_HOSTS = [x for x in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if x]
 if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
     raise ImproperlyConfigured("Explicit DJANGO_ALLOWED_HOSTS required")
-INSTALLED_APPS = ["core", "django.contrib.sessions", "identity", "school_roster", "evidence"]
+INSTALLED_APPS = [
+    "core",
+    "django.contrib.sessions",
+    "identity",
+    "school_roster",
+    "evidence",
+    "authorization",
+]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "core.middleware.SafeResponsesMiddleware",
@@ -68,7 +75,7 @@ X_FRAME_OPTIONS = "DENY"
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_AGE = 12 * 60 * 60
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-DATA_UPLOAD_MAX_MEMORY_SIZE = 16384
+DATA_UPLOAD_MAX_MEMORY_SIZE = 450000
 E1_IDENTITY_ENABLED = os.environ.get("E1_IDENTITY_ENABLED", "false") == "true"
 E1_OIDC = {
     key: os.environ.get(variable, "")
@@ -105,3 +112,7 @@ LOGGING = {
     "handlers": {"null": {"class": "logging.NullHandler"}},
     "loggers": {"django.request": {"handlers": ["null"], "propagate": False}},
 }
+
+E2_FAMILY_ENABLED = os.environ.get("E2_FAMILY_ENABLED", "false") == "true"
+if E2_FAMILY_ENABLED and not E1_IDENTITY_ENABLED:
+    raise ImproperlyConfigured("E2 requires E1 identity")

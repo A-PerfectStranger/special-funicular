@@ -92,22 +92,32 @@ def failed_entry(key: str) -> None:
 
 
 def begin_login(
-    channel: str, challenge: str, binding: str, principal: Principal | None = None
+    channel: str,
+    challenge: str,
+    binding: str,
+    principal: Principal | None = None,
+    activate: bool = False,
 ) -> dict[str, str]:
     if channel not in {"web", "mobile"} or not re.fullmatch(r"[A-Za-z0-9_-]{43}", challenge):
+        raise IdentityRejected()
+    if activate and (channel != "mobile" or principal is not None):
         raise IdentityRejected()
     if principal and principal.channel != channel:
         raise IdentityRejected()
     provider = Provider.configured()
     state, nonce = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-    authorization_url = provider.authorize_url(channel, state, nonce, challenge)
+    authorization_url = (
+        provider.authorize_url(channel, state, nonce, challenge, require_contact=True)
+        if activate
+        else provider.authorize_url(channel, state, nonce, challenge)
+    )
     LoginRequest.objects.create(
         state_hash=sha256(state),
         binding_hash=sha256(binding),
         nonce=nonce,
         challenge=challenge,
         channel=channel,
-        purpose="reauth" if principal else "login",
+        purpose="activate" if activate else "reauth" if principal else "login",
         session_id=principal.session_id if principal else None,
         expires_at=timezone.now() + timedelta(minutes=5),
     )
@@ -150,6 +160,8 @@ def finish_login(
         ):
             raise IdentityRejected()
         return {"reauthenticated": True}
+    if login.purpose != "login":
+        raise IdentityRejected()
     access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
     try:
         data = scalar(

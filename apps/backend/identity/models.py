@@ -89,3 +89,13 @@ class RetiredRefresh(models.Model):
     token_hash = models.CharField(primary_key=True, max_length=64)
     session = models.ForeignKey(Session, on_delete=models.PROTECT)
     retired_at = models.DateTimeField()
+
+
+class Invitation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    parent = models.ForeignKey("school_roster.Parent", on_delete=models.PROTECT)
+    token_hash = models.CharField(max_length=64, unique=True)
+    issued_at = models.DateTimeField()
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True)
+    revoked_at = models.DateTimeField(null=True)
