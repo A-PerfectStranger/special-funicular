@@ -239,3 +239,7 @@ contra los bytes Hermes reales. El build APK ahora limpia esa caché, fuerza tar
 y verifica el bundle/manifest del APK real antes de emitir manifiesto; falta
 compilar ese APK en CI. CI push/PR de 0dd67fb aprobadas, incluidos imagen y APK de
 desarrollo; no se atribuyen a los cambios posteriores.
+Revisión de la suite: el navegador fija el origen Cognito de ensayo antes de
+introducir usuario, contraseña o TOTP; una redirección a otro origen falla sin
+enviar el fixture. Validación de sintaxis Node y actionlint aprobadas. Las suites
+reales siguen pendientes de las migraciones/main y provisión privada.

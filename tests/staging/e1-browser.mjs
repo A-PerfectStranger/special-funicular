@@ -7,6 +7,7 @@ import { IdentityClient } from '../../apps/mobile/src/identity.ts';
 
 const fixture = JSON.parse(readFileSync(0, 'utf8'));
 const origin = fixture.origin;
+const providerOrigin = 'https://retiro-e1-028364485203.auth.us-east-1.amazoncognito.com';
 const checks = [];
 let browser;
 let step = 'browser_start';
@@ -18,10 +19,12 @@ async function submit(page) {
   await page.locator('button[type="submit"]:visible,input[type="submit"]:visible').first().click({ noWaitAfter: true });
 }
 async function providerLogin(page, username) {
+  await page.waitForURL(url => url.origin === providerOrigin);
   const user = fixture.users[username];
   await page.locator('input[name="username"]:visible,input[autocomplete="username"]:visible').first().fill(username);
   const password = page.locator('input[type="password"]:visible').first();
   if (!await password.isVisible()) await submit(page);
+  assert(new URL(page.url()).origin === providerOrigin);
   await password.fill(user.password);
   await submit(page);
   const otp = page.locator('input[autocomplete="one-time-code"]:visible,input[name="totpCode"]:visible,input[name="code"]:visible,input[name="softwareTokenMfaCode"]:visible,input[name="mfaCode"]:visible').first();
@@ -33,6 +36,7 @@ async function providerLogin(page, username) {
     value = totp.generate();
   }
   lastOtp.set(username, value);
+  assert(new URL(page.url()).origin === providerOrigin);
   await otp.fill(value);
   await submit(page);
 }
