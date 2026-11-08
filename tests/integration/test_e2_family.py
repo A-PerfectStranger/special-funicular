@@ -828,3 +828,15 @@ def test_access_expiring_while_waiting_for_student_lock_cannot_authorize() -> No
                 locking.execute("COMMIT")
             with pytest.raises(psycopg.errors.InsufficientPrivilege):
                 queued.result(timeout=5)
+
+
+def test_leaked_invitation_cannot_bind_a_differently_cased_verified_mailbox() -> None:
+    data = batch()
+    data["parents"][0]["contact"] = "case-" + data["parents"][0]["contact"]
+    import_batch(data)
+    token = issue(data)
+    local, domain = data["parents"][0]["contact"].split("@")
+    with pytest.raises(psycopg.errors.InvalidAuthorizationSpecification):
+        redeem(data, token, local.upper() + "@" + domain)
+    # Failed proof does not consume the capability or bind any identity.
+    redeem(data, token, data["parents"][0]["contact"])
