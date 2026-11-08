@@ -11,14 +11,20 @@ invitación 32 bytes/24 h y canje OIDC/PKCE/MFA con email verificado; API/móvil
 familia, cuidadores/fotos/recurrencias/revocación; migraciones con RLS y funciones
 restringidas. OpenAPI y docs/runbooks/e2.md describen comandos y límites reales.
 
-Comprobaciones locales finales: make check aprobado, 214 Python y 12 JS;
-migración de todos los esquemas desde base PostgreSQL vacía y suite completa
-aprobadas con roles separados; tipos/lint/Django/Expo/actionlint aprobados.
+Comprobaciones locales finales: make check aprobado, 215 Python y 12 JS;
+migración desde PostgreSQL vacío y suite de 214 pruebas aprobadas antes del
+último control de zona horaria; make check final incluye ese caso (215) con roles
+separados; tipos/lint/Django/Expo/actionlint aprobados.
 Cuatro regresiones Chromium del callback y bundle Android/Hermes aprobados.
 Pillow 13.0.0; pip-audit/npm audit sin vulnerabilidades y gitleaks historial/árbol
 sin secretos. Se corrigió un test E1 que fijaba el lector a la BD de desarrollo
 en vez de PGDATABASE, descubierto al ensayar la migración limpia. Archivos de
-trabajo en work/, excluidos de Git. CI, imagen/APK y AWS propios pendientes.
+trabajo en work/, excluidos de Git. PR #16: https://github.com/A-PerfectStranger/special-funicular/pull/16.
+Primer commit 7b3f831: CI 42520182911 aprobó calidad/seguridad/bundle; imagen/APK
+seguían ejecutándose al preparar el último control. No atribuir esos resultados
+al commit siguiente: CI, imagen/APK finales y AWS E2 propios pendientes.
+La revisión final rechaza zona horaria inválida en staging y ancla el hash del
+comando familiar en su evento. Ningún recibo WORM se declara a partir de esa prueba local.
 
 Ensayo preparado: e2-trial.yml, mismo grupo serializado y digest API/archivador,
 gate E1/APK antes de E2, cohorte nueva en Secrets Manager y verificación WORM

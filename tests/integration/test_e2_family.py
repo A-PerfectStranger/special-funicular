@@ -174,12 +174,26 @@ def test_bulk_approval_hash_replay_and_private_boundary() -> None:
 
 @pytest.mark.parametrize(
     "damage",
-    ["cross_site", "double_principal", "reference", "duplicate", "unlinked", "invalid_windows"],
+    [
+        "cross_site",
+        "double_principal",
+        "reference",
+        "duplicate",
+        "unlinked",
+        "invalid_windows",
+        "invalid_timezone",
+    ],
 )
 def test_invalid_batch_never_activates_any_row(damage: str) -> None:
     data = batch()
     if damage == "cross_site":
         data["students"][0]["site_id"] = str(roster()["site"])
+    if damage == "invalid_timezone":
+        with connect("importer") as db:
+            db.execute(
+                "UPDATE school_roster_site SET timezone='Invalid/Zone' WHERE id=%s",
+                (data["students"][0]["site_id"],),
+            )
     if damage == "double_principal":
         data["links"][1]["principal"] = True
     if damage == "reference":

@@ -61,7 +61,8 @@ BEGIN
       OR length(btrim(child->>'name')) NOT BETWEEN 1 AND 160
       OR jsonb_typeof(child->'blocked')<>'boolean'
       OR NOT public.e2_validate_windows(child->'windows')
-      OR NOT EXISTS(SELECT 1 FROM public.school_roster_site WHERE id=(child->>'site_id')::uuid AND school_id=sid)
+      OR NOT EXISTS(SELECT 1 FROM public.school_roster_site si WHERE si.id=(child->>'site_id')::uuid AND si.school_id=sid
+        AND EXISTS(SELECT 1 FROM pg_timezone_names WHERE name=si.timezone))
       OR EXISTS(SELECT 1 FROM public.school_roster_student WHERE id=(child->>'id')::uuid)
       OR (SELECT count(*) FROM jsonb_array_elements(data->'students') s WHERE s->>'id'=child->>'id')<>1
       OR (SELECT count(*) FROM jsonb_array_elements(data->'links') l
@@ -305,7 +306,8 @@ BEGIN
  ELSE RAISE EXCEPTION 'unknown command' USING ERRCODE='22023';
  END IF;
  eid:=public.e1_append(operation,a.id,school,correlation,
-   jsonb_build_object('student_id',student,'object_id',rid,'link_version',l.version,'result','APPLIED'));
+   jsonb_build_object('student_id',student,'object_id',rid,'link_version',l.version,
+     'command_digest',hash,'result','APPLIED'));
  SELECT sequence INTO seq FROM public.evidence_event WHERE id=eid;
  result:=jsonb_build_object('id',rid,'status','APPLIED','event_sequence',seq);
  INSERT INTO public.authorization_command(id,actor_id,digest,result) VALUES(correlation,a.id,hash,result);
