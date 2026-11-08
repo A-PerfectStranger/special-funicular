@@ -1,6 +1,31 @@
 # Estado de ejecución — E1 en implementación
 
-## Checkpoint E1 (7 de noviembre de 2026, America/Bogota)
+## Estado actual para continuar
+
+**E1 sigue sin aceptación funcional.** PR #9 integrado en
+`26d7d47021cbd459d03ebbbf651731f0d2b41b52`, tras todos los checks push/PR aprobados
+del candidato `299c797` (CI 42447207549 y 42447212788). No habilita E1 por defecto;
+retiros y producción continúan desactivados. La continuación está en
+`feat/e1-live-verification`. Los apartados de checkpoint inicial son históricos.
+
+- Local: make check, 136 Python/nueve JS, seguridad sin hallazgos, actionlint,
+  sintaxis Node/Bash y bundle Hermes de staging verificado con endpoint/callback.
+- AWS: operador confirmó actualización del stack desde 0dd67fb; Managed Login v2
+  devuelve formulario 200. No se han provisionado fixtures ni probado MFA real.
+- CI main 42447792803 aprobada. CD 42448253673: publish/prepare/migrate
+  aprobados; staging todavía en curso al guardar este checkpoint. Migraciones
+  identity 0003 y evidence 0011/0012 aplicadas en RDS. Producción sigue E5.
+- Solicitada al operador la provisión sintética desde 26d7d47 con SDK de hashes
+  fijados y scripts.provision_e1_fixtures --synthetic-only; resultado pendiente.
+  No repetir la comisión ni pedir contraseñas/semillas por chat.
+- Con fixtures preparados, ejecutar E1 synthetic trial con el ID de CI main
+  aprobado. Revisar por separado despliegue, browser, cloud y APK de staging.
+- Aún faltan recuperación/copia SQL divergente y pruebas reales de denegación de
+  archivo/recibo tardío y revocación administrativa. La matriz E1 permanece abierta.
+- Decisión autorizada RFS07: Cognito exponencial; backend 5/15. Retención sintética
+  COMPLIANCE siete días. No hay credenciales AWS de operador en esta sesión.
+
+## Historial del checkpoint inicial (7 de noviembre de 2026, America/Bogota)
 
 **E1 no está terminada ni aceptada en AWS.** Base remota
 `bbe48f4`, sincronizada por fast-forward tras fetch; rama `feat/e1-identity-evidence`.
