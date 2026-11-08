@@ -267,7 +267,9 @@ BEGIN
    OR NOT EXISTS(SELECT 1 FROM public.e1_current_account() WHERE id=a.id)
    OR NOT EXISTS(SELECT 1 FROM public.identity_session WHERE id IN
      (SELECT s.id FROM public.identity_session s WHERE s.access_hash=current_setting('app.session_hash',true))
-       AND authenticated_at BETWEEN stamp-interval '5 minutes' AND stamp+interval '30 seconds') THEN
+       AND authenticated_at BETWEEN stamp-interval '5 minutes' AND stamp+interval '30 seconds'
+       AND access_expires_at>stamp AND expires_at>stamp AND revoked_at IS NULL
+       AND enabled_at IS NOT NULL AND last_seen_at>stamp-interval '15 minutes') THEN
    RAISE EXCEPTION 'family command denied' USING ERRCODE='42501'; END IF;
  SELECT * INTO p FROM public.authorization_policy WHERE student_id=student;
  IF operation IN ('CREATE_CAREGIVER','UPDATE_CAREGIVER') THEN

@@ -773,3 +773,58 @@ def test_e2_contract_validates_actual_student_family_and_command_responses() -> 
         assert response.status_code == 200
         validate("Applied", response.json())
         validate("Family", client.get(f"/students/{scope['student']}/family").json())
+
+
+def test_access_expiring_while_waiting_for_student_lock_cannot_authorize() -> None:
+    import os
+    import time
+
+    scope = roster()
+    policy(scope)
+    access, _, _ = login(scope["accounts"]["PADRE"])
+    payload = {
+        "student_id": str(scope["student"]),
+        "name": "Synthetic",
+        "document": "SYNTHETIC",
+        "photo": photo(),
+    }
+    application = "e2-expiry-" + str(uuid.uuid4())
+
+    def waiting_command() -> None:
+        with connect() as db, db.transaction():
+            db.execute("SELECT set_config('application_name',%s,true)", (application,))
+            db.execute("SELECT set_config('app.session_hash',%s,true)", (digest(access),))
+            db.execute(
+                "SELECT e2_family_command('CREATE_CAREGIVER',%s,%s::jsonb)",
+                (uuid.uuid4(), json.dumps(payload)),
+            )
+
+    with connect("importer") as locking, locking.transaction():
+        locking.execute(
+            "SELECT id FROM school_roster_student WHERE id=%s FOR UPDATE", (scope["student"],)
+        )
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            queued = pool.submit(waiting_command)
+            try:
+                deadline = time.monotonic() + 5
+                with connect() as observer:
+                    while observer.execute(
+                        "SELECT count(*) FROM pg_stat_activity "
+                        "WHERE application_name=%s AND wait_event_type='Lock'",
+                        (application,),
+                    ).fetchone() != (1,):
+                        if time.monotonic() >= deadline:
+                            raise AssertionError("The command never reached the student lock")
+                        time.sleep(0.01)
+                with psycopg.connect(os.environ["MIGRATION_DATABASE_URL"]) as owner:
+                    owner.execute("SET ROLE retiro_evidence_writer")
+                    owner.execute(
+                        "UPDATE identity_session SET "
+                        "access_expires_at=clock_timestamp()-interval '1 second' "
+                        "WHERE access_hash=%s",
+                        (digest(access),),
+                    )
+            finally:
+                locking.execute("COMMIT")
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                queued.result(timeout=5)
