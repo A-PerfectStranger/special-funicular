@@ -25,7 +25,7 @@ bloqueada hasta E5. Evidence 0013 aplicada en RDS. Retiros y producción apagado
 - Capturador de prueba ampliado a navegación nativa solicitada por JavaScript:
   regresión reproducida fallida antes de corregir; cuatro pruebas Chromium reales
   aprobadas. Esto no prueba todavía la causa del fallo Cognito ni su solución real.
-- Último make check: 153 Python/nueve JS aprobados; tipos, lint, migraciones y
+- Último make check: 154 Python/nueve JS aprobados; tipos, lint, migraciones y
   configuración Expo aprobados. La aceptación real y CI del nuevo candidato se
   registrarán por separado, sin heredar resultados de otro SHA.
 - Sondeo real backend 5/15 iniciado en workflow 42456781366 sobre 5ac4f02/digest
@@ -327,3 +327,12 @@ E1 está habilitada; E1false permite conservar la base preparatoria. Actionlint 
 revisión estática aprobados, ejecución real aún pendiente. No hay nuevo rol IAM,
 retención ni aprobación manual rutinaria. El grupo serializado se mantiene solo
 en los callers para evitar bloqueo por anidamiento. Producción continúa E5.
+
+La recuperación privada se probó también tras interrupción entre cambio en
+Cognito y checkpoint en Secrets Manager: si la contraseña pendiente ya autentica
+con MFA, solo finaliza el checkpoint y no intenta volver a asignarla. Regresión
+fallida antes de corregir y aprobada después; evita chocar con una política de
+historial de contraseñas al reanudar. Etapas privadas emiten etiquetas constantes
+para diagnosticar un BLOCKED sin divulgar errores del proveedor o credenciales.
+Último make check de esta continuación: 154 Python/nueve JS aprobado; escaneo del
+árbol sin secretos. El ensayo real continúa pendiente.

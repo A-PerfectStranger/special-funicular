@@ -19,6 +19,7 @@ def locked(error: ClientError) -> bool:
 def exercise(
     cognito: Any, vault: Any, config: dict[str, str], state: dict[str, Any]
 ) -> dict[str, bool]:
+    print("E1 private step: Cognito configuration", flush=True)
     pool = config["PoolId"]
     policy = cognito.get_user_pool_mfa_config(UserPoolId=pool)
     if policy.get("MfaConfiguration") != "ON" or not policy.get(
@@ -81,10 +82,12 @@ def exercise(
         )
 
     try:
+        print("E1 private step: recent MFA and synthetic password recovery", flush=True)
         username = "e1-a-p1"
         record = state["users"][username]
         if not record.get("mfa_ready") or subject(username) != record["sub"]:
             raise RuntimeError("Original synthetic binding required")
+        pending_is_active = False
         try:
             verified_at = mfa(username, record["password"])
         except ClientError as error:
@@ -94,6 +97,7 @@ def exercise(
             ):
                 raise
             verified_at = mfa(username, record["recovery_pending_password"])
+            pending_is_active = True
         if not record.get("recovery_pending_password"):
             record["recovery_pending_password"] = secrets.token_urlsafe(36) + "aA1!"
             save()  # Never lose the new credential if interrupted after the provider update.
@@ -101,9 +105,10 @@ def exercise(
             raise RuntimeError("Recent MFA required for synthetic recovery")
         previous_password = record["password"]
         replacement = record["recovery_pending_password"]
-        cognito.admin_set_user_password(
-            UserPoolId=pool, Username=username, Password=replacement, Permanent=True
-        )
+        if not pending_is_active:
+            cognito.admin_set_user_password(
+                UserPoolId=pool, Username=username, Password=replacement, Permanent=True
+            )
         record["password"] = replacement
         record.pop("recovery_pending_password")
         save()
@@ -118,6 +123,7 @@ def exercise(
         mfa(username, replacement)
         if subject(username) != record["sub"]:
             raise RuntimeError("Recovery changed the original subject; no rebinding allowed")
+        print("E1 private step: native exponential lockout", flush=True)
         username = "e1-b-s2"
         record = state["users"][username]
         if not record.get("mfa_ready") or subject(username) != record["sub"]:

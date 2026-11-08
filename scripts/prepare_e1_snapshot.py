@@ -66,6 +66,7 @@ def main() -> int:
     parser.add_argument("--synthetic-only", action="store_true", required=True)
     parser.add_argument("--exercise-cognito-controls", action="store_true")
     options = parser.parse_args()
+    print("E1 private step: operator and configuration", flush=True)
     session = boto3.Session(region_name="us-east-1")
     validate_operator(session.client("sts").get_caller_identity())
     config, base = outputs("retiro-staging-e1"), outputs("retiro-staging-base")
@@ -103,6 +104,7 @@ def main() -> int:
         cognito_controls = exercise(
             session.client("cognito-idp"), session.client("secretsmanager"), config, fixture
         )
+    print("E1 private step: original roster and private SQL snapshot", flush=True)
     container["environment"].append(
         {
             "name": "E1_EXPECTED_ROSTER",
@@ -143,6 +145,7 @@ def main() -> int:
         raise RuntimeError("Private export failed; no snapshot accepted")
     stream = "snapshot-private/" + container["name"] + "/" + arn.rsplit("/", 1)[1]
     rows, boundaries = read_private_rows(session.client("logs"), base["Logs"], stream)
+    print("E1 private step: effective AWS boundary policies", flush=True)
     kms, iam = session.client("kms"), session.client("iam")
     for key in ["EncryptionKeyArn", "SigningKeyArn"]:
         policy = json.loads(kms.get_key_policy(KeyId=config[key], PolicyName="default")["Policy"])
@@ -162,6 +165,7 @@ def main() -> int:
     )
     if not all(boundaries.values()):
         raise RuntimeError("AWS boundary inspection failed")
+    print("E1 private step: retained original and rewritten copies", flush=True)
     mutated = rewrite_copy(rows)
     s3 = session.client("s3")
     nonce = uuid.uuid4().hex
