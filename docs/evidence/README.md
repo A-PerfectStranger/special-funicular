@@ -64,3 +64,26 @@ Browser conserva su fallo mobile_native_return; escuela aprobada, GUARDIA no
 alcanzado, archive-drill omitido. Cloud verificó 37 eventos independientemente.
 El APK solo acredita compilación/configuración/firma de desarrollo; no prueba
 física ni distribución. Ningún reporte se transforma en aceptación completa.
+
+## Backend 5/15 real sobre 5ac4f02
+
+`e1-backend-limits-5ac4f02.json`: workflow
+[42456781366](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42456781366),
+artefacto 13608038881, ZIP SHA-256
+8e98045a58baefb2af61a1dc4e0aaf4bbaf21e4d7953f34229a0ac38aa708a39 verificado.
+Código del sondeo 5744794; release/digest observados contrastados con el reporte
+de despliegue estable 5ac4f02. Cinco fallos bloquearon un inicio válido; el web
+continuó disponible, hubo denegación a 890,272 s y recuperación a 905,530 s.
+Muestreo real sin adelantar relojes, sin SQL, AWS o credenciales. No demuestra el
+bloqueo de Cognito ni acepta por sí solo E1. No se desplegó otro SHA durante la
+medición; el PR #11 se integró después de completarla.
+
+## Base preparatoria be8f1df
+
+`e1-base-staging-be8f1df.json`: artefacto 13609012854 del CD
+[42458832112](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42458832112).
+ZIP SHA-256 35e3826a1ce7d0c1bbd9abd71d755352dbaf4127b15439262ab1db293c87a1ed
+verificado de nuevo contra el artefacto original al reanudar. CI main
+42458226675 aprobada; publish/prepare/migrate/staging aprobados, evidence 0014
+incluida. Producción bloqueada E5 y gate E1 omitido por flag false. E1 desactivada,
+sin aceptación funcional. La copia se recuperó de la rama documental al reanudar.

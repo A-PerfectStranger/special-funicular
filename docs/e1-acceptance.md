@@ -104,7 +104,10 @@ Cognito conserva el subject y exige MFA antes y después de cambiar la contrase�
 La copia privada contrasta el roster original para E1-02; no asigna hijos durante
 recuperación. Evidence 0014 audita exclusivamente el comando técnico de estado.
 Todas estas comprobaciones siguen pendientes de ejecución AWS del nuevo candidato.
-El sondeo backend 42456781366 está en ejecución; su resultado no se anticipa.
+El sondeo backend 42456781366 aprobó sobre 5ac4f02: cinco fallos, otro punto
+independiente disponible, denegación a 890,272 s y recuperación a 905,530 s.
+Reporte y ZIP verificado en docs/evidence/e1-backend-limits-5ac4f02.json.
+Cognito exponencial, baja real y recuperación continúan pendientes.
 
 La aceptación automatizada browser/cloud/APK/archive-drill se comparte entre el
 ensayo manual y el CD. Al habilitar E1 en la configuración revisada, esos jobs

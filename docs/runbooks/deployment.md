@@ -21,6 +21,11 @@ realizaron en CloudShell. No hacen falta claves permanentes para el CD.
 5. Deploy actualiza Express con el mismo digest; espera todas las tareas nuevas,
    verifica índice OCI/manifest amd64, red ALB→tarea y ocho probes TLS. Evidencia:
    artefacto staging-deployment del workflow. No importar familias ni enviar avisos.
+   Si la retirada programada dejó una descripción INACTIVE, recrea el servicio
+   sintético con el digest aprobado y rearma su expiración. DRAINING o un estado
+   desconocido bloquean la creación/actualización. Un fallo de lectura o permisos
+   nunca demuestra que el servicio no existe. Contrastar el origen resultante con
+   los callbacks de E1 antes de aceptar los flujos de identidad.
 6. Producción solo se habilita tras configuración/aceptación E5. No añadir una
    aprobación humana rutinaria de promoción. cancel-in-progress=false en CD.
 
