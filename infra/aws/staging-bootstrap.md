@@ -132,3 +132,25 @@ milisegundos, formato exigido por CloudFormation/Scheduler. Ante ROLLBACK_COMPLE
 solo recrea `retiro-staging-lifecycle` si pertenece al proyecto y contiene
 exclusivamente los recursos IAM/Scheduler previstos; no elimina el stack de datos.
 El bootstrap y la comisión inicial utilizan este mismo reparador. RFS22/CA-S22.
+
+## Reanudar una API ya creada
+
+Express puede omitir networkConfiguration/loadBalancers/taskDefinition de
+DescribeServices. La comprobación consulta activeConfigurations de Express y
+resuelve los target groups de DescribeServiceRevisions; verifica el ALB y los
+security groups reales antes de confiar en X-Forwarded-Proto. La política
+lifecycle añade solo esa lectura regional, sin acceso a valores de secretos.
+
+`commission-staging.sh SOURCE_SHA IMAGE_SHA DIGEST --existing-service` actualiza
+lifecycle, repite las comprobaciones SQL sintéticas y acepta la API existente sin
+crearla otra vez. Comprueba el presupuesto real y emite configuración pública de
+entorno, digest y probes. La configuración identifica un destino provisionado; no acredita aceptación.
+E0 requiere passed=true y verificación del CD con los roles separados. RFS09/13/14/22 y CA-S09/13/14/22.
+
+La sonda interna ALB envía Host=IP privada. Bajo TRUSTED_INGRESS=ecs-express,
+LivenessMiddleware responde exclusivamente GET/HEAD de /health/live antes de
+CommonMiddleware, conservando cabeceras seguras y sin consulta SQL ni estado.
+El resto de rutas y métodos mantiene ALLOWED_HOSTS/CSRF/redirección HTTPS.
+La configuración de entorno registra la infraestructura observada; el adaptador
+resuelve revisiones, red y URL vigentes desde AWS en cada despliegue. Que el
+validador estructural apruebe el destino no acredita probes ni aceptación E0.

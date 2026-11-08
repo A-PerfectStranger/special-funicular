@@ -6,14 +6,37 @@ from scripts.aws_cli import aws
 
 
 def verify_ingress(cluster: str, service: str, app_group: str) -> dict[str, Any]:
-    description = aws("ecs", "describe-services", "--cluster", cluster, "--services", service)[
-        "services"
-    ][0]
-    groups = description["networkConfiguration"]["awsvpcConfiguration"]["securityGroups"]
+    description = aws("ecs", "describe-express-gateway-service", "--service-arn", service)[
+        "service"
+    ]
+    configurations = description.get("activeConfigurations", [])
+    if description.get("status", {}).get("statusCode") != "ACTIVE" or not configurations:
+        raise RuntimeError("No active Express revision available for network verification")
+    groups = sorted(
+        {
+            group
+            for config in configurations
+            for group in config.get("networkConfiguration", {}).get("securityGroups", [])
+        }
+    )
+    revisions = [config["serviceRevisionArn"] for config in configurations]
+    if not groups or not revisions:
+        raise RuntimeError("Active Express network/revision metadata is missing")
+    resolved = aws("ecs", "describe-service-revisions", "--service-revision-arns", *revisions)
+    if resolved.get("failures") or len(resolved.get("serviceRevisions", [])) != len(revisions):
+        raise RuntimeError("Active service revision lookup is incomplete")
+    targets = sorted(
+        {
+            item["targetGroupArn"]
+            for revision in resolved["serviceRevisions"]
+            for item in revision.get("resolvedConfiguration", {}).get("loadBalancers", [])
+        }
+    )
+    if not targets:
+        raise RuntimeError("Active revisions have no resolved ALB target groups")
     expected_vpc = aws("ec2", "describe-security-groups", "--group-ids", app_group)[
         "SecurityGroups"
     ][0]["VpcId"]
-    targets = [item["targetGroupArn"] for item in description["loadBalancers"]]
     target_groups = aws("elbv2", "describe-target-groups", "--target-group-arns", *targets)[
         "TargetGroups"
     ]

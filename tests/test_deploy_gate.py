@@ -7,8 +7,9 @@ from scripts.validate_deploy import validate
 
 
 @pytest.mark.parametrize("environment", ["staging", "production"])
-def test_unconfigured_targets_are_blocked(environment: str) -> None:
+def test_missing_target_identity_and_url_are_blocked(environment: str) -> None:
     config = json.loads(Path(f"infra/environments/{environment}.json").read_text())
+    config.update(account_id=None, base_url=None)
     assert "missing account_id" in validate(config)
     assert "missing base_url" in validate(config)
 

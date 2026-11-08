@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -173,6 +174,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sha", required=True)
     parser.add_argument("--digest", required=True)
+    parser.add_argument("--existing-service", action="store_true")
     args = parser.parse_args()
     if not re.fullmatch("[0-9a-f]{40}", args.sha) or not re.fullmatch(
         "sha256:[0-9a-f]{64}", args.digest
@@ -181,6 +183,23 @@ def main() -> int:
     identity = aws("sts", "get-caller-identity")
     if identity["Account"] != "028364485203":
         raise SystemExit("BLOCKED: wrong account")
+    budget = aws(
+        "budgets",
+        "describe-budget",
+        "--account-id",
+        identity["Account"],
+        "--budget-name",
+        "retiro-seguro-total-150-usd",
+    )["Budget"]
+    if (
+        budget.get("TimeUnit") != "CUSTOM"
+        or budget.get("BudgetType") != "COST"
+        or budget.get("BudgetLimit", {}).get("Unit") != "USD"
+        or Decimal(str(budget.get("BudgetLimit", {}).get("Amount", 0))) != 150
+        or budget.get("CostTypes", {}).get("IncludeCredit") is not False
+        or budget.get("CostTypes", {}).get("IncludeRefund") is not False
+    ):
+        raise SystemExit("BLOCKED: actual project budget does not match the 150 USD gross ceiling")
     from scripts.prepare_staging_run import open_window
 
     open_window()
@@ -246,34 +265,37 @@ def main() -> int:
         c.get("exitCode") != 0 for c in task_result["containers"]
     ):
         raise RuntimeError("SQL bootstrap/TLS/RLS/migration failed; inspect private task logs")
-    api_definition = register(task_definition(outputs, image, args.sha, False))
-    created = aws(
-        "ecs",
-        "create-express-gateway-service",
-        "--cluster",
-        outputs["Cluster"],
-        "--service-name",
-        "retiro-api",
-        "--infrastructure-role-arn",
-        outputs["ExpressInfrastructure"],
-        "--task-definition-arn",
-        api_definition,
-        "--health-check-path",
-        "/health/live",
-        "--network-configuration",
-        json.dumps(
-            {
-                "subnets": [outputs["Public0"], outputs["Public1"]],
-                "securityGroups": [outputs["AppSecurityGroup"]],
-            }
-        ),
-        "--scaling-target",
-        '{"minTaskCount":1,"maxTaskCount":1}',
-        "--tags",
-        "key=Project,value=retiro-seguro",
-        "key=Environment,value=staging",
-    )
-    service = created["service"]["serviceArn"]
+    if args.existing_service:
+        service = "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api"
+    else:
+        api_definition = register(task_definition(outputs, image, args.sha, False))
+        created = aws(
+            "ecs",
+            "create-express-gateway-service",
+            "--cluster",
+            outputs["Cluster"],
+            "--service-name",
+            "retiro-api",
+            "--infrastructure-role-arn",
+            outputs["ExpressInfrastructure"],
+            "--task-definition-arn",
+            api_definition,
+            "--health-check-path",
+            "/health/live",
+            "--network-configuration",
+            json.dumps(
+                {
+                    "subnets": [outputs["Public0"], outputs["Public1"]],
+                    "securityGroups": [outputs["AppSecurityGroup"]],
+                }
+            ),
+            "--scaling-target",
+            '{"minTaskCount":1,"maxTaskCount":1}',
+            "--tags",
+            "key=Project,value=retiro-seguro",
+            "key=Environment,value=staging",
+        )
+        service = created["service"]["serviceArn"]
     try:
         expiry = arm_expiry(service)
     except Exception:
@@ -312,12 +334,33 @@ def main() -> int:
     same_digest = bool(running) and all(
         c.get("imageDigest") in expected for t in running for c in t["containers"]
     )
+    configuration = {
+        "environment": "staging",
+        "provider": "aws",
+        "region": "us-east-1",
+        "account_id": identity["Account"],
+        "deploy_role_arn": outputs["Deploy"],
+        "migration_role_arn": outputs["Migrate"],
+        "image_repository": outputs["ImageRepository"],
+        "cluster": outputs["Cluster"],
+        "service": service,
+        "task_definition": state["activeConfigurations"][0]["taskDefinitionArn"],
+        "migration_task_definition": "retiro-staging-migrate",
+        "subnets": [outputs["Public0"], outputs["Public1"]],
+        "security_groups": [outputs["AppSecurityGroup"]],
+        "base_url": origin,
+        "budget_verified": True,
+        "credit_ceiling_usd": 150,
+        "pickup_enabled": False,
+        "synthetic_only": True,
+    }
     evidence = {
         "sha": args.sha,
         "digest": args.digest,
         "service": service,
         "origin": origin,
         "bootstrap_task": task,
+        "configuration": configuration,
         "same_digest_running": same_digest,
         "network": network_evidence,
         "expires_at": expiry,
@@ -327,11 +370,14 @@ def main() -> int:
     print(
         json.dumps(
             {
+                "configuration": configuration,
                 "origin": origin,
                 "service": service,
                 "sha": args.sha,
                 "digest": args.digest,
                 "passed": bool(report.get("passed") and same_digest),
+                "public_probes": report,
+                "network": network_evidence,
                 "expires_at": expiry,
             },
             indent=2,
