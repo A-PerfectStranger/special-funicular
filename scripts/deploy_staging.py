@@ -1,4 +1,4 @@
-"""Serialized migration/deployment of the latest approved main digest, synthetic E0."""
+"""Serialized migration/deployment of the latest approved main digest, synthetic only."""
 
 import argparse
 import copy
@@ -11,6 +11,7 @@ from typing import Any
 
 from scripts.aws_cli import aws
 from scripts.commission_staging import arm_expiry, register, runtime_digests, task_definition
+from scripts.e1_release import api_definition, archive_definition, start_archive
 from scripts.verify_staging import verify
 from scripts.verify_staging_network import verify_ingress
 
@@ -52,6 +53,9 @@ def main() -> int:
     parser.add_argument("--mode", choices=["migrate", "deploy"], required=True)
     parser.add_argument("--sha", required=True)
     parser.add_argument("--digest", required=True)
+    parser.add_argument(
+        "--e1-trial", action="store_true", help="Synthetic E1 trial, not acceptance"
+    )
     args = parser.parse_args()
     if not re.fullmatch("[0-9a-f]{40}", args.sha) or not re.fullmatch(
         "sha256:[0-9a-f]{64}", args.digest
@@ -68,6 +72,13 @@ def main() -> int:
         "arn:aws:sts::028364485203:assumed-role/retiro-staging-" + role + "/"
     ):
         raise SystemExit("BLOCKED: isolated deployment/migration identity required")
+    environment = json.loads(Path("infra/environments/staging.json").read_text())
+    if (
+        environment.get("synthetic_only") is not True
+        or environment.get("pickup_enabled") is not False
+    ):
+        raise SystemExit("BLOCKED: synthetic-only staging with pickups disabled required")
+    e1_enabled = args.e1_trial or environment.get("e1_enabled") is True
     outputs = {
         v["OutputKey"]: v["OutputValue"]
         for v in aws("cloudformation", "describe-stacks", "--stack-name", "retiro-staging-base")[
@@ -121,7 +132,22 @@ def main() -> int:
             raise RuntimeError("Migration failed; deployment prohibited")
         print("Migration task completed with separate SQL identity")
         return 0
-    definition = register(task_definition(outputs, image, args.sha, False))
+    expected = runtime_digests(args.digest)
+    archive_task = None
+    if e1_enabled:
+        e1 = {
+            v["OutputKey"]: v["OutputValue"]
+            for v in aws("cloudformation", "describe-stacks", "--stack-name", "retiro-staging-e1")[
+                "Stacks"
+            ][0]["Outputs"]
+        }
+        # Validate both definitions before starting a process. Same image, isolated credentials.
+        api = api_definition(outputs, e1, image, args.sha)
+        archive = register(archive_definition(outputs, e1, image, args.sha))
+        archive_task = start_archive(outputs, archive, expected)
+    else:
+        api = task_definition(outputs, image, args.sha, False)
+    definition = register(api)
     service = "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api"
     state_result = subprocess.run(
         [
@@ -187,7 +213,6 @@ def main() -> int:
             definition,
         )
         expiry = arm_expiry(service)
-    expected = runtime_digests(args.digest)
     origin = ""
     for _ in range(100):
         state = aws("ecs", "describe-express-gateway-service", "--service-arn", service)["service"]
@@ -233,6 +258,10 @@ def main() -> int:
         "expires_at": expiry,
         "probes": report,
         "passed": passed,
+        "e1_identity_enabled": e1_enabled,
+        "archive_task": archive_task,
+        "e1_accepted": False,
+        "scope": "Deployment and technical probes only; functional E1 acceptance is separate",
     }
     Path("work").mkdir(exist_ok=True)
     Path("work/staging-deployment.json").write_text(json.dumps(evidence, indent=2) + "\n")

@@ -201,3 +201,16 @@ Checks de continuación antes del siguiente cambio de CD: `make check` aprobado,
 CFN, migraciones y Expo. `make security` aprobado: pip-audit/npm sin vulnerabilidades,
 gitleaks de historial/árbol sin secretos. No equivale a CI del próximo commit ni
 al ensayo real AWS. Estos resultados incluyen la regresión de logout/refresh.
+
+Conexión de ensayo preparada: workflow manual `E1 synthetic trial`, mismo grupo
+serializado que CD, exige CI main actual aprobado, publica el OCI aprobado y
+usa Deploy/Migrate separados. API y archivador usan el mismo digest, credenciales
+por proceso y ventana de tres horas. Relevo verificado antes de detener worker
+previo; nuevas pruebas cubren fallo y orden de relevo. `e1_enabled=false` conserva
+CD habitual apagado. No se ha ejecutado el workflow ni aceptado E1 en AWS.
+AWS SAR confirma que DescribeUserPoolDomain no admite ARN individual; lectura
+regional separada, resto de permisos Cognito continúa acotado al pool.
+`make check` del adaptador de despliegue: 131 Python/nueve JS aprobado; bundle
+Android/Hermes exportado. La IaC posterior de permiso regional también pasó
+cfn-lint y tipos. CI del primer checkpoint 4324519: quality aprobado; imagen/APK
+seguían en ejecución al registrar esta línea.

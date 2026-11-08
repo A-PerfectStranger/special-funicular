@@ -226,8 +226,13 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: [cognito-idp:DescribeUserPool, cognito-idp:DescribeUserPoolClient, cognito-idp:GetUserPoolMfaConfig, cognito-idp:DescribeUserPoolDomain]
+                Action: [cognito-idp:DescribeUserPool, cognito-idp:DescribeUserPoolClient, cognito-idp:GetUserPoolMfaConfig]
                 Resource: !GetAtt Pool.Arn
+              # DescribeUserPoolDomain has no resource-level IAM support (AWS SAR).
+              - Effect: Allow
+                Action: cognito-idp:DescribeUserPoolDomain
+                Resource: '*'
+                Condition: {StringEquals: {aws:RequestedRegion: !Ref 'AWS::Region'}}
   AcceptanceFixtures:
     Type: AWS::SecretsManager::Secret
     DeletionPolicy: Retain
@@ -295,8 +300,13 @@ Resources:
                 Action: [s3:GetBucketVersioning, s3:GetBucketPublicAccessBlock, s3:GetBucketObjectLockConfiguration, s3:GetEncryptionConfiguration, s3:GetBucketPolicy]
                 Resource: !GetAtt EvidenceBucket.Arn
               - Effect: Allow
-                Action: [cognito-idp:DescribeUserPool, cognito-idp:GetUserPoolMfaConfig, cognito-idp:DescribeUserPoolClient, cognito-idp:DescribeUserPoolDomain]
+                Action: [cognito-idp:DescribeUserPool, cognito-idp:GetUserPoolMfaConfig, cognito-idp:DescribeUserPoolClient]
                 Resource: !GetAtt Pool.Arn
+              # DescribeUserPoolDomain has no resource-level IAM support (AWS SAR).
+              - Effect: Allow
+                Action: cognito-idp:DescribeUserPoolDomain
+                Resource: '*'
+                Condition: {StringEquals: {aws:RequestedRegion: !Ref 'AWS::Region'}}
               - Effect: Allow
                 Action: cloudformation:DescribeStacks
                 Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-e1/*'

@@ -79,3 +79,60 @@ def test_missing_or_shared_keys_prevent_e1_definition() -> None:
     del config["Bucket"]
     with pytest.raises(RuntimeError, match="complete"):
         archive_definition(base, config, "image", "sha")
+
+
+def test_failed_archive_replacement_never_stops_previous_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts import e1_release
+
+    calls: list[tuple[str, ...]] = []
+
+    def api(*args: str) -> dict[str, object]:
+        calls.append(args)
+        if args[1] == "list-tasks":
+            return {"taskArns": ["old-worker"]}
+        if args[1] == "run-task":
+            return {"tasks": [{"taskArn": "new-worker"}]}
+        if args[1] == "describe-tasks":
+            return {"tasks": [{"lastStatus": "STOPPED"}]}
+        return {}
+
+    monkeypatch.setattr(e1_release, "aws", api)
+    base = {key: key for key in ["Cluster", "Public0", "Public1", "AppSecurityGroup"]}
+    with pytest.raises(RuntimeError, match="previous worker untouched"):
+        e1_release.start_archive(base, "new-definition", {"approved-digest"})
+    stops = [call for call in calls if call[1] == "stop-task"]
+    assert len(stops) == 1 and stops[0][stops[0].index("--task") + 1] == "new-worker"
+
+
+def test_archive_digest_is_verified_before_old_worker_is_stopped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts import e1_release
+
+    calls: list[tuple[str, ...]] = []
+
+    def api(*args: str) -> dict[str, object]:
+        calls.append(args)
+        if args[1] == "list-tasks":
+            return {"taskArns": ["old-worker"]}
+        if args[1] == "run-task":
+            return {"tasks": [{"taskArn": "new-worker"}]}
+        if args[1] == "describe-tasks":
+            return {
+                "tasks": [
+                    {
+                        "lastStatus": "RUNNING",
+                        "taskDefinitionArn": "new-definition",
+                        "containers": [{"imageDigest": "approved-digest", "lastStatus": "RUNNING"}],
+                    }
+                ]
+            }
+        return {}
+
+    monkeypatch.setattr(e1_release, "aws", api)
+    base = {key: key for key in ["Cluster", "Public0", "Public1", "AppSecurityGroup"]}
+    assert e1_release.start_archive(base, "new-definition", {"approved-digest"}) == "new-worker"
+    assert [call[1] for call in calls] == ["list-tasks", "run-task", "describe-tasks", "stop-task"]
+    assert calls[-1][calls[-1].index("--task") + 1] == "old-worker"
