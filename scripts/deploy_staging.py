@@ -161,6 +161,9 @@ def main() -> int:
     ):
         raise SystemExit("BLOCKED: synthetic-only staging with pickups disabled required")
     e1_enabled = args.e1_trial or args.e2_trial or environment.get("e1_enabled") is True
+    e2_enabled = args.e2_trial or environment.get("e2_enabled") is True
+    if e2_enabled and not e1_enabled:
+        raise RuntimeError("BLOCKED: E2 requires the E1 identity and archive gate")
     outputs = {
         v["OutputKey"]: v["OutputValue"]
         for v in aws("cloudformation", "describe-stacks", "--stack-name", "retiro-staging-base")[
@@ -224,7 +227,7 @@ def main() -> int:
             ][0]["Outputs"]
         }
         # Validate both definitions before starting a process. Same image, isolated credentials.
-        api = api_definition(outputs, e1, image, args.sha, enable_family=args.e2_trial)
+        api = api_definition(outputs, e1, image, args.sha, enable_family=e2_enabled)
         archive = register(archive_definition(outputs, e1, image, args.sha))
         archive_task = start_archive(outputs, archive, expected)
     else:
@@ -277,7 +280,7 @@ def main() -> int:
         "probes": report,
         "passed": passed,
         "e1_identity_enabled": e1_enabled,
-        "e2_family_enabled": args.e2_trial,
+        "e2_family_enabled": e2_enabled,
         "archive_task": archive_task,
         "e1_accepted": False,
         "scope": "Deployment and technical probes only; functional E1 acceptance is separate",

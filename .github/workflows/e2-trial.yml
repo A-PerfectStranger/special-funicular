@@ -100,30 +100,7 @@ jobs:
   family:
     needs: [publish, acceptance]
     permissions: {contents: read, id-token: write}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with: {ref: '${{ needs.publish.outputs.sha }}', persist-credentials: false}
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with: {node-version-file: .node-version}
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: python3 -m pip install --target work/e1-sdk --require-hashes -r infra/aws/e1-ops.txt
-      - name: Real E2 activation, family permissions and private revocations
-        env: {PYTHONPATH: 'work/e1-sdk'}
-        run: python3 scripts/aws_oidc.py --role E1Acceptance -- python3 -m scripts.run_e2_browser
-      - name: Verify every preceding E2 event with the independent WORM reader
-        env: {PYTHONPATH: 'apps/backend:work/e1-sdk'}
-        run: |
-          sequence=$(python3 -c 'import json; print(json.load(open("work/e2-browser-acceptance.json"))["minimum_sequence"])')
-          python3 scripts/aws_oidc.py --role E1Verifier -- python3 -m scripts.verify_e1_staging --minimum-sequence "$sequence"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: e2-family-acceptance-${{ needs.publish.outputs.sha }}
-          path: |
-            work/e2-browser-acceptance.json
-            work/e1-cloud-acceptance.json
-          if-no-files-found: warn
-          retention-days: 7
+    uses: ./.github/workflows/e2-checks.yml
+    with:
+      release_sha: ${{ needs.publish.outputs.sha }}
+      release_digest: ${{ needs.publish.outputs.digest }}

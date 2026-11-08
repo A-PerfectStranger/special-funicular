@@ -155,6 +155,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sha", required=True)
     parser.add_argument("--trial-id", required=True)
+    parser.add_argument(
+        "--pool-size", type=int, default=0, help="Prepare 1..8 fresh cohorts for continuous gates"
+    )
     parser.add_argument("--synthetic-only", action="store_true", required=True)
     args = parser.parse_args()
     if not re.fullmatch("[0-9a-f]{40}", args.sha):
@@ -178,10 +181,25 @@ def main() -> None:
     )
     if not state.get("roster_ready"):
         raise RuntimeError("Original E1 fixture required")
-    if state.get("e2", {}).get("trial_id") != trial:
-        state["e2"] = cohort(args.sha, trial)
-    if state["e2"]["release_sha"] != args.sha:
-        raise RuntimeError("Trial belongs to another release")
+    if not 0 <= args.pool_size <= 8:
+        raise ValueError("Pool limit")
+    if args.pool_size:
+        existing = {c["trial_id"]: c for c in state.get("e2_pool", [])}
+        selected = []
+        for index in range(args.pool_size):
+            ident = str(uuid.uuid5(uuid.UUID(trial), str(index)))
+            value = existing.get(ident) or cohort(args.sha, ident)
+            if value["release_sha"] != args.sha:
+                raise RuntimeError("Pool preparation belongs to another release")
+            selected.append(value)
+        # Secrets Manager retains prior versions; no SQL records, identities or tokens are reset.
+        state["e2_pool"] = selected
+    else:
+        if state.get("e2", {}).get("trial_id") != trial:
+            state["e2"] = cohort(args.sha, trial)
+        if state["e2"]["release_sha"] != args.sha:
+            raise RuntimeError("Trial belongs to another release")
+        selected = [state["e2"]]
 
     def save() -> None:
         vault.put_secret_value(
@@ -197,11 +215,12 @@ def main() -> None:
         ExplicitAuthFlows=["ALLOW_ADMIN_USER_PASSWORD_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"],
     )["UserPoolClient"]["ClientId"]
     try:
-        for name, record in state["e2"]["users"].items():
-            enroll(cognito, pool, client, name, record)
-            save()
-            finish_enrollment(cognito, pool, client, name, record)
-            save()
+        for value in selected:
+            for name, record in value["users"].items():
+                enroll(cognito, pool, client, name, record)
+                save()
+                finish_enrollment(cognito, pool, client, name, record)
+                save()
     finally:
         cognito.delete_user_pool_client(UserPoolId=pool, ClientId=client)
     print("E2 synthetic MFA fixtures prepared. No acceptance or real messages claimed.")

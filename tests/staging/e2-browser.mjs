@@ -64,6 +64,7 @@ try {
   await denied(() => p.activate(fixture.users[secondary].invitation));
   step = 'primary_activation'; await p.activate(fixture.users[primary].invitation);
   step = 'secondary_activation'; await s.activate(fixture.users[secondary].invitation);
+  step = 'invitation_replay'; await denied(() => p.activate(fixture.users[primary].invitation));
   checks.push('verified_contact_and_one_use_activation');
   step = 'ordinary_login'; assert(await p.login() === 'PADRE'); assert(await s.login() === 'PADRE');
   const student = fixture.batch.students[0].id;
@@ -82,11 +83,16 @@ try {
   const key = randomUUID(), caregiver = await mutate(p, '/v1/caregivers', body, key);
   assert((await mutate(p, '/v1/caregivers', body, key)).id === caregiver.id);
   await denied(() => p.familyRequest('/v1/caregivers', { ...body, name: 'Changed' }, key));
-  const tomorrow = new Date(Date.now()+86400000).toISOString().slice(0,10);
-  const recurrence = { start_date: tomorrow, end_date: tomorrow, weekdays: [1,2,3,4,5,6,7], from: '13:00', until: '13:15' };
+  const tomorrowDate = new Date(Date.now()+86400000);
+  const tomorrow = tomorrowDate.toISOString().slice(0,10);
+  const recurrence = { start_date: tomorrow, end_date: new Date(Date.now()+8*86400000).toISOString().slice(0,10),
+    weekdays: [((tomorrowDate.getUTCDay()+6)%7)+1], from: '13:00', until: '13:15' };
   const authBody = { student_id: student, caregiver_id: caregiver.id, recurrence };
   await denied(() => s.familyRequest('/v1/authorizations', authBody, randomUUID()));
+  await denied(() => p.familyRequest('/v1/authorizations', { ...authBody, recurrence: { ...recurrence, from: '20:00', until: '20:15' } }, randomUUID()));
   const authorization = await mutate(p, '/v1/authorizations', authBody);
+  const expanded = (await p.familyRequest(`/v1/students/${student}/family`)).authorizations.find(a => a.id === authorization.id).schedule;
+  assert(expanded.length === 2 && expanded.every(s => new Date(s.from).getUTCHours() === 18));
   await mutate(p, `/v1/caregivers/${caregiver.id}/update`, { ...body, version: 1, document: 'E2-CHANGED' });
   let records = await p.familyRequest(`/v1/students/${student}/family`);
   assert(records.authorizations.find(a => a.id === authorization.id).revoked);
@@ -105,12 +111,18 @@ try {
   await mutate(s, '/v1/caregivers', body);
   await denied(() => s.familyRequest('/v1/authorizations', authBody, randomUUID()));
   checks.push('school_restriction_cannot_be_expanded');
+  step = 'technical_deactivation'; await control('deactivate');
+  await denied(() => s.check()); await denied(() => s.login());
+  checks.push('technical_deactivation_denies_existing_and_new_sessions');
+  step = 'audit_anchor'; await control('original-principal');
+  assert(await p.login() === 'PADRE');
+  await mutate(p, '/v1/caregivers', body);
   passed = true;
 } catch { passed = false; }
 finally {
   for (const client of clients) await client.logout().catch(() => {});
   if (browser) await browser.close();
-  writeFileSync('work/e2-browser-acceptance.json', JSON.stringify({ sha: process.env.GITHUB_SHA, trial_id: fixture.trial_id,
+  writeFileSync('work/e2-browser-acceptance.json', JSON.stringify({ sha: process.env.E2_RELEASE_SHA ?? process.env.GITHUB_SHA, trial_id: fixture.trial_id,
     passed, step, checks, minimum_sequence: minimumSequence, e2_accepted: false,
     scope: 'Real synthetic IdP and shared mobile protocol; requires independent WORM verification and the other E2 checks. No Android physical-device claim.' }, null, 2)+'\n');
 }

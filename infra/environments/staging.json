@@ -22,5 +22,6 @@
   "credit_ceiling_usd": 150,
   "pickup_enabled": false,
   "e1_enabled": true,
-  "synthetic_only": true
+  "synthetic_only": true,
+  "e2_enabled": false
 }

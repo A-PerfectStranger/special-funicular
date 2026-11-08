@@ -100,11 +100,17 @@ def test_crash_reclaims_identical_bytes_and_stale_lease_cannot_complete() -> Non
 
 
 def test_verified_receipt_completion_is_unique() -> None:
-    login(roster()["accounts"]["PADRE"])
+    _, _, meta = login(roster()["accounts"]["ADMIN_ESCUELA"], "web")
+    with psycopg.connect(os.environ["MIGRATION_DATABASE_URL"]) as owner:
+        owner.execute("SET ROLE retiro_evidence_writer")
+        owner.execute(
+            "UPDATE evidence_archivejob SET available_at='2000-01-01T00:00:00Z' WHERE event_id=%s",
+            (meta["event_id"],),
+        )
     lease = uuid.uuid4()
     with connect("archiver") as archive:
         job = archive.execute("SELECT * FROM e1_claim_archive(1,%s)", (lease,)).fetchone()
-        assert job is not None
+        assert job is not None and job[0] == uuid.UUID(meta["event_id"])
         params = (
             job[0],
             lease,

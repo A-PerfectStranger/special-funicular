@@ -148,20 +148,23 @@ las promociones son concurrentes.
 `family_ops` privado con esquema/hash/aprobación/promoción; invitaciones y canje
 Code/PKCE con email verificado; principal/políticas/baja auditados; API familiar,
 fotos reencodificadas y móvil SDK 56; OpenAPI y runbook operativo. El ensayo
-`e2-trial.yml` usa cohortes nuevas y el gate E1/WORM existente, sin permisos IAM
-nuevos. Aún no se acredita E2 por la existencia de este código.
+`e2-trial.yml` comparte gate E2/WORM con CD y consume cohortes nuevas de un pool
+acotado preparado por operador, sin permisos IAM nuevos para CI. El ensayo inicial
+[42524078114](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42524078114)
+aprobó sobre `3085e36`, incluida regresión E1/APK y evidencia externa. No acredita
+las correcciones posteriores ni cierra por sí solo E2.
 
 | Criterio | Verificación local | Verificación AWS |
 | --- | --- | --- |
-| Lote/hash/aprobación/idempotencia/rollback | PostgreSQL importer real, lote válido/incorrecto y conflicto posterior a staging | Pendiente candidato integrado + cohorte nueva |
-| Activación/contacto/issuer-sub/uso único | Firma RSA, PKCE y transporte; PostgreSQL, expiración y ocho canjes concurrentes | Pendiente scope email y MFA nuevos en Cognito |
-| Roles/familias/principal/sesiones | Dos escuelas, negativos, comandos concurrentes y cambio de principal ordenado | Pendiente ensayo E2; E1 conserva su aceptación propia |
-| Cuidadores/fotos/autorizaciones/horarios | Reencodificación, recurrencia IANA/DST, revocación y límites de MFA | Pendiente API móvil compartida contra candidato |
-| Evidencia/compatibilidad/distribución | Evento/outbox atómicos; migraciones, tipos, contrato y bundle | Pendiente imagen/APK por SHA y WORM independiente |
+| Lote/hash/aprobación/idempotencia/rollback | PostgreSQL importer real, lote válido/incorrecto y conflicto posterior a staging | Ensayo inicial aprobado; carrera entre escuelas pendiente en AWS |
+| Activación/contacto/issuer-sub/uso único | Firma RSA, PKCE y transporte; PostgreSQL, expiración y ocho canjes concurrentes | Ensayo inicial aprobado; scope email y MFA reales preparados; replay ampliado pendiente |
+| Roles/familias/principal/sesiones | Dos escuelas, negativos, comandos concurrentes y cambio de principal ordenado | Ensayo inicial aprobado; concurrencia bulk/baja ampliadas pendientes |
+| Cuidadores/fotos/autorizaciones/horarios | Reencodificación, recurrencia IANA/DST, revocación y límites de MFA | Protocolo móvil compartido inicial aprobado; recurrencia ampliada pendiente |
+| Evidencia/compatibilidad/distribución | Evento/outbox atómicos; migraciones, tipos, contrato y bundle | Imagen/APK/WORM iniciales aprobados; candidato final pendiente |
 
 **Límites actuales:** E2 está apagada en CD habitual; solo el ensayo explícito puede
-habilitarla en staging sintético. Falta ejecutar el ensayo y cerrar su matriz;
-la habilitación continua requiere gate E2 y cohortes repetibles. QR/permisos de
+habilitarla en staging sintético. Falta verificar en AWS el cierre de concurrencia
+y el gate compartido con pool real antes de habilitar CD y cerrar la matriz. QR/permisos de
 entrega pertenecen a E3 y no se declaran probados por invalidar autorizaciones.
 No se ejecutaron importaciones/invitaciones ni mensajes reales. Procedimiento
 CloudShell revisable, sin compartir códigos de verificación: docs/runbooks/e2.md.

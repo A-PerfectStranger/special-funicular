@@ -146,5 +146,8 @@ Los retiros permanecen deshabilitados. El importador y las operaciones técnicas
 son `python apps/backend/manage.py family_ops --help`, con credencial importer
 privada, aprobación escolar y motivo; no hay CRUD administrativo público.
 Comandos, límites, tratamiento de fotos y ensayo CloudShell: [runbook E2](docs/runbooks/e2.md).
-El workflow `e2-trial.yml` prepara un candidato acotado; no habilita E2 en el CD
-habitual ni acredita aceptación sin sus resultados reales.
+El workflow `e2-trial.yml` prepara un candidato acotado. Comparte `e2-checks.yml`
+con CD: al habilitar `e2_enabled` exige E1, E2 y WORM independiente. La bandera
+sigue apagada hasta validar el candidato; las cohortes privadas de un solo uso
+se preparan como pool acotado mediante CloudShell. Código y mocks no acreditan
+aceptación AWS.
