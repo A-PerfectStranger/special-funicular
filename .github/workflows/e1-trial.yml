@@ -93,7 +93,7 @@ jobs:
     needs: [publish, trial]
     permissions: {contents: read, id-token: write}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with: {ref: '${{ needs.publish.outputs.sha }}', persist-credentials: false}
@@ -105,6 +105,13 @@ jobs:
       - name: Real synthetic MFA, BFF and mobile protocol (no native-device claim)
         env: {PYTHONPATH: 'work/e1-sdk'}
         run: python3 scripts/aws_oidc.py --role E1Acceptance -- python3 -m scripts.run_e1_browser
+      - name: Restore fixed synthetic accounts even if identity tests failed
+        if: always()
+        env: {PYTHONPATH: 'work/e1-sdk'}
+        run: |
+          if [ -f work/e1-fixture-control-used ]; then
+            python3 scripts/aws_oidc.py --role E1Acceptance -- python3 -m scripts.e1_fixture_control restore-all
+          fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

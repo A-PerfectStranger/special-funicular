@@ -2,6 +2,8 @@
 import { chromium } from 'playwright';
 import { TOTP, Secret } from 'otpauth';
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
+import { promisify } from 'node:util';
+import { execFile } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { nativeCallback } from './native-callback.mjs';
 import { IdentityClient } from '../../apps/mobile/src/identity.ts';
@@ -15,9 +17,16 @@ let browser;
 let step = 'browser_start';
 let phase = 'launch';
 let lastHttpStatus = null;
+let providerReturn = null;
 const assert = (condition) => { if (!condition) throw new Error('Acceptance assertion failed'); };
 const secret = () => randomBytes(32).toString('base64url');
 const lastOtp = new Map();
+const run = promisify(execFile);
+async function fixtureStatus(action, username) {
+  phase = 'fixture_status_' + action;
+  writeFileSync('work/e1-fixture-control-used', 'synthetic status command started\n');
+  await run('python3', ['-m', 'scripts.e1_fixture_control', action, username]);
+}
 
 async function submit(page) {
   await page.locator('button[type="submit"]:visible,input[type="submit"]:visible').first().click({ noWaitAfter: true });
@@ -64,7 +73,10 @@ async function jsonResponse(context, path, status = 200) {
 }
 async function mobile(username, role) {
   let stored = null;
-  let firstRefresh = null;
+  let accessIssuedAt = 0;
+  let lastBearer = null;
+  let lastMe = null;
+  let lastExchangeStatus = null;
   const dependencies = {
     apiUrl: origin, redirectUri: fixture.mobile_redirect,
     request: async (input, options) => {
@@ -72,11 +84,16 @@ async function mobile(username, role) {
         '/v1/auth/refresh': 'refresh', '/v1/auth/logout': 'logout', '/v1/me': 'me' };
       phase = 'mobile_api_' + (labels[new URL(String(input)).pathname] ?? 'unknown');
       const response = await fetch(input, options);
+      if (new URL(String(input)).pathname === '/v1/auth/mobile/exchange') lastExchangeStatus = response.status;
+      if (new URL(String(input)).pathname === '/v1/me') {
+        if (options?.headers?.Authorization) lastBearer = options.headers.Authorization;
+        if (response.status === 200) lastMe = await response.clone().json();
+      }
       lastHttpStatus = response.status;
       return response;
     },
     readRefresh: async () => stored,
-    writeRefresh: async (value) => { stored = value; if (!firstRefresh) firstRefresh = value; },
+    writeRefresh: async (value) => { stored = value; accessIssuedAt = Date.now(); },
     clearRefresh: async () => { stored = null; },
     pkce: async () => { const verifier = secret(); return { verifier, challenge: createHash('sha256').update(verifier).digest('base64url') }; },
     browser: async (url, redirect) => {
@@ -88,21 +105,68 @@ async function mobile(username, role) {
           await page.goto(url);
           await providerLogin(page, username);
           phase = 'mobile_native_return';
-          return await capture.callback;
+          try { return await capture.callback; }
+          catch {
+            // Controlled booleans only; never serialize page text, URL or provider errors.
+            providerReturn = {
+              expected_provider_origin: new URL(page.url()).origin === providerOrigin,
+              visible_totp_form: await page.locator('input[autocomplete="one-time-code"]:visible,input[name="totpCode"]:visible,input[name="code"]:visible,input[name="softwareTokenMfaCode"]:visible,input[name="mfaCode"]:visible').count() > 0,
+              visible_alert: await page.locator('[role="alert"]:visible').count() > 0,
+            };
+            throw new Error('Native callback unavailable');
+          }
         } finally { await capture.dispose(); }
       } finally { await context.close(); }
     },
   };
-  const client = new IdentityClient(dependencies);
+  let client = new IdentityClient(dependencies);
   assert(await client.login() === role);
   assert(await client.check() === role);
   assert(await client.login(true) === role);
+  const expected = fixture.expected_scopes[username];
+  assert(lastMe.role === expected.role && lastMe.school_id === expected.school_id && lastMe.site_id === expected.site_id);
+  // Refresh first so revocation is tested against a recently issued, unexpired access credential.
+  client = new IdentityClient(dependencies);
+  assert(await client.check() === role);
+  const activeBearer = lastBearer;
+  const activeRefresh = stored;
+  try {
+    await fixtureStatus('revoke', username);
+    assert(Date.now() - accessIssuedAt < 240000);
+    const revoked = await dependencies.request(origin + '/v1/me', {
+      headers: { Authorization: activeBearer }, cache: 'no-store', redirect: 'error',
+    });
+    assert(revoked.status === 401);
+    const refresh = await fetch(origin + '/v1/auth/refresh', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: activeRefresh }), signal: AbortSignal.timeout(10000),
+    });
+    assert(refresh.status === 401);
+    let temporaryRefresh = null;
+    const disabled = new IdentityClient({ ...dependencies,
+      readRefresh: async () => temporaryRefresh,
+      writeRefresh: async value => { temporaryRefresh = value; },
+      clearRefresh: async () => { temporaryRefresh = null; },
+    });
+    lastExchangeStatus = null;
+    let rejected = false;
+    try { await disabled.login(); } catch { rejected = true; }
+    finally { await disabled.logout().catch(() => {}); }
+    assert(rejected && lastExchangeStatus === 401);
+  } finally { await fixtureStatus('restore', username); }
+  assert(Date.now() - accessIssuedAt < 240000);
+  assert((await dependencies.request(origin + '/v1/me', {
+    headers: { Authorization: activeBearer }, cache: 'no-store', redirect: 'error',
+  })).status === 401);
+  assert(await client.login() === role);
+  assert(lastMe.role === expected.role && lastMe.school_id === expected.school_id && lastMe.site_id === expected.site_id);
   // Restart requires online refresh; then logout with the token from before rotation.
+  const beforeRotation = stored;
   const restarted = new IdentityClient(dependencies);
   assert(await restarted.check() === role);
   const response = await fetch(origin + '/v1/auth/logout', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: firstRefresh }), signal: AbortSignal.timeout(10000),
+    body: JSON.stringify({ refresh_token: beforeRotation }), signal: AbortSignal.timeout(10000),
   });
   assert(response.status === 200);
   let denied = false;
@@ -220,7 +284,7 @@ const passed = checks.length === (fixture.scenario === 'archive-drill' ? 1 : 3) 
 writeFileSync(fixture.scenario === 'archive-drill' ? 'work/e1-archive-drill.json' : 'work/e1-browser-acceptance.json', JSON.stringify({
   sha: process.env.GITHUB_SHA, scope: 'Real synthetic Cognito/BFF and mobile protocol; native Android return, SQL isolation and WORM recovery are separate',
   checked_at: new Date().toISOString(), checks, passed, e1_accepted: false,
-  ...(!passed ? { failure_phase: phase, last_http_status: lastHttpStatus } : {}),
+  ...(!passed ? { failure_phase: phase, last_http_status: lastHttpStatus, provider_return: providerReturn } : {}),
   ...(deniedEventSequence ? { denied_event_sequence: deniedEventSequence } : {}),
 }, null, 2) + '\n');
 console.log('E1 browser/protocol checks: ' + (passed ? 'PASS' : 'FAIL (' + step + ')'));

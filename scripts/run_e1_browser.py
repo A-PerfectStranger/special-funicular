@@ -9,6 +9,7 @@ from pathlib import Path
 import boto3
 
 from scripts.commission_e1 import outputs
+from scripts.e1_fixture_data import identifier
 
 
 def main() -> int:
@@ -39,6 +40,14 @@ def main() -> int:
         raise RuntimeError("Observed staging callback differs from reviewed environment")
     payload = {
         "scenario": arguments.scenario,
+        "expected_scopes": {
+            "e1-a-p1": {"role": "PADRE", "school_id": None, "site_id": None},
+            "e1-b-guard": {
+                "role": "GUARDIA",
+                "school_id": identifier("school-b"),
+                "site_id": identifier("site-b"),
+            },
+        },
         "origin": expected,
         "mobile_redirect": config["MobileRedirect"],
         "users": {name: fixture["users"][name] for name in required},

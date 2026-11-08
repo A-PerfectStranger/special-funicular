@@ -88,3 +88,20 @@ Workflow 42449912611 y copias de sus reportes en docs/evidence:
 El APK de staging se compiló con endpoint/callback/package, contenido y firma
 verificados; no se distribuyó públicamente ni se acredita prueba física. Ninguna
 fila constituye por sí sola la aceptación completa de E1.
+
+## Continuación 5ac4f02 y controles de identidad
+
+El segundo ensayo 42454301027 volvió a aprobar web/escuela, cloud y APK, con
+high-water externo 37. El capturador móvil aún falló; archive-drill se omitió.
+Los informes originales se preservan en docs/evidence/*-5ac4f02.json. La ampliación
+posterior cubre redirección JavaScript y cuatro regresiones Chromium, sin afirmar
+que Cognito real ya haya pasado.
+
+E1-01 se amplía en el harness con baja/restauración privada de PADRE/GUARDIA,
+access no vencido denegado, refresh y nuevo MFA denegados durante la baja, y
+sesión vieja todavía denegada después de restaurar. La recuperación privada
+Cognito conserva el subject y exige MFA antes y después de cambiar la contraseña.
+La copia privada contrasta el roster original para E1-02; no asigna hijos durante
+recuperación. Evidence 0014 audita exclusivamente el comando técnico de estado.
+Todas estas comprobaciones siguen pendientes de ejecución AWS del nuevo candidato.
+El sondeo backend 42456781366 está en ejecución; su resultado no se anticipa.

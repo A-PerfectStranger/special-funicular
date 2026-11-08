@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "e1_accepted": false,
+  "scope": "Real Cognito configuration and independent S3/KMS archive; SQL-copy recovery and browser flows are separate",
+  "checked_at": "2026-11-08T06:37:18.521278+00:00",
+  "checks": {
+    "cognito_managed_login_mfa": true,
+    "seven_day_compliance": true,
+    "versioning_private_kms": true,
+    "keys_enabled_distinct": true,
+    "independent_sign_put_delete_retention_denied": true
+  },
+  "external_high_water": {
+    "passed": true,
+    "verified_events": 37,
+    "last_sequence": 37,
+    "last_digest": "aa7b07987d08cb5cd84a0397097486ace8d86438ad9d919f8c8a90196035ec98",
+    "database_used": false,
+    "database_snapshot_compared": false
+  }
+}

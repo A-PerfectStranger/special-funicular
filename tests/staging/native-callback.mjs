@@ -27,6 +27,23 @@ export async function nativeCallback(page, redirect, timeoutMs = 90000) {
       }
     } catch { reject(new Error('Native callback capture failed')); }
   };
+  // Managed Login can return HTML that assigns window.location instead of an HTTP redirect.
+  // Observe the requested main-frame navigation before Chromium delegates the native scheme.
+  const navigation = event => {
+    try {
+      if (event.frameId !== mainFrame || completed) return;
+      const url = new URL(event.url);
+      if (['http:', 'https:'].includes(url.protocol)) return;
+      completed = true;
+      clearTimeout(timer);
+      if (event.url.startsWith(redirect + '?')) resolve(event.url);
+      else reject(new Error('Unregistered native callback'));
+    } catch { reject(new Error('Native callback capture failed')); }
+  };
+  await session.send('Page.enable');
+  const mainFrame = (await session.send('Page.getFrameTree')).frameTree.frame.id;
+  session.on('Page.frameRequestedNavigation', navigation);
+  session.on('Page.frameScheduledNavigation', navigation);
   session.on('Fetch.requestPaused', handler);
   await session.send('Fetch.enable', { patterns: [{ resourceType: 'Document', requestStage: 'Response' }] });
   return {
@@ -35,6 +52,8 @@ export async function nativeCallback(page, redirect, timeoutMs = 90000) {
       clearTimeout(timer);
       await session.send('Fetch.disable').catch(() => {});
       session.off('Fetch.requestPaused', handler);
+      session.off('Page.frameRequestedNavigation', navigation);
+      session.off('Page.frameScheduledNavigation', navigation);
       if (!completed) reject(new Error('Native callback cancelled'));
       await session.detach().catch(() => {});
     },

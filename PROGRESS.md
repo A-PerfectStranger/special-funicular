@@ -2,33 +2,39 @@
 
 ## Estado actual para continuar
 
-**E1 sigue sin aceptación funcional.** PR #9 integrado en
-`26d7d47021cbd459d03ebbbf651731f0d2b41b52`, tras todos los checks push/PR aprobados
-del candidato `299c797` (CI 42447207549 y 42447212788). No habilita E1 por defecto;
-retiros y producción continúan desactivados. La continuación está en
-`feat/e1-live-verification`. Los apartados de checkpoint inicial son históricos.
+**E1 sigue sin aceptación integral.** Main remoto verificado en
+`5ac4f0296165361cf530f0f30ad350bbc542d6da` (PR #10). CI main 42452708111
+aprobada; CD 42453335189 publish/prepare/migrate/staging aprobados y producción
+bloqueada hasta E5. Evidence 0013 aplicada en RDS. Retiros y producción apagados.
 
-- Local: make check, 136 Python/nueve JS, seguridad sin hallazgos, actionlint,
-  sintaxis Node/Bash y bundle Hermes de staging verificado con endpoint/callback.
-- AWS: operador confirmó actualización del stack desde 0dd67fb; Managed Login v2
-  devuelve formulario 200. El operador confirmó 13 identidades/TOTP y roster sintético preparados;
-  aún no se acredita login BFF real.
-- CI main 42447792803 aprobada. CD 42448253673: publish/prepare/migrate
-  y staging aprobados. Producción bloqueada E5 (fallo previsto); no se desplegó.
-  Reporte verificado y preservado en docs/evidence/e1-base-staging-26d7d47.json.
-  Migraciones
-  identity 0003 y evidence 0011/0012 aplicadas en RDS. Producción sigue E5.
-- Provisión desde 26d7d47 confirmada por el operador: ocho PADRE, dos GUARDIA,
-  dos ADMIN_ESCUELA y un ADMIN_SISTEMA; TOTP y roster preparados. No se recibieron
-  contraseñas/semillas por chat. E1 integrated acceptance still pending.
-- Primer ensayo real 42449912611 terminado: despliegue, tres logins escolares,
-  lector/reauth web, cloud independiente y APK de staging aprobados; móvil PADRE
-  falló y GUARDIA no se ejecutó. E1 no está aceptada. Corrección del harness de
-  retorno nativo reproducida y verificada con Chromium local, pendiente en AWS.
-- Aún faltan recuperación/copia SQL divergente y pruebas reales de denegación de
-  archivo/recibo tardío y revocación administrativa. La matriz E1 permanece abierta.
-- Decisión autorizada RFS07: Cognito exponencial; backend 5/15. Retención sintética
-  COMPLIANCE siete días. No hay credenciales AWS de operador en esta sesión.
+- El operador confirmó las 13 identidades sintéticas/TOTP y el roster desde
+  26d7d47. Contraseñas y semillas permanecen exclusivamente en Secrets Manager.
+- Segundo ensayo real [42454301027](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42454301027):
+  API/worker por digest verificado, acceso escolar protegido, Cognito/WORM/KMS y
+  APK aprobados; PADRE volvió a fallar al capturar el retorno nativo, GUARDIA no
+  se ejecutó y archive-drill quedó omitido. Reportes conservados sin alterar en
+  docs/evidence/*-5ac4f02.json. High-water externo 37; no acredita recuperación SQL.
+- Continuación `feat/e1-identity-checks`: revocación administrativa privada y
+  restauración de dos cuentas fijas, prueba móvil con credenciales no vencidas,
+  migración evidence 0014 con auditoría estrecha. La restauración no reactiva
+  sesiones antiguas ni modifica identidad/rol/vínculos. Pendiente ensayo AWS.
+- Exportador privado comprueba el roster original completo y los límites reales
+  SQL/IAM/KMS antes de generar las copias. Opción de operador prepara recuperación
+  MFA de una contraseña sintética y medición nativa Cognito exponencial. No
+  ejecutados aún; no pedir ni publicar secretos.
+- Capturador de prueba ampliado a navegación nativa solicitada por JavaScript:
+  regresión reproducida fallida antes de corregir; cuatro pruebas Chromium reales
+  aprobadas. Esto no prueba todavía la causa del fallo Cognito ni su solución real.
+- Último make check: 153 Python/nueve JS aprobados; tipos, lint, migraciones y
+  configuración Expo aprobados. La aceptación real y CI del nuevo candidato se
+  registrarán por separado, sin heredar resultados de otro SHA.
+- Sondeo real backend 5/15 iniciado en workflow 42456781366 sobre 5ac4f02/digest
+  ef7b320f; sin AWS/secretos y sin alterar relojes. Resultado aún pendiente.
+  No desplegar otro candidato durante la medición de 905 segundos.
+- Faltan móvil real completo, baja/restauración online, archivo ausente/tardío,
+  copia SQL divergente y recuperación/lockout Cognito. E1 permanece sin marcar.
+- Decisión autorizada RFS07: Cognito exponencial; backend 5/15. COMPLIANCE siete
+  días solo sintéticos. No hay credenciales AWS de operador en esta sesión.
 
 ## Historial del checkpoint inicial (7 de noviembre de 2026, America/Bogota)
 
