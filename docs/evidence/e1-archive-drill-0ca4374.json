@@ -1,0 +1,14 @@
+{
+  "sha": "0ca43742fd1a5ad77311a64ee522ef932682922d",
+  "scope": "Real synthetic Cognito/BFF and mobile protocol; native Android return, SQL isolation and WORM recovery are separate",
+  "checked_at": "2026-11-08T17:21:58.721Z",
+  "checks": [
+    {
+      "id": "archive_absent_then_late_receipt_remains_denied",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "e1_accepted": false,
+  "denied_event_sequence": 86
+}

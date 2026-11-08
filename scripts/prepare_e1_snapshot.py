@@ -15,7 +15,7 @@ import boto3
 from scripts.aws_cli import aws
 from scripts.commission_e1 import outputs, validate_operator
 from scripts.commission_staging import register, task_definition
-from scripts.e1_cognito_controls import exercise
+from scripts.e1_cognito_controls import exercise, failure_label
 from scripts.e1_fixture_data import roster_payload
 from scripts.e1_policy_inspection import only_pool_reads, protects_application_keys
 from scripts.e1_snapshot_data import rewrite_copy, validate_local_chain
@@ -220,6 +220,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception:
-        print("BLOCKED: private synthetic snapshot preparation failed; inspect AWS privately")
+    except Exception as error:
+        print("BLOCKED: private synthetic snapshot preparation failed: " + failure_label(error))
         raise SystemExit(2) from None

@@ -1,5 +1,16 @@
 # Evidencia de AWS
 
+## Base integrada 0ca4374
+
+`e1-base-staging-0ca4374.json`: CD
+[42501790742](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42501790742),
+artefacto 13626615085, ZIP SHA-256
+e34ede66e93b9e58f529c030c8a64b866417847a94997724b2237e57f8e2c4eb
+verificado. CI main 42501082447 aprobada; publish/prepare/migrate/staging
+aprobados. Producción bloqueada E5. E1 false en el CD preparatorio; sus probes
+no acreditan todavía los flujos de identidad. El origen observado coincide con
+la configuración nueva y el digest en tareas reales se verificó desde el runner.
+
 ## Recreación de staging 8bb56b8
 
 Workflow 42497020512, reintento posterior a la aplicación de lifecycle e328c43
@@ -104,3 +115,30 @@ verificado de nuevo contra el artefacto original al reanudar. CI main
 42458226675 aprobada; publish/prepare/migrate/staging aprobados, evidence 0014
 incluida. Producción bloqueada E5 y gate E1 omitido por flag false. E1 desactivada,
 sin aceptación funcional. La copia se recuperó de la rama documental al reanudar.
+
+## Ensayo integrado 0ca4374
+
+Workflow [42501830048](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42501830048), todos sus jobs aprobados. Copias *-0ca4374.json extraídas después de verificar cada ZIP:
+
+| Artefacto | ID | SHA-256 ZIP |
+| --- | --- | --- |
+| e1-cloud-acceptance | 13627165558 | d3565efeeb2658f61e0cfc2df3ee34f69664caf19bcab05fafdde88feb430e98 |
+| e1-browser-acceptance | 13626991572 | 05654e60112731ec4d3a71d203a9a3ffb9784256e529bf5dc17866ecbc6c09d9 |
+| e1-trial-deployment | 13626313377 | 7a003a64715efbbdb5f9bc7e2255328da74a81934543d810b36ca719517e9f68 |
+| staging-apk-manifest | 13626254415 | c669687b3b77893f28c84130acbba7a004fef387bbfbd8ba04d87bb883248c8b |
+| e1-archive-drill | 13626034115 | 9e0b587b85b029cf651742fb93ca9928de17ef123192967f2f0ed7c189076267 |
+
+Browser aprobó web y protocolo móvil PADRE/GUARDIA, MFA, baja/restauración y sesiones. Cloud inicial verificó 82 eventos; después del drill verificó 91. El intento 86 siguió DENIED tras archivo tardío y el worker se recuperó. No acredita todavía recuperación Cognito/copia SQL ni Android físico.
+
+## Recuperación privada independiente 0ca4374
+
+`e1-recovery-0ca4374.json`: workflow
+[42507955250](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42507955250),
+artefacto 13628600924, ZIP SHA-256
+ d964e798a802a0473bc6418522d9bbbe3358b7315831b2d51e14690c8f68731d
+verificado. El operador ejecutó el controlador 36954c0 contra API/SQL 0ca4374.
+Los diez límites efectivos y seis controles Cognito aprobaron; las cotas nativas
+se conservan en el reporte. Verificador sin SQL/Sign/Put: original coincide con 92
+eventos, reescritura con cadena local válida rechazada específicamente contra el
+archivo protegido. Mínimo externo suministrado: 91. Las copias/contraseñas/semillas
+permanecen privadas; el JSON público solo contiene resultados y high-water.
