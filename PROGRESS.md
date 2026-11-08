@@ -1,6 +1,36 @@
 # Estado de ejecución — E1 en implementación
 
-## Checkpoint E1 (7 de noviembre de 2026, America/Bogota)
+## Estado actual para continuar
+
+**E1 sigue sin aceptación funcional.** PR #9 integrado en
+`26d7d47021cbd459d03ebbbf651731f0d2b41b52`, tras todos los checks push/PR aprobados
+del candidato `299c797` (CI 42447207549 y 42447212788). No habilita E1 por defecto;
+retiros y producción continúan desactivados. La continuación está en
+`feat/e1-live-verification`. Los apartados de checkpoint inicial son históricos.
+
+- Local: make check, 136 Python/nueve JS, seguridad sin hallazgos, actionlint,
+  sintaxis Node/Bash y bundle Hermes de staging verificado con endpoint/callback.
+- AWS: operador confirmó actualización del stack desde 0dd67fb; Managed Login v2
+  devuelve formulario 200. El operador confirmó 13 identidades/TOTP y roster sintético preparados;
+  aún no se acredita login BFF real.
+- CI main 42447792803 aprobada. CD 42448253673: publish/prepare/migrate
+  y staging aprobados. Producción bloqueada E5 (fallo previsto); no se desplegó.
+  Reporte verificado y preservado en docs/evidence/e1-base-staging-26d7d47.json.
+  Migraciones
+  identity 0003 y evidence 0011/0012 aplicadas en RDS. Producción sigue E5.
+- Provisión desde 26d7d47 confirmada por el operador: ocho PADRE, dos GUARDIA,
+  dos ADMIN_ESCUELA y un ADMIN_SISTEMA; TOTP y roster preparados. No se recibieron
+  contraseñas/semillas por chat. E1 integrated acceptance still pending.
+- Primer ensayo real 42449912611 terminado: despliegue, tres logins escolares,
+  lector/reauth web, cloud independiente y APK de staging aprobados; móvil PADRE
+  falló y GUARDIA no se ejecutó. E1 no está aceptada. Corrección del harness de
+  retorno nativo reproducida y verificada con Chromium local, pendiente en AWS.
+- Aún faltan recuperación/copia SQL divergente y pruebas reales de denegación de
+  archivo/recibo tardío y revocación administrativa. La matriz E1 permanece abierta.
+- Decisión autorizada RFS07: Cognito exponencial; backend 5/15. Retención sintética
+  COMPLIANCE siete días. No hay credenciales AWS de operador en esta sesión.
+
+## Historial del checkpoint inicial (7 de noviembre de 2026, America/Bogota)
 
 **E1 no está terminada ni aceptada en AWS.** Base remota
 `bbe48f4`, sincronizada por fast-forward tras fetch; rama `feat/e1-identity-evidence`.
@@ -243,3 +273,32 @@ Revisión de la suite: el navegador fija el origen Cognito de ensayo antes de
 introducir usuario, contraseña o TOTP; una redirección a otro origen falla sin
 enviar el fixture. Validación de sintaxis Node y actionlint aprobadas. Las suites
 reales siguen pendientes de las migraciones/main y provisión privada.
+
+## Primer ensayo integrado real de E1 (26d7d47)
+
+Workflow 42449912611: publish/prepare/migrate/trial y staging-apk aprobados.
+API/archivador por digest verificado y E1 habilitada solo en la ventana sintética.
+Browser: tres logins escolares protegidos, reauth/DTO/paginación/fechas/logout
+aprobados; flujo móvil PADRE falló y GUARDIA no llegó a ejecutarse. No aceptación
+integral. Cloud independiente aprobado: Cognito/MFA configurados, COMPLIANCE siete
+días, versionado/cifrado, claves activas/separadas, Sign/Put/delete de versión y
+reducción de retención denegados. 19 eventos verificados, high-water externo
+19 / 1e1c4538921d06e7ad866c6826d55e5e4de3dc0410915fcb0af7c32c76ffae2e.
+
+Fallo móvil diagnosticado: Chromium no publica response para el redirect a un
+esquema nativo. Reproducido con servidor local sin credenciales. Harness corregido
+con CDP Fetch; dos regresiones Chromium reales aprobadas (captura/rechazo de esquema
+nativo ajeno). No se afirma todavía que el flujo móvil real haya pasado.
+
+En feat/e1-live-verification se preparan drill de archivo ausente/tardío,
+recuperación siempre intentada y copia SQL privada mediante importer/función
+estrecha auditada. La copia reescrita conserva formato PostgreSQL y cadena/hash
+local válidos, pero se contrasta con versiones/manifiestos externos. Se distingue
+SnapshotDivergence de un fallo del archivo para evitar falsos aprobados.
+Nueva evidence 0013 aplicada solo local; no ejecutada en AWS. No hay nuevos roles
+AWS ni cambios de retención/clave. Falta CI/integración y ensayo real de estos
+comandos. Último make check: 145 Python/nueve JS aprobado; además dos regresiones Chromium
+reales aprobadas tras corregir el timeout demasiado corto de la prueba negativa
+y liberar Fetch al cerrar. Seguridad sin vulnerabilidades ni secretos.
+Las pruebas de recuperación siempre intentada y límites de grants/JSON IAM
+aprobaron localmente. Todo este incremento sigue sin CI/aceptación AWS propia.

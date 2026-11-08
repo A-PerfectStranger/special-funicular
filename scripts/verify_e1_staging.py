@@ -1,5 +1,6 @@
 """Independent real E1 cloud checks. No SQL credentials, Sign or write permissions."""
 
+import argparse
 import hashlib
 import json
 import time
@@ -31,7 +32,7 @@ def denied(operation: Any, **arguments: Any) -> None:
     raise RuntimeError("Unexpected cloud permission; acceptance failed")
 
 
-def verify() -> dict[str, Any]:
+def verify(minimum_sequence: int = 1) -> dict[str, Any]:
     session = boto3.Session(region_name="us-east-1")
     identity = session.client("sts").get_caller_identity()
     demand(
@@ -90,7 +91,7 @@ def verify() -> dict[str, Any]:
     # An in-flight checkpoint is not accepted as a hole; wait a bounded interval for completion.
     for _ in range(15):
         try:
-            report = verifier.verify(minimum_sequence=1)
+            report = verifier.verify(minimum_sequence=minimum_sequence)
             break
         except IntegrityFailure:
             time.sleep(2)
@@ -152,9 +153,14 @@ def verify() -> dict[str, Any]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--minimum-sequence", type=int, default=1)
+    options = parser.parse_args()
+    if options.minimum_sequence < 1:
+        parser.error("A positive external high-water mark is required")
     Path("work").mkdir(exist_ok=True)
     try:
-        report = verify()
+        report = verify(options.minimum_sequence)
     except ClientError as exc:
         report = {
             "passed": False,

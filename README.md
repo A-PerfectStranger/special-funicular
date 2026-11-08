@@ -42,12 +42,17 @@ detiene la base sin borrar su volumen; no usar `down -v` sobre datos que se deba
 | `make lint` | Ruff, formato y ESLint. |
 | `make typecheck` | mypy estricto y TypeScript. |
 | `make test` | Unitarias, contratos, PostgreSQL/RLS y pruebas móvil. |
+| `node --test tests/staging/native-callback.test.mjs` | Regresión real de Chromium para retorno nativo; requiere navegador Playwright o E1_CHROMIUM_PATH. |
 | `make check` | Todo lo anterior, checks Django, deriva de migraciones y compatibilidad Expo. |
 | `make security` | pip-audit, npm audit y gitleaks 8.30.1 (instalar binario oficial en PATH). |
 | `npm run mobile:export` | Compila el bundle Android/Hermes; no es un APK. |
 | `make image` | Imagen no privilegiada, compartida por API y futuro worker. |
 | `bash scripts/smoke_image.sh retiro-backend:<SHA>` | Probes reales de imagen, runtime sin credencial de migración y diagnóstico worker. |
 | `make apk` | APK arm64 de desarrollo firmado con debug key, requiere Android SDK/JDK 21. |
+
+Para la regresión de navegador: `npx playwright install chromium` (dependencias
+Linux con `--with-deps`), o `E1_CHROMIUM_PATH=/ruta/a/chromium` con un navegador
+local. CI instala el navegador oficial y ejecuta la misma prueba sin credenciales.
 
 `make security` necesita `work/` (crear con `mkdir -p work`). Instalar gitleaks
 desde su release oficial y comprobar el checksum publicado; CI contiene los comandos.

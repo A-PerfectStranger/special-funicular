@@ -59,3 +59,32 @@ Decisión del usuario del 7 de noviembre de 2026: se acepta el bloqueo exponenci
 nativo de Cognito y se conserva el límite estricto 5/15 en los puntos de entrada
 del backend. RFS07 refleja esa decisión. CA-S07 exige comprobar ambas políticas;
 no se exige una configuración fija 5/15 que Cognito no admite.
+
+## Ensayo de archivo ausente y tardío (siguiente incremento)
+
+Detener únicamente los archivadores sintéticos del candidato y confirmar su
+parada antes del login escolar. El callback debe denegar el acceso al vencer su
+plazo original; el lector de sistema debe mostrar el intento DENIED. Reanudar
+el mismo archivador por definición/digest aprobados, comprobar que ese intento
+sigue DENIED y su navegador sigue sin acceso, mientras un login nuevo sí abre.
+El verificador externo debe abarcar al menos la secuencia del intento denegado.
+La restauración del worker se intenta siempre en finally; cualquier fallo de
+restauración bloquea la aceptación. No alterar S3, retención o claves para simular
+el fallo. Esta descripción no acredita que el ensayo se haya ejecutado.
+
+## Evidencia real del primer ensayo 26d7d47
+
+Workflow 42449912611 y copias de sus reportes en docs/evidence:
+
+| Criterio | Resultado acreditado | Sigue pendiente |
+| --- | --- | --- |
+| E1-01 | Cognito real/MFA web de ADMIN_SISTEMA y ADMIN_ESCUELA, reautenticación y logout web. | PADRE/GUARDIA: harness de retorno nativo falló; corrección pendiente de ensayo. Recuperación/revocación administrativa y límites reales. |
+| E1-02 | Migraciones aplicadas; operador confirmó roster sintético de dos escuelas/seis estudiantes/13 cuentas. | Terminar inspección y pruebas del destino en la matriz completa. |
+| E1-03 | API/worker desplegados con credenciales separadas; permisos locales SQL verificados. | Inspección de grants y políticas efectivas del destino, preparada en el exportador privado. |
+| E1-04 | Worker real produjo 19 eventos/manifiestos/checkpoints verificados independientemente. | Archivo ausente/tardío y recuperación real del worker. |
+| E1-05 | Configuración Cognito/WORM/KMS, versiones, retención siete días y denegaciones reales aprobadas; high-water externo 19 conservado. | Comparación con copia SQL reescrita y custodia/políticas efectivas. |
+| E1-06 | Tres logins/tres registros protegidos, reauth sin duplicación, lector mínimo/fechas/paginación y logout aprobados. | Drill real de ausencia y recibo tardío. |
+
+El APK de staging se compiló con endpoint/callback/package, contenido y firma
+verificados; no se distribuyó públicamente ni se acredita prueba física. Ninguna
+fila constituye por sí sola la aceptación completa de E1.
