@@ -840,3 +840,24 @@ def test_leaked_invitation_cannot_bind_a_differently_cased_verified_mailbox() ->
         redeem(data, token, local.upper() + "@" + domain)
     # Failed proof does not consume the capability or bind any identity.
     redeem(data, token, data["parents"][0]["contact"])
+
+
+def test_bulk_uuid_spelling_cannot_merge_two_different_preloaded_parents() -> None:
+    data = batch()
+    canonical = "abcdef01" + data["parents"][0]["id"][8:]
+    data["parents"][0]["id"] = canonical
+    data["parents"][1]["id"] = canonical.upper()
+    second = {**data["students"][0], "id": str(uuid.uuid4()), "name": "Second synthetic child"}
+    data["students"].append(second)
+    data["links"] = [
+        {"student_id": data["students"][0]["id"], "parent_id": canonical, "principal": True},
+        {"student_id": second["id"], "parent_id": canonical.upper(), "principal": True},
+    ]
+    # Same UUID with different spelling must not silently discard the second contact.
+    with pytest.raises(psycopg.errors.InvalidParameterValue):
+        import_batch(data)
+    with connect("importer") as db:
+        for child in data["students"]:
+            assert db.execute(
+                "SELECT count(*) FROM school_roster_student WHERE id=%s", (child["id"],)
+            ).fetchone() == (0,)

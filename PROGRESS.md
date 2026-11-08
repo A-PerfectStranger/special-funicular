@@ -24,21 +24,29 @@ bundle Android/Hermes, actionlint, pip-audit/npm y gitleaks aprobados. Pillow 13
 Controles finales: zona IANA válida, hash del comando anclado al evento, vigencia
 real del access token revalidada después de esperar el lock del estudiante.
 
-El CI main `42521482367` está en verificación al escribir este checkpoint. No
-atribuir pruebas del SHA de PR al merge ni a AWS. Antes de lanzar el ensayo,
-comprobar su conclusión y el CD main correspondiente. El CD previo `42517864495`
+El CI main `42521482367` aprobó todos los checks del merge a435750. CD
+`42522245360` está en curso al registrar este punto. No atribuir estos resultados
+a la corrección posterior ni a la aceptación funcional E2. El CD previo `42517864495`
 (main 775b312) aprobó staging y todos los jobs E1; su fallo es producción E5
 bloqueada, no una regresión de staging. No heredar ese resultado al candidato E2.
 
-## Corrección de activación pendiente de integrar
+## Endurecimiento pendiente de integrar (PR #17)
 
-La revisión detectó que convertir el email completo a minúsculas puede confundir
-buzones con capitalización distinta. La continuación conserva el claim firmado
-exacto y aplica una migración hacia delante `authorization.0003` para compararlo
-literalmente con la precarga. Regresión de invitación filtrada + buzón distinto
-rechazada, canje exacto posterior aprobado. `make check` local: 217 Python/12 JS.
-Esta corrección requiere CI, PR e integración propias; no lanzar aceptación E2
-con a435750 ni atribuirle este endurecimiento. E2 permanece apagada.
+https://github.com/A-PerfectStranger/special-funicular/pull/17
+
+La continuación conserva el email firmado exacto; migración hacia delante
+`authorization.0003` compara literalmente con la precarga. Invitación filtrada +
+buzón con capitalización distinta: rechazado sin consumo; contacto exacto: aprobado.
+`0004` compara UUID por su valor, evitando que dos padres/contactos distintos se
+fusionen por representar el mismo UUID con capitalización diferente. El lote
+incorrecto se rechaza completo, sin activar ninguno de los estudiantes.
+El móvil limita la limpieza de fotos a copias temporales dentro de su caché;
+no borra el archivo original de galería ni rutas externas/traversal/encoded.
+
+Checks locales del contenido final: 218 Python y 14 JS, seguridad, actionlint y
+bundle Android/Hermes aprobados. CI/imagen/APK del nuevo head de PR #17 deben
+verificarse antes de integrar. No lanzar aceptación E2 sobre a435750 ni atribuirle
+estos controles posteriores. E2 permanece apagada.
 
 ## Pendientes y relevo operativo
 
@@ -46,7 +54,10 @@ El usuario eligió comandos revisables de CloudShell en lugar de compartir códi
 de verificación. Se entregó un bloque para checkout limpio de a435750, instalación
 hash-pinned del SDK operativo, `commission_e1 --web-origin` con el origen del JSON y
 `provision_e2_fixtures --sha a435750... --trial-id UUID_NUEVO --synthetic-only`.
-Se espera su resultado saneado. No se recibieron ni solicitaron secretos por chat.
+El primer intento se detuvo antes de AWS: estaba en ~, fuera de un repositorio
+Git. Se entregó un segundo bloque que clona a un directorio temporal nuevo, fija
+a435750 e invoca solo commission_e1. Se espera su resultado saneado; la preparación
+de cuentas queda aplazada hasta integrar PR #17. No se recibieron ni solicitaron secretos por chat.
 La comisión añade scope email sin cambiar IAM/retención/claves. Las dos cuentas
 nuevas usan contactos synthetic.invalid, mensajes suprimidos y TOTP en Secrets Manager.
 No se ha ejecutado ni aceptado E2 real todavía.
