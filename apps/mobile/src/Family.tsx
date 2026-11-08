@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Text, TextInput, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
-import { File } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
+import { isTemporaryPhoto } from './pickerCache';
 import type { IdentityClient } from './identity';
 
 type Student = { id: string; name: string; timezone: string; principal: boolean; can_authorize: boolean;
@@ -62,7 +63,7 @@ export function Family({ identity }: { identity: IdentityClient }) {
       if (mounted.current) setPhoto(encoded);
     } catch { if (mounted.current) setMessage('Selecciona una foto JPEG o PNG más pequeña.'); }
     finally {
-      if (uri?.startsWith('file:')) {
+      if (uri && isTemporaryPhoto(uri, Paths.cache.uri)) {
         try { new File(uri).delete(); }
         catch { if (mounted.current) { setPhoto(''); setMessage('No se pudo eliminar la copia temporal. Selección descartada.'); } }
       }

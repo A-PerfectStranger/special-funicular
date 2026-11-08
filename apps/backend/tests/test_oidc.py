@@ -175,4 +175,4 @@ def test_activation_contact_must_be_a_verified_signed_claim(
     provider, key, jwk, claims = signed_identity
     claims.update(email="Synthetic@Example.invalid", email_verified=verified)
     identity = provider.verify_token(token(key, claims), [jwk], "mobile", "bound-nonce")
-    assert identity.verified_contact == ("synthetic@example.invalid" if verified is True else None)
+    assert identity.verified_contact == ("Synthetic@Example.invalid" if verified is True else None)

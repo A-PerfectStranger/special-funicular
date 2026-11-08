@@ -255,7 +255,7 @@ class Provider:
                 raise IdentityRejected()
             contact = claims.get("email")
             verified_contact = (
-                contact.lower()
+                contact
                 if claims.get("email_verified") is True
                 and isinstance(contact, str)
                 and 3 <= len(contact) <= 254
