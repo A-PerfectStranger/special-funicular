@@ -5,9 +5,11 @@ Techo total 150 USD para TODO el desarrollo y primer despliegue.
 El usuario confirmó saldo suficiente y plazo de financiación hasta el 6 de mayo
 de 2027. El techo del proyecto sigue siendo **150 USD totales**. El importe real
 se mantiene fuera del repositorio público. AWS ya confirmó créditos suficientes
-y vigencia; falta revisar gasto porque sus datos aún no están disponibles.
-No se ha aprovisionado aplicación ni BD. El usuario creó el stack OIDC de
-lectura desde CloudShell. Esto no demuestra gasto cero de la cuenta.
+y vigencia; Cost Explorer y el preflight completo ya aprobaron. Presupuesto,
+base privada y staging están aplicados/verificados, con evidencia en PROGRESS.md.
+CloudShell se usó para bootstrap y GitHub OIDC para publicación/migración/deploy;
+el login interactivo del kit descrito abajo sigue sin acreditarse. No equivale
+a gasto cero de la cuenta ni a operación indefinida.
 
 ## Distribución propuesta del techo
 
@@ -15,8 +17,8 @@ Son límites de trabajo, **no cotizaciones ni precios de servicios**.
 
 | Uso | Máximo reservado USD |
 | --- | ---: |
-| E0 local/CI, sin recursos AWS | 0 |
-| E1: ensayos IdP/PostgreSQL/KMS/WORM sintéticos | 25 |
+| E0: ventana inicial de staging, además de local/CI | 3 |
+| E1: ensayos IdP/PostgreSQL/KMS/WORM sintéticos | 22 |
 | E2/E3: integración y concurrencia | 35 |
 | E4: avisos/consulta/observabilidad | 20 |
 | E5 y primera ventana de despliegue | 40 |
@@ -39,9 +41,11 @@ No destruir WORM ni claves retenidas: su coste debe quedar reservado hasta venci
 `budget.yaml` prepara un presupuesto TOTAL de coste bruto, sin descontar créditos,
 con alertas 25/50/75/90/100%. Requiere correo y fechas reales de vigencia.
 AWS Budgets tiene demoras y no impone un corte rígido de gasto. Revisar costes de
-Budgets/alertas antes de crearlo; la plantilla no ha sido aplicada ni validada por AWS.
+Budgets/alertas antes de crearlo. La plantilla ya se aplicó y el presupuesto bruto real se contrastó en la comisión.
 
-### Bloqueo comprobado de facturación
+### Histórico: bloqueo de facturación resuelto
+
+Este bloqueo histórico se resolvió: el preflight completo 42430538070 aprobó tras habilitar Cost Explorer. La evidencia anterior se conserva para diagnóstico.
 
 El segundo preflight comprobó STS, denegación de acceso IAM ajeno y créditos/vigencia:
 https://github.com/A-PerfectStranger/special-funicular/actions/runs/42386350234.
@@ -55,7 +59,7 @@ habilitado; la API no puede habilitarlo. Los datos del mes suelen estar disponib
 unas 24 horas después. Verificar el estado de la consola antes de asumir que ese
 plazo empezó. No aprovisionar mientras siga sin acreditarse el gasto.
 
-Cuando los datos estén disponibles, repetir el workflow manual con el mismo rol:
+Para repetir la comprobación actual, ejecutar el workflow con el mismo rol:
 
 ```bash
 gh workflow run aws-preflight.yml --ref main \
@@ -103,9 +107,9 @@ puede cobrar la consulta de su API. No crea recursos de aplicación.
 El repo es público: el artefacto contiene exclusivamente comprobaciones booleanas,
 sin balances, respuestas AWS, credenciales o correo de alertas. Un resultado ausente
 o permiso denegado en facturación mantiene el bloqueo. Tampoco un preflight aprobado
-acredita el presupuesto completo del proyecto: faltan cotización, alertas y costes
-de recursos/retención antes de aprovisionar. La autorización de despliegue/migración
-se configurará por separado; no ampliar este rol de lectura para ese fin.
+acredita por sí solo el presupuesto completo: comprobar cotización, alertas y
+costes de recursos/retención antes de nuevos aprovisionamientos. La autorización de despliegue/migración
+ya se configuró mediante roles separados; no ampliar este rol de lectura para ese fin.
 
 ## Login interactivo: evidencia y selectores privados
 

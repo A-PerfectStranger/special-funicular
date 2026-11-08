@@ -95,21 +95,24 @@ se conserva el checksum; el binario solo se sube automáticamente si el reposito
 es privado. Para distribución interna en este repositorio falta conectar un destino privado.
 No hay código privilegiado ejecutado desde forks ni `pull_request_target`.
 
-CD conserva una estructura serializada y validación obligatoria. Actualmente **falla
-con `BLOCKED/NOT_CONFIGURED`**: OIDC de lectura, cuenta y créditos ya se verificaron,
-pero AWS todavía no ofrece datos de gasto. Faltan presupuesto/alertas aplicados,
-recursos, identidades de despliegue/migración y aceptación real de staging.
-No hay despliegue ni promoción implementados como éxitos ficticios.
+CD serializado real en AWS: publica el artefacto aprobado de main preservando el
+digest, abre la ventana RDS, migra con identidad separada y despliega/verifica
+staging con Deploy. Rechaza candidatos obsoletos y serializa migraciones mediante
+advisory lock SQL. Datos sintéticos, retiros deshabilitados. Producción permanece
+BLOCKED/NOT_CONFIGURED hasta E5, sin aprobación manual rutinaria añadida.
+
+Staging temporal: https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws. API/ALB se retiran a las tres horas de cada despliegue;
+RDS se detiene fuera de ensayos, con coste residual reservado. La evidencia de
+SHA/digest, TLS/red y ejecución está en [PROGRESS.md](PROGRESS.md).
 Ver [runbook](docs/runbooks/deployment.md) y [presupuesto AWS](infra/aws/README.md).
-`scripts/verify_staging.py` prepara los probes públicos E0 sobre HTTPS/TLS 1.3,
-con pruebas de fallos mediante un servidor TLS local real. Solo acredita el plano
-de datos público al ejecutarlo contra un destino real; no provisiona ni certifica IAM,
-presupuesto o procedencia del artefacto. No se ha ejecutado contra AWS.
+Los probes HTTPS de `scripts/verify_staging.py` se ejecutaron realmente desde CI,
+con certificado/hostname verificados y TLS 1.3. El plano de control y el digest
+se verifican por separado; no se infieren de una respuesta de health.
 
 Los requisitos de producto permanecen en `Requerimientos_retiro_seguro_estudiantes.md`;
 `PLAN.md` fija E0–E5 y `AGENTS.md` las convenciones de trabajo.
 
-La preparación actual de staging se documenta en
-[bootstrap sintético](infra/aws/staging-bootstrap.md). El preflight de facturación
-ya pasó; el presupuesto existe, pero la base y publicación deben verificarse
-contra AWS antes de cerrar E0. CI valida también `infra/aws/staging-base.json`.
+La infraestructura y operación sintética se documentan en
+[bootstrap de staging](infra/aws/staging-bootstrap.md). Cost Explorer, presupuesto,
+base privada, publicación y aceptación de staging tienen evidencia real E0.
+CI valida también las plantillas de infraestructura.

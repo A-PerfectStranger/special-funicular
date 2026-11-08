@@ -4,58 +4,51 @@
 
 AWS elegido: región `us-east-1`, perfil humano `aesir`, máximo TOTAL 150 USD
 de créditos para desarrollo/despliegue. No equivale a 150 USD mensuales.
-Identidad AWS de lectura verificada desde GitHub; la CLI interactiva local sigue
-sin sesión. No se ha aprovisionado staging/producción.
-No hay adaptador live de despliegue; el workflow CD se detiene explícitamente.
-El usuario no tiene acceso al Desktop compartido. Se preparó la conexión
-CloudShell/OIDC de solo lectura en `infra/aws/README.md`; el usuario creó el rol.
-El primer preflight falló al asumirlo porque el repositorio usa sujetos OIDC con
-IDs inmutables. El usuario actualizó el stack; el segundo preflight confirmó
-cuenta, denegación de IAM ajeno y créditos/vigencia. Cost Explorer devolvió
-`DataUnavailableException` también desde CloudShell, y Facturas no muestra datos.
-Abrir/habilitar Cost Explorer y repetir la comprobación cuando AWS publique el
-gasto (normalmente unas 24 horas desde su habilitación). No interpretar ausencia
-de datos como cero ni crear recursos de pago antes de verificarlo.
-El código `AWS_VERIFICATION_CODE` pertenece a un intento anterior y no sustituye
-un login nuevo. Para el login interactivo alternativo, usar `source scripts/aws-env.sh`
-antes de las órdenes AWS y reutilizar la caché privada de la misma instancia.
+Identidades AWS OIDC de lectura, Deploy y Migrate verificadas desde GitHub/main.
+Staging real aceptado: https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws. SHA/digest y ejecución concreta en PROGRESS.md.
+Producción sigue sin configurar hasta E5; el job production bloquea explícitamente.
+La CLI interactiva local/kit no está autenticada; los comandos de bootstrap se
+realizaron en CloudShell. No hacen falta claves permanentes para el CD.
+
+## Publicación rutinaria
+
+1. Abrir PR y completar required: calidad, imagen inmutable y APK. main exige PR/check.
+2. Al integrar, E0 CI construye los artefactos del SHA main. workflow_run de CD
+   verifica repositorio/evento, conserva checksum/digest y publica en ECR inmutable.
+3. Deploy abre una ventana de tres horas e inicia solo RDS staging si está detenido.
+4. Migrate ejecuta una tarea Fargate con su secreto SQL separado y migrate_locked;
+   el advisory lock PostgreSQL serializa incluso si un runner deja de esperar.
+5. Deploy actualiza Express con el mismo digest; espera todas las tareas nuevas,
+   verifica índice OCI/manifest amd64, red ALB→tarea y ocho probes TLS. Evidencia:
+   artefacto staging-deployment del workflow. No importar familias ni enviar avisos.
+6. Producción solo se habilita tras configuración/aceptación E5. No añadir una
+   aprobación humana rutinaria de promoción. cancel-in-progress=false en CD.
 
 ```bash
-uv run python scripts/validate_deploy.py infra/environments/staging.json
-uv run python scripts/validate_deploy.py infra/environments/production.json
+python3 scripts/validate_deploy.py infra/environments/staging.json
+python3 scripts/validate_deploy.py infra/environments/production.json
 ```
 
-Ambos deben salir con código 2 mientras falten destinos. Un archivo válido solo
-acredita estructura; no prueba IAM, coste, TLS, recursos ni despliegue.
+Staging valida estructura; producción sale 2 hasta configurar E5. Un archivo
+válido por sí solo no prueba IAM, coste, TLS ni despliegue. Para diagnóstico público:
+`python3 scripts/verify_staging.py https://DOMINIO-STAGING --report work/staging-probes.json`.
+Un proxy TLS interceptante impide usar ese cliente como atestación TLS del origen;
+los probes de aceptación se ejecutan desde runner sin ese proxy.
 
-## Para conectar AWS sin saltarse controles
+## Comisión y coste
 
-1. Completar login/toolkit y verificar identidad (`infra/aws/README.md`). Leer saldo,
-   vencimiento de créditos y gastos reales; establecer alertas antes del aprovisionamiento.
-2. Completar cuenta, dominio/DNS y destinos privados. Preparar IaC por entorno sin
-   secretos en Git; verificar coste frente al saldo antes de crear recursos.
-3. Crear identidades GitHub OIDC efímeras restringidas por repositorio, audiencia y
-   rama/entorno; identidades separadas de migración y runtime. No dar esas
-   credenciales a PR/forks. Probar la denegación de acceso no autorizado.
-4. Implementar y probar el adaptador de despliegue contra esos recursos. Reemplazar
-   la última barrera explícita de CD únicamente cuando existan pruebas reales.
-   Construir una vez y promover el mismo digest, comprobar SHA contra CI, serializar
-   migración/despliegue y descartar candidatos obsoletos bajo exclusión mutua.
-5. Ejecutar migraciones expand/contract como tarea única con identidad propia.
-   No migrar al iniciar cada réplica. Desplegar API/web/workers de la misma revisión.
-6. Probar probes y funciones disponibles de la etapa con servicios reales de ensayo.
-   Para la superficie pública E0:
-   `uv run python scripts/verify_staging.py https://DOMINIO-STAGING --report work/staging-probes.json`.
-   Comprobar además SHA/digest de las tareas y la identidad real en AWS; este
-   reporte de probes no acredita el plano de control ni un despliegue por sí solo.
-   Para habilitar negocio se requieren IdP/MFA, KMS/WORM y los controles E1–E5.
-   Datos sintéticos siempre; no importar familias ni emitir invitaciones al publicar.
-7. Promover automáticamente solo después de staging aprobado; ninguna aprobación
-   humana rutinaria nueva. Mantener `cancel-in-progress: false` para migraciones/deploys.
+Infraestructura/recuperación: infra/aws/staging-bootstrap.md. La comisión inicial
+CloudShell conserva DB/secretos; --existing-service verifica la API ya creada sin
+volver a crearla. DescribeServices puede omitir red/targets: usar la revisión
+activa de Express y DescribeServiceRevisions, no asumir campos de servicios clásicos.
+La sonda ALB con Host=IP privada solo está exceptuada para GET/HEAD stateless de
+/health/live en la configuración explícita ecs-express. Nunca ampliar ALLOWED_HOSTS
+a un wildcard general para resolver el healthcheck.
 
-Configurar el check `E0 CI / required` como obligatorio requiere permisos de
-administración de GitHub. Esta sesión recibió HTTP 403 al leer protección de rama
-y permisos de Actions; no puede afirmar que dicha protección esté configurada.
+API/ALB se retiran a las tres horas por Scheduler. RDS conserva datos y se detiene
+mediante guarda horaria fuera de ventanas, cubriendo reinicios automáticos semanales.
+Storage/backups/secretos conservan coste reservado. Comprobar coste y reserva antes
+de nuevas sesiones. El presupuesto de 150 USD genera alertas, no un corte rígido.
 
 ## Rollback y recuperación
 

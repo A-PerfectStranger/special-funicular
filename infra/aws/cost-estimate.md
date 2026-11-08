@@ -3,8 +3,9 @@
 Consulta: 7 de noviembre de 2026, región `us-east-1`. Fuente: catálogo público
 AWS Price List, sin descuento de créditos ni suposición de Free Tier. Los JSON
 originales se descargaron en `work/downloads/pricing-*.json` (temporales).
-**No es una cotización final ni autoriza aprovisionar**: faltan gasto real,
-cantidades, duración, políticas de conservación y alertas aplicadas.
+**Estimación de referencia, no garantía de coste**. El preflight de gasto y
+las alertas ya se aplicaron. La ventana E0 reserva 3 USD y la base retenida hasta
+27 USD de la reserva existente; configuración y evidencia en PROGRESS.md.
 
 | Concepto | USD por unidad | Unidad / SKU AWS |
 | --- | ---: | --- |
@@ -29,9 +30,9 @@ Archivos oficiales y fecha de publicación del catálogo consultado:
 - [AWSSecretsManager](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSSecretsManager/20260911124610/us-east-1/index.json): 11 de septiembre de 2026.
 
 Ejemplo aritmético de cómputo/red, sin prometer configuración ni coste total:
-1 tarea de 0.25 vCPU/0.5 GB, 1 ALB, 1 LCU, 3 IPv4 públicas y hasta 1 ACU,
+1 tarea de 0.25 vCPU/0.5 GB, 1 ALB, 1 LCU, 3 IPv4 públicas y una RDS PostgreSQL db.t4g.micro,
 durante 3 horas, suman `3 × (0.25×0.04048 + 0.5×0.004445 + 0.0225 + 0.008 +
-3×0.005 + 0.12) = 0.5346675 USD`. Faltan I/O, almacenamiento, PITR/backups,
+3×0.005 + 0.016) = 0.2215275 USD`. Faltan I/O, almacenamiento, PITR/backups,
 ECR, logs, métricas, transferencia, claves/versiones, secretos, requests e impuestos.
 Su coste retenido debe calcularse hasta su vencimiento, incluso con compute detenido.
 No extrapolar este ejemplo a seis meses ni al flujo de negocio E1–E5.
@@ -42,14 +43,15 @@ El usuario delegó la elección y no dispone de dominio. La documentación actua
 indica que [App Runner no admite clientes nuevos](https://docs.aws.amazon.com/apprunner/latest/dg/service-source-image.html).
 [ECS Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-getting-started.html)
 ofrece una URL `https://<servicio>.ecs.us-east-1.on.aws` y certificado administrado.
-Es un candidato para el staging sintético, pendiente de IaC y prueba real de canal,
-red, permisos y costes. Crea ALB/Fargate y otros recursos facturables: hay que acotar
-duración/escalado y verificar su retirada. No se ha desplegado ni registrado dominio.
+Es el destino de staging sintético aplicado y verificado en E0; evidencia por
+SHA/digest en PROGRESS.md. Crea ALB/Fargate y otros recursos facturables: hay que acotar
+duración/escalado y verificar su retirada. El servicio se desplegó sin registrar dominio propio.
 
 El techo total sigue siendo 150 USD y la reserva de 30 USD no se consume sin
 contabilizar las obligaciones futuras de almacenamiento/claves. Ajustar la
-distribución propuesta entre fases antes de un E0 con recursos de pago; la fila
-E0 de 0 USD del README describe la base local/CI, sin certificar gasto cero de cuenta.
+distribución entre fases antes de nuevos recursos: E0 tiene reserva de 3 USD,
+reasignados de E1 (22 USD), con el mismo techo total de 150 USD. No equivale
+a gasto cero de cuenta ni a operación indefinida.
 
 ## Selección compatible con Free Plan: RDS privado
 

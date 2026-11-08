@@ -1,0 +1,14 @@
+{
+  "scope": "Read-only E0 credit preflight; not deployment or project cost acceptance",
+  "checked_at": "2026-11-08T00:36:53.578123+00:00",
+  "passed": true,
+  "errors": [],
+  "account_matches_role": true,
+  "unrelated_iam_access_denied": true,
+  "checks": {
+    "credits_cover_150_usd": true,
+    "credits_valid_through_2027_05_06": true,
+    "gross_usage_read": true,
+    "monthly_gross_under_150_usd": true
+  }
+}
