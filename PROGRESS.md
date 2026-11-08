@@ -318,3 +318,12 @@ Preparado sondeo anónimo real del backend 5/15 en job opcional sin OIDC/secreto
 cinco fallos, start válido denegado, otro punto disponible, controles durante la
 ventana y recuperación a 905 s. Todavía no ejecutado. No es una prueba del bloqueo
 nativo Cognito ni sustituye la recuperación/revocación de cuenta pendientes.
+
+### Gate continuo preparado en la continuación de PR #11
+
+Browser/cloud/APK/archive-drill extraídos a workflow compartido invocado por el
+ensayo manual y CD cuando e1_enabled=true. La promoción exige éxito del gate si
+E1 está habilitada; E1false permite conservar la base preparatoria. Actionlint y
+revisión estática aprobados, ejecución real aún pendiente. No hay nuevo rol IAM,
+retención ni aprobación manual rutinaria. El grupo serializado se mantiene solo
+en los callers para evitar bloqueo por anidamiento. Producción continúa E5.

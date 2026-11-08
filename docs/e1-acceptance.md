@@ -105,3 +105,9 @@ La copia privada contrasta el roster original para E1-02; no asigna hijos durant
 recuperación. Evidence 0014 audita exclusivamente el comando técnico de estado.
 Todas estas comprobaciones siguen pendientes de ejecución AWS del nuevo candidato.
 El sondeo backend 42456781366 está en ejecución; su resultado no se anticipa.
+
+La aceptación automatizada browser/cloud/APK/archive-drill se comparte entre el
+ensayo manual y el CD. Al habilitar E1 en la configuración revisada, esos jobs
+son obligatorios antes de promoción. El gate no se acredita por las sondas E0;
+la producción sigue bloqueada hasta E5. El candidato de conexión aún debe pasar
+CI y ejecutar el workflow real.
