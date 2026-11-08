@@ -302,3 +302,13 @@ reales aprobadas tras corregir el timeout demasiado corto de la prueba negativa
 y liberar Fetch al cerrar. Seguridad sin vulnerabilidades ni secretos.
 Las pruebas de recuperación siempre intentada y límites de grants/JSON IAM
 aprobaron localmente. Todo este incremento sigue sin CI/aceptación AWS propia.
+
+### Continuación después del PR #10
+
+PR #10 integrado en 5ac4f0296165361cf530f0f30ad350bbc542d6da tras todos los checks
+push/PR aprobados; CI main 42452708111 aprobada. CD y repetición real de los
+nuevos ensayos se revisan por separado. Rama siguiente feat/e1-identity-checks.
+Preparado sondeo anónimo real del backend 5/15 en job opcional sin OIDC/secretos:
+cinco fallos, start válido denegado, otro punto disponible, controles durante la
+ventana y recuperación a 905 s. Todavía no ejecutado. No es una prueba del bloqueo
+nativo Cognito ni sustituye la recuperación/revocación de cuenta pendientes.
