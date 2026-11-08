@@ -20,6 +20,9 @@ export class IdentityClient {
   private generation = 0;
   private inFlight: Promise<void> | null = null;
   private role: MobileRole | null = null;
+  private authenticating = false;
+  private closing = false;
+  private requiresLogin = false;
   private storage = Promise.resolve();
   private dependencies: IdentityDependencies;
 
@@ -57,36 +60,44 @@ export class IdentityClient {
         throw new Error('Session changed');
       }
       this.access = tokens.access_token;
+      this.requiresLogin = false;
     });
     await this.storage;
   }
 
   async login(reauthenticate = false): Promise<MobileRole> {
-    const generation = ++this.generation;
-    const pkce = await this.dependencies.pkce();
-    const started = await this.post('/v1/auth/mobile/start', {
-      code_challenge: pkce.challenge, purpose: reauthenticate ? 'reauth' : 'login',
-    }, reauthenticate) as { authorization_url: string; state: string; exchange_key: string };
-    if (!validSecret(started.state) || !validSecret(started.exchange_key) ||
-        new URL(started.authorization_url).protocol !== 'https:') throw new Error('Invalid login');
-    const result = await this.dependencies.browser(started.authorization_url, this.dependencies.redirectUri);
-    if (!result || generation !== this.generation) throw new Error('Login cancelled');
-    const callback = new URL(result);
-    const expected = new URL(this.dependencies.redirectUri);
-    if (callback.protocol !== expected.protocol || callback.host !== expected.host ||
-        callback.pathname !== expected.pathname || callback.searchParams.has('error') ||
-        callback.searchParams.getAll('state').length !== 1 || callback.searchParams.getAll('code').length !== 1 ||
-        callback.searchParams.get('state') !== started.state) throw new Error('Invalid callback');
-    const exchanged = await this.post('/v1/auth/mobile/exchange', {
-      state: started.state, code: callback.searchParams.get('code'),
-      code_verifier: pkce.verifier, exchange_key: started.exchange_key,
-    });
-    if (reauthenticate) {
-      if (!(exchanged as { reauthenticated?: boolean }).reauthenticated) throw new Error('MFA required');
-    } else {
-      await this.persist(exchanged, generation);
-    }
-    return this.check();
+    if (this.authenticating || this.closing) throw new Error('Authentication in progress');
+    if (reauthenticate) await this.check();
+    this.authenticating = true;
+    try {
+      if (!reauthenticate) await this.logout();
+      const generation = ++this.generation;
+      const pkce = await this.dependencies.pkce();
+      const started = await this.post('/v1/auth/mobile/start', {
+        code_challenge: pkce.challenge, purpose: reauthenticate ? 'reauth' : 'login',
+      }, reauthenticate) as { authorization_url: string; state: string; exchange_key: string };
+      if (!validSecret(started.state) || !validSecret(started.exchange_key) ||
+          new URL(started.authorization_url).protocol !== 'https:') throw new Error('Invalid login');
+      const result = await this.dependencies.browser(started.authorization_url, this.dependencies.redirectUri);
+      if (!result || generation !== this.generation) throw new Error('Login cancelled');
+      const callback = new URL(result);
+      const expected = new URL(this.dependencies.redirectUri);
+      if (callback.protocol !== expected.protocol || callback.host !== expected.host ||
+          callback.pathname !== expected.pathname || callback.searchParams.has('error') ||
+          callback.searchParams.getAll('state').length !== 1 || callback.searchParams.getAll('code').length !== 1 ||
+          callback.searchParams.get('state') !== started.state) throw new Error('Invalid callback');
+      const exchanged = await this.post('/v1/auth/mobile/exchange', {
+        state: started.state, code: callback.searchParams.get('code'),
+        code_verifier: pkce.verifier, exchange_key: started.exchange_key,
+      });
+      if (reauthenticate) {
+        if (!(exchanged as { reauthenticated?: boolean }).reauthenticated) throw new Error('MFA required');
+      } else {
+        await this.persist(exchanged, generation);
+      }
+      this.authenticating = false;
+      return await this.check();
+    } finally { this.authenticating = false; }
   }
 
   private async refresh(): Promise<void> {
@@ -101,6 +112,7 @@ export class IdentityClient {
   }
 
   async check(): Promise<MobileRole> {
+    if (this.authenticating || this.closing || this.requiresLogin) throw new Error('Login required');
     const generation = this.generation;
     if (!this.access) await this.refresh();
     const read = () => this.dependencies.request(`${this.dependencies.apiUrl}/v1/me`, {
@@ -126,6 +138,8 @@ export class IdentityClient {
   }
 
   async logout(): Promise<boolean> {
+    this.closing = true;
+    this.requiresLogin = true;
     this.generation++;
     this.role = null;
     // Let any storage write finish before clearing or reading a rotated refresh.
@@ -139,7 +153,7 @@ export class IdentityClient {
       }
     } finally {
       this.access = null;
-      await this.dependencies.clearRefresh();
+      try { await this.dependencies.clearRefresh(); } finally { this.closing = false; }
     }
     return revoked;
   }

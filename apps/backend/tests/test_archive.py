@@ -148,6 +148,31 @@ def test_missing_tail_requires_external_high_water_and_wrong_key_rejected(archiv
         verifier.verify(1)
 
 
+def test_database_copy_rewritten_with_consistent_local_hash_is_detected(archive: Any) -> None:
+    import base64
+    import hashlib
+
+    adapter, _, verifier = archive
+    payload, digest = event(1)
+    adapter.archive(payload, digest, 1)
+    snapshot = [
+        {
+            "sequence": 1,
+            "event_id": "synthetic-event-1",
+            "digest": digest,
+            "canonical_base64": base64.b64encode(payload).decode(),
+        }
+    ]
+    assert verifier.verify(1, snapshot)["database_snapshot_compared"] is True
+    forged = payload.replace(b"synthetic-event-1", b"forged-event-0001")
+    snapshot[0]["digest"] = hashlib.sha256(forged).hexdigest()
+    snapshot[0]["canonical_base64"] = base64.b64encode(forged).decode()
+    with pytest.raises(IntegrityFailure):
+        verifier.verify(1, snapshot)
+    with pytest.raises(IntegrityFailure):
+        verifier.verify(1, [])
+
+
 @pytest.mark.parametrize("mutation", ["retention", "encryption", "bytes", "version"])
 def test_adapter_never_accepts_unprotected_or_substituted_object(
     archive: Any, mutation: str

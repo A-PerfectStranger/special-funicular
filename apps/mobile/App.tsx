@@ -43,7 +43,7 @@ export default function App() {
       const revoked = await identity.current?.logout();
       setStatus(revoked ? 'Sesión revocada y datos locales borrados.'
         : 'Datos locales borrados. Revocación en servidor sin confirmar.');
-    } catch { setStatus('Datos locales borrados. Revocación en servidor sin confirmar.'); }
+    } catch { setStatus('Acceso local bloqueado. No fue posible confirmar el cierre de sesión.'); }
     finally { setPending(false); }
   }
 

@@ -28,7 +28,7 @@ def main() -> int:
             print(json.dumps(status()), flush=True)
             next_status = time.monotonic() + 30
         if not result["claimed"]:
-            time.sleep(0.05)
+            time.sleep(0.2)
     print('{"bounded_window_completed":true}', flush=True)
     return 0
 

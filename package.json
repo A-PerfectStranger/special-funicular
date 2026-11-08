@@ -21,5 +21,9 @@
     "glob": "14.0.4",
     "minimatch@>=7": "11.0.5",
     "deepmerge": "file:vendor/deepmerge"
+  },
+  "devDependencies": {
+    "otpauth": "9.6.0",
+    "playwright": "1.65.0"
   }
 }

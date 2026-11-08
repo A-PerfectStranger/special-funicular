@@ -106,6 +106,19 @@ def test_mfa_recency_and_logout_revokes_refresh() -> None:
         services.refresh(refresh)
 
 
+def test_logout_with_pre_rotation_credential_revokes_the_current_session() -> None:
+    data = roster()
+    access, refresh, _ = login(data["accounts"]["PADRE"])
+    rotated = services.refresh(refresh)
+    assert services.authenticate(rotated["access_token"]).role == "PADRE"
+    # A response can be lost, or refresh can win a race with device logout.
+    services.logout(refresh)
+    with pytest.raises(IdentityRejected):
+        services.authenticate(rotated["access_token"])
+    with pytest.raises(IdentityRejected):
+        services.refresh(rotated["refresh_token"])
+
+
 def test_rls_session_context_rolls_back_after_exception() -> None:
     data = roster()
     access, _, _ = login(data["accounts"]["PADRE"])

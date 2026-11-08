@@ -8,7 +8,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "export": "expo export --platform android --output-dir dist",
+    "export": "expo export --platform android --output-dir dist --clear",
     "prebuild": "expo prebuild --platform android --no-install --template expo-template-bare-minimum@56.0.38"
   },
   "dependencies": {

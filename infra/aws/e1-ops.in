@@ -1,0 +1,3 @@
+# Private CloudShell provisioning tools; versions match uv.lock.
+boto3==1.43.126
+pyotp==2.10.0

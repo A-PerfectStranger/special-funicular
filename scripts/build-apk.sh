@@ -7,13 +7,26 @@ if [ -n "$(git status --porcelain --untracked-files=normal)" ]; then
   exit 2
 fi
 export GIT_SHA="${GIT_SHA:-$(git rev-parse HEAD)}"
-export APP_ENV=development
+if [ "$GIT_SHA" != "$(git rev-parse HEAD)" ]; then
+  echo 'BLOCKED: APK SHA must identify the checked-out source' >&2
+  exit 2
+fi
+export APP_ENV="${APP_ENV:-development}"
+case "$APP_ENV" in
+  development|staging) ;;
+  *) echo 'BLOCKED: debug signing is limited to development/staging' >&2; exit 2 ;;
+esac
 npm run prebuild --workspace apps/mobile
+# Expo's transform cache can otherwise retain a previous environment's public values.
+npm run mobile:export
 mkdir -p work/artifacts
 (
   cd apps/mobile/android
   # Standalone bundle, signed ONLY with the template's development/debug key.
-  ./gradlew --no-daemon --max-workers=2 :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
+  ./gradlew --no-daemon --rerun-tasks --max-workers=2 :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
 )
-cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "work/artifacts/mobile-development-${GIT_SHA}.apk"
-uv run python scripts/artifact_manifest.py "work/artifacts/mobile-development-${GIT_SHA}.apk" --kind development-apk --sha "$GIT_SHA"
+cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
+if [ "$APP_ENV" = staging ]; then
+  uv run python scripts/verify_staging_apk.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
+fi
+uv run python scripts/artifact_manifest.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk" --kind "${APP_ENV}-apk" --sha "$GIT_SHA"

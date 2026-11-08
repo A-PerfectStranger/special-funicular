@@ -96,6 +96,8 @@ def begin_login(
 ) -> dict[str, str]:
     if channel not in {"web", "mobile"} or not re.fullmatch(r"[A-Za-z0-9_-]{43}", challenge):
         raise IdentityRejected()
+    if principal and principal.channel != channel:
+        raise IdentityRejected()
     provider = Provider.configured()
     state, nonce = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
     authorization_url = provider.authorize_url(channel, state, nonce, challenge)

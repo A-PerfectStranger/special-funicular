@@ -17,7 +17,7 @@ Resources:
     UpdateReplacePolicy: Retain
     Properties:
       UserPoolName: retiro-staging-e1
-      UserPoolTier: LITE
+      UserPoolTier: ESSENTIALS
       DeletionProtection: ACTIVE
       AdminCreateUserConfig: {AllowAdminCreateUserOnly: true}
       MfaConfiguration: 'ON'
@@ -75,7 +75,21 @@ Resources:
     Properties:
       UserPoolId: !Ref Pool
       Domain: !Sub 'retiro-e1-${AWS::AccountId}'
-      ManagedLoginVersion: 1
+      ManagedLoginVersion: 2
+  WebBranding:
+    Type: AWS::Cognito::ManagedLoginBranding
+    DependsOn: Domain
+    Properties:
+      UserPoolId: !Ref Pool
+      ClientId: !Ref WebClient
+      UseCognitoProvidedValues: true
+  MobileBranding:
+    Type: AWS::Cognito::ManagedLoginBranding
+    DependsOn: Domain
+    Properties:
+      UserPoolId: !Ref Pool
+      ClientId: !Ref MobileClient
+      UseCognitoProvidedValues: true
   EncryptionKey:
     Type: AWS::KMS::Key
     DeletionPolicy: Retain
@@ -214,6 +228,19 @@ Resources:
               - Effect: Allow
                 Action: [cognito-idp:DescribeUserPool, cognito-idp:DescribeUserPoolClient, cognito-idp:GetUserPoolMfaConfig]
                 Resource: !GetAtt Pool.Arn
+              # DescribeUserPoolDomain has no resource-level IAM support (AWS SAR).
+              - Effect: Allow
+                Action: cognito-idp:DescribeUserPoolDomain
+                Resource: '*'
+                Condition: {StringEquals: {aws:RequestedRegion: !Ref 'AWS::Region'}}
+  AcceptanceFixtures:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: retiro-staging/e1/AcceptanceFixtures
+      Description: Synthetic-only acceptance credentials; never production identities.
+      SecretString: '{"schema_version":1,"users":{}}'
   ArchiveTask:
     Type: AWS::IAM::Role
     Properties:
@@ -268,6 +295,79 @@ Resources:
                 Resource: !GetAtt EncryptionKey.Arn
                 Condition: {StringEquals: {kms:ViaService: !Sub 's3.${AWS::Region}.amazonaws.com'}}
               - {Effect: Allow, Action: [kms:Verify, kms:GetPublicKey], Resource: !GetAtt SigningKey.Arn}
+              - {Effect: Allow, Action: 'kms:DescribeKey', Resource: [!GetAtt EncryptionKey.Arn, !GetAtt SigningKey.Arn]}
+              - Effect: Allow
+                Action: [s3:GetBucketVersioning, s3:GetBucketPublicAccessBlock, s3:GetBucketObjectLockConfiguration, s3:GetEncryptionConfiguration, s3:GetBucketPolicy]
+                Resource: !GetAtt EvidenceBucket.Arn
+              - Effect: Allow
+                Action: [cognito-idp:DescribeUserPool, cognito-idp:GetUserPoolMfaConfig, cognito-idp:DescribeUserPoolClient]
+                Resource: !GetAtt Pool.Arn
+              # DescribeUserPoolDomain has no resource-level IAM support (AWS SAR).
+              - Effect: Allow
+                Action: cognito-idp:DescribeUserPoolDomain
+                Resource: '*'
+                Condition: {StringEquals: {aws:RequestedRegion: !Ref 'AWS::Region'}}
+              - Effect: Allow
+                Action: cloudformation:DescribeStacks
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-e1/*'
+  FixtureExecution:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-E1FixtureExecution
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+              ArnLike: {aws:SourceArn: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:*'}
+      Policies:
+        - PolicyName: SyntheticRosterCredentialOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: 'ecr:GetAuthorizationToken', Resource: '*'}
+              - Effect: Allow
+                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
+                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/retiro-staging/backend'
+              - {Effect: Allow, Action: [logs:CreateLogStream, logs:PutLogEvents], Resource: !Ref ExistingLogsArn}
+              - {Effect: Allow, Action: 'secretsmanager:GetSecretValue', Resource: !Ref ImporterPassword}
+  Acceptance:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-E1Acceptance
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: 'repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main'
+      Policies:
+        - PolicyName: SyntheticAcceptanceOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: 'secretsmanager:GetSecretValue', Resource: !Ref AcceptanceFixtures}
+              - Effect: Allow
+                Action: cloudformation:DescribeStacks
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-e1/*'
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt FixtureExecution.Arn
+                Condition: {StringEquals: {iam:PassedToService: ecs-tasks.amazonaws.com}}
+              - {Effect: Allow, Action: 'ecs:RegisterTaskDefinition', Resource: '*'}
+              - Effect: Allow
+                Action: ecs:RunTask
+                Resource: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/retiro-staging-fixture:*'
+                Condition: {ArnEquals: {ecs:cluster: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/retiro-staging'}}
+              - {Effect: Allow, Action: [ecs:DescribeTasks, ecs:DescribeTaskDefinition], Resource: '*'}
   ArchiveExecution:
     Type: AWS::IAM::Role
     Properties:
@@ -356,6 +456,9 @@ Outputs:
   ArchiveTaskArn: {Value: !GetAtt ArchiveTask.Arn}
   ArchiveExecutionArn: {Value: !GetAtt ArchiveExecution.Arn}
   VerifierArn: {Value: !GetAtt Verifier.Arn}
+  AcceptanceArn: {Value: !GetAtt Acceptance.Arn}
+  FixtureExecutionArn: {Value: !GetAtt FixtureExecution.Arn}
+  AcceptanceFixtureSecret: {Value: !Ref AcceptanceFixtures}
   SchoolReadPassword: {Value: !Ref SchoolReadPassword}
   SystemReadPassword: {Value: !Ref SystemReadPassword}
   ImporterPassword: {Value: !Ref ImporterPassword}

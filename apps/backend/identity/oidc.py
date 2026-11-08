@@ -121,7 +121,7 @@ class Provider:
             )
         )
 
-    def verify_cognito_policy(self, channel: str) -> None:
+    def verify_cognito_policy(self, channel: str, authorization_endpoint: str) -> None:
         """Cognito omits amr in user-pool ID tokens: require the real pool's mandatory MFA.
 
         No custom/federated/direct password grant is accepted. Merely having TOTP
@@ -132,6 +132,13 @@ class Provider:
         ):
             raise IdentityRejected()
         cognito = boto3.client("cognito-idp", region_name=self.region)
+        host = urlsplit(authorization_endpoint).hostname or ""
+        suffix = f".auth.{self.region}.amazoncognito.com"
+        if not host.endswith(suffix):
+            raise IdentityRejected()
+        domain = cognito.describe_user_pool_domain(Domain=host.removesuffix(suffix))[
+            "DomainDescription"
+        ]
         pool = cognito.describe_user_pool(UserPoolId=self.pool_id)["UserPool"]
         mfa = cognito.get_user_pool_mfa_config(UserPoolId=self.pool_id)
         client = cognito.describe_user_pool_client(
@@ -139,9 +146,15 @@ class Provider:
         )["UserPoolClient"]
         if (
             pool.get("MfaConfiguration") != "ON"
+            or pool.get("UserPoolTier") != "ESSENTIALS"
+            or domain.get("UserPoolId") != self.pool_id
+            or domain.get("ManagedLoginVersion") != 2
             or mfa.get("MfaConfiguration") != "ON"
             or not mfa.get("SoftwareTokenMfaConfiguration", {}).get("Enabled")
             or pool.get("LambdaConfig")
+            or pool.get("DeviceConfiguration")
+            or mfa.get("SmsMfaConfiguration")
+            or mfa.get("EmailMfaConfiguration")
             or not pool.get("AdminCreateUserConfig", {}).get("AllowAdminCreateUserOnly")
             or client.get("SupportedIdentityProviders") != ["COGNITO"]
             or client.get("AllowedOAuthFlows") != ["code"]
@@ -178,7 +191,7 @@ class Provider:
                 keys = keys_response.json().get("keys", [])
             identity = self.verify_token(token, keys, channel, nonce)
             if self.mfa_policy == "cognito_required_totp":
-                self.verify_cognito_policy(channel)
+                self.verify_cognito_policy(channel, metadata["authorization_endpoint"])
             return identity
         except IdentityRejected:
             raise
@@ -213,6 +226,7 @@ class Provider:
                 options={"require": ["iss", "sub", "aud", "iat", "exp", "auth_time", "nonce"]},
             )
             now = time.time()
+            amr = claims.get("amr")
             if (
                 not isinstance(claims["sub"], str)
                 or not 1 <= len(claims["sub"]) <= 255
@@ -225,7 +239,14 @@ class Provider:
                 or not now - 300 <= claims["auth_time"] <= now + 30
                 or (isinstance(claims["aud"], list) and len(claims["aud"]) != 1)
                 or (claims.get("azp") is not None and claims["azp"] != self.client(channel))
-                or (self.mfa_policy == "amr_mfa" and "mfa" not in claims.get("amr", []))
+                or (
+                    self.mfa_policy == "amr_mfa"
+                    and (
+                        not isinstance(amr, list)
+                        or not all(isinstance(method, str) for method in amr)
+                        or "mfa" not in amr
+                    )
+                )
                 or (self.mfa_policy == "cognito_required_totp" and claims.get("token_use") != "id")
             ):
                 raise IdentityRejected()

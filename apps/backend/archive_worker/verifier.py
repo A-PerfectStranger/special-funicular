@@ -81,7 +81,9 @@ class ExternalVerifier:
             raise IntegrityFailure()
         return dict(envelope["content"])
 
-    def verify(self, minimum_sequence: int = 1) -> dict[str, Any]:
+    def verify(
+        self, minimum_sequence: int = 1, database_snapshot: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
         keys: set[str] = set()
         paginator = self.s3.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=self.bucket, Prefix="checkpoints/"):
@@ -90,6 +92,16 @@ class ExternalVerifier:
             raise IntegrityFailure()
         previous = "0" * 64
         event_ids: set[str] = set()
+        snapshot: dict[int, dict[str, Any]] | None = None
+        if database_snapshot is not None:
+            snapshot = {}
+            for record in database_snapshot:
+                sequence = record.get("sequence")
+                if type(sequence) is not int or sequence < 1 or sequence in snapshot:
+                    raise IntegrityFailure()
+                snapshot[sequence] = record
+            if len(snapshot) != len(keys):
+                raise IntegrityFailure()
         for sequence, key in enumerate(sorted(keys), 1):
             if key != f"checkpoints/{sequence:020d}.json":
                 raise IntegrityFailure()
@@ -116,6 +128,19 @@ class ExternalVerifier:
                 or event.get("canonical_format") != "pg-jsonb-utf8-v1"
             ):
                 raise IntegrityFailure()
+            if snapshot is not None:
+                copied = snapshot.get(sequence)
+                if not copied or copied.get("event_id") != event["id"]:
+                    raise IntegrityFailure()
+                # Treat every byte and hash from the database copy as untrusted.
+                encoded = copied.get("canonical_base64")
+                if not isinstance(encoded, str) or len(encoded) > 90000:
+                    raise IntegrityFailure()
+                if (
+                    base64.b64decode(encoded, validate=True) != event_payload
+                    or copied.get("digest") != digest
+                ):
+                    raise IntegrityFailure()
             previous = digest
             event_ids.add(event["id"])
         # Callers persist a previous external high-water mark, never a DB-derived default.
@@ -127,4 +152,5 @@ class ExternalVerifier:
             "last_sequence": len(keys),
             "last_digest": previous,
             "database_used": False,
+            "database_snapshot_compared": snapshot is not None,
         }
