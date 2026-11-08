@@ -95,6 +95,30 @@ la galería conserva el formulario en memoria; vuelta exige check online vigente
 Segundo plano ordinario, logout o rechazo descartan la vista; generaciones
 impiden restaurar datos desde checks tardíos o competir con OIDC interactivo.
 Seis regresiones nuevas pasan (20 JS totales); 234 Python previas sin cambio de
-backend. Bundle Android/Hermes final aprobado; CI propio aún pendiente. No atribuir esta corrección
+backend. Bundle Android/Hermes final aprobado. CI push 42530120001 y PR 42530145520
+de 2383f0e aprobados completos, imagen y APK/firma incluidos. PR #19 en draft,
+sin integrar mientras main 74297b3 tenga ensayos activos. No atribuir esta corrección
 al APK de 74297b3 ni declarar prueba física Android. Integrar solo después del
 ensayo 742 y de sus propios checks; podrá acompañar habilitación de E2 en CD.
+
+CD 74297b3: staging aprobado; artefacto 13636941738 confirma digest
+sha256:7af058a44389aecf2851718d9f976ae96c374ff03006fc868c537f6afd892df2,
+runtime_digest_verified=true, E1=true y E2=false. APK de staging firmado aprobado;
+browser E1 aún en curso. Ensayo E2 42529491296 continúa en cola. Probes públicos
+locales aprobados, sin atribuirles procedencia de release ni aceptación funcional.
+
+CD 42529252429 finalizado: staging y todos los jobs E1/APK aprobados, incluido
+archive-drill; solo producción falla por NOT_CONFIGURED E5 esperado. E2 se omitió
+porque bandera=false. Ensayo final E2 42529491296 ya comenzó: publicación y
+preparación aprobadas, migración/despliegue en curso. No avanzar main mientras
+su archive-drill necesite el guard de latest main.
+
+Propuesta preparada en PR #19 mientras corre el ensayo, aún sin integrar:
+e2_enabled=true en staging y documentación de gate obligatorio. La condición
+de integración sigue siendo ensayo AWS 42529491296 aprobado más CI final del
+PR; no interpretar la bandera de esta rama como despliegue ni aceptación.
+Mantener main congelado hasta terminar archive-drill y familia/WORM.
+
+Checks locales de la propuesta con e2_enabled=true: make check aprobado,
+234 Python/20 JS, tipos/contrato/migraciones y dependencias Expo. Es una
+propuesta de configuración aún sin integrar; CI final propio pendiente.
