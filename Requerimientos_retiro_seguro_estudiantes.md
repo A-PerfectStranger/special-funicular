@@ -38,7 +38,7 @@ Usar exclusivamente `PADRE`, `GUARDIA`, `ADMIN_ESCUELA`, `ADMIN_SISTEMA`. Denega
 | Crear/editar/borrar registros de salida o acceso | No | No; solo comando de retiro | No | No | No |
 | Cargar estudiantes, cambiar vínculos, roles u horarios desde la app | No | No | No | No | No |
 
-Las cuentas de personal son individuales y separadas por rol; no se acumulan permisos de padre, guardia y administrador en una misma sesión. Una persona con más de una función utiliza identidades de personal separadas para el MVP. La cuenta PADRE puede tener varios estudiantes, con capacidad principal distinta por vínculo.
+Las cuentas de personal son individuales y separadas por rol; no se acumulan permisos de padre, guardia y administrador en una misma sesión. Una persona con más de una función utiliza identidades de personal separadas para el MVP. La cuenta PADRE puede tener varios estudiantes de una misma escuela, con capacidad principal distinta por vínculo. Para este MVP una familia pertenece a una sola escuela; un lote de otra escuela no reutiliza ese padre, aunque el contacto coincida.
 
 ## 3. Requerimientos funcionales
 

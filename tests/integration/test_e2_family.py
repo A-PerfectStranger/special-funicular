@@ -861,3 +861,105 @@ def test_bulk_uuid_spelling_cannot_merge_two_different_preloaded_parents() -> No
             assert db.execute(
                 "SELECT count(*) FROM school_roster_student WHERE id=%s", (child["id"],)
             ).fetchone() == (0,)
+
+
+def test_approved_existing_family_cannot_be_imported_into_another_school() -> None:
+    first = batch()
+    import_batch(first)
+    second = batch()
+    second["parents"] = first["parents"]
+    for link, parent in zip(second["links"], first["parents"], strict=True):
+        link["parent_id"] = parent["id"]
+    with pytest.raises(psycopg.errors.InvalidParameterValue):
+        import_batch(second)
+    with connect("importer") as db:
+        assert db.execute(
+            "SELECT count(*) FROM school_roster_student WHERE id=%s", (second["students"][0]["id"],)
+        ).fetchone() == (0,)
+
+
+def test_two_schools_cannot_concurrently_claim_the_same_new_family() -> None:
+    import time
+
+    first, second = batch(), batch()
+    second["parents"] = list(reversed(first["parents"]))
+    for link, parent in zip(second["links"], second["parents"], strict=True):
+        link["parent_id"] = parent["id"]
+    batches = []
+    for data in [first, second]:
+        _, hashed = import_batch(data, False)
+        with connect("importer") as db:
+            db.execute(
+                "SELECT e2_import('APPROVE',%s,'',%s,'operator','school approval')",
+                (data["id"], hashed),
+            )
+        batches.append((data, hashed))
+    names = ["e2-school-race-" + str(uuid.uuid4()) for _ in batches]
+
+    def promote(index: int) -> bool:
+        data, hashed = batches[index]
+        try:
+            with connect("importer") as db:
+                db.execute("SELECT set_config('application_name',%s,false)", (names[index],))
+                db.execute("SET statement_timeout='10s'")
+                db.execute(
+                    "SELECT e2_import('PROMOTE',%s,'',%s,'operator','')", (data["id"], hashed)
+                )
+            return True
+        except psycopg.errors.InvalidParameterValue:
+            return False
+
+    with connect("importer") as locking, locking.transaction():
+        # Hold parent writes so neither promotion can win merely by reaching the DB first.
+        locking.execute("LOCK TABLE school_roster_parent IN SHARE MODE")
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            pending = [pool.submit(promote, i) for i in range(2)]
+            try:
+                deadline = time.monotonic() + 5
+                with connect("importer") as observer:
+                    while observer.execute(
+                        "SELECT count(*) FROM pg_stat_activity "
+                        "WHERE application_name IN (%s,%s) AND wait_event_type='Lock'",
+                        tuple(names),
+                    ).fetchone() != (2,):
+                        if time.monotonic() >= deadline:
+                            raise AssertionError("Promotions did not reach their contention points")
+                        time.sleep(0.01)
+            finally:
+                locking.execute("COMMIT")
+            assert sum(result.result(timeout=10) for result in pending) == 1
+    with connect("importer") as db:
+        assert db.execute(
+            "SELECT count(*) FROM school_roster_student WHERE id IN (%s,%s)",
+            tuple(data["students"][0]["id"] for data in [first, second]),
+        ).fetchone() == (1,)
+        assert db.execute(
+            "SELECT count(DISTINCT school_id) FROM school_roster_link WHERE parent_id IN (%s,%s)",
+            tuple(p["id"] for p in first["parents"]),
+        ).fetchone() == (1,)
+
+
+def test_promote_checks_stored_bytes_against_the_approved_hash() -> None:
+    import os
+
+    data = batch()
+    _, hashed = import_batch(data, False)
+    with connect("importer") as db:
+        db.execute(
+            "SELECT e2_import('APPROVE',%s,'',%s,'operator','school approval')",
+            (data["id"], hashed),
+        )
+    # Simulate stored staging corruption using only the isolated migration fixture identity.
+    data["students"][0]["name"] = "Unapproved synthetic change"
+    with psycopg.connect(os.environ["MIGRATION_DATABASE_URL"]) as owner:
+        owner.execute("SET ROLE retiro_evidence_writer")
+        owner.execute(
+            "UPDATE school_roster_importbatch SET payload=%s WHERE id=%s",
+            (json.dumps(data), data["id"]),
+        )
+    with connect("importer") as db:
+        with pytest.raises(psycopg.errors.InvalidParameterValue):
+            db.execute("SELECT e2_import('PROMOTE',%s,'',%s,'operator','')", (data["id"], hashed))
+        assert db.execute(
+            "SELECT count(*) FROM school_roster_student WHERE id=%s", (data["students"][0]["id"],)
+        ).fetchone() == (0,)

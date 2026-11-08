@@ -111,6 +111,10 @@ Operación y repetición de ensayos: [runbook E1](docs/runbooks/e1.md).
 
 ### E2 — Bulk, activación y autorización familiar
 
+Decisión del usuario: una familia pertenece a una sola escuela en este MVP.
+El importador debe rechazar la reutilización entre escuelas también cuando
+las promociones son concurrentes.
+
 - [ ] Crear importador privado: staging, esquema, hash, aprobación escolar, promoción atómica e idempotencia.
 - [ ] Crear provisioning/baja y cambios de principal auditados para el equipo técnico.
 - [ ] Implementar invitación 256 bits/24 h, contacto verificado y asociación OIDC `issuer`/`sub`.
