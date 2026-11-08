@@ -13,7 +13,9 @@ type Authorization = { id: string; caregiver_id: string; revoked: boolean;
   schedule: { from: string; until: string }[] };
 type Records = { caregivers: Caregiver[]; authorizations: Authorization[] };
 
-export function Family({ identity }: { identity: IdentityClient }) {
+export function Family({ identity, photoActivity }: {
+  identity: IdentityClient; photoActivity: (select: () => Promise<void>) => Promise<void>;
+}) {
   const [students, setStudents] = useState<Student[]>([]);
   const [selected, setSelected] = useState<Student | null>(null);
   const [records, setRecords] = useState<Records>({ caregivers: [], authorizations: [] });
@@ -52,22 +54,24 @@ export function Family({ identity }: { identity: IdentityClient }) {
   }
 
   async function choosePhoto() {
-    let uri: string | undefined;
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'],
-        base64: true, quality: 0.5, allowsEditing: true, aspect: [1, 1] });
-      if (result.canceled) return;
-      uri = result.assets[0].uri;
-      const encoded = result.assets[0].base64;
-      if (!encoded || encoded.length > 400000) throw new Error('Image too large');
-      if (mounted.current) setPhoto(encoded);
-    } catch { if (mounted.current) setMessage('Selecciona una foto JPEG o PNG más pequeña.'); }
-    finally {
-      if (uri && isTemporaryPhoto(uri, Paths.cache.uri)) {
-        try { new File(uri).delete(); }
-        catch { if (mounted.current) { setPhoto(''); setMessage('No se pudo eliminar la copia temporal. Selección descartada.'); } }
+    await photoActivity(async () => {
+      let uri: string | undefined;
+      try {
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'],
+          base64: true, quality: 0.5, allowsEditing: true, aspect: [1, 1] });
+        if (result.canceled) return;
+        uri = result.assets[0].uri;
+        const encoded = result.assets[0].base64;
+        if (!encoded || encoded.length > 400000) throw new Error('Image too large');
+        if (mounted.current) setPhoto(encoded);
+      } catch { if (mounted.current) setMessage('Selecciona una foto JPEG o PNG más pequeña.'); }
+      finally {
+        if (uri && isTemporaryPhoto(uri, Paths.cache.uri)) {
+          try { new File(uri).delete(); }
+          catch { if (mounted.current) { setPhoto(''); setMessage('No se pudo eliminar la copia temporal. Selección descartada.'); } }
+        }
       }
-    }
+    });
   }
 
   async function mutate(path: string, payload: object) {

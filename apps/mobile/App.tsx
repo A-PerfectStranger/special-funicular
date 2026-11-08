@@ -4,6 +4,7 @@ import { Family } from './src/Family';
 import { readCapabilities } from './src/capabilities';
 import type { IdentityClient, MobileRole } from './src/identity';
 import { createIdentityClient } from './src/identityRuntime';
+import { SessionVisibility } from './src/sessionVisibility';
 
 export default function App() {
   const [status, setStatus] = useState('Sin comprobar conexión. Retiros deshabilitados.');
@@ -11,10 +12,22 @@ export default function App() {
   const [invitation, setInvitation] = useState('');
   const [pending, setPending] = useState(false);
   const [role, setRole] = useState<MobileRole | null>(null);
+  const [sessionVisible, setSessionVisible] = useState(false);
   const [identity] = useState<IdentityClient | null>(() => {
     try { return createIdentityClient(); } catch { return null; }
   });
   const configured = Boolean(process.env.EXPO_PUBLIC_OIDC_REDIRECT_URI);
+  const [visibility] = useState(() => new SessionVisibility(
+    async () => {
+      if (!identity) throw new Error('Identity unavailable');
+      return identity.check();
+    },
+    (nextRole, visible, denied) => {
+      if (nextRole !== undefined) setRole(nextRole);
+      setSessionVisible(visible);
+      if (denied) setStatus('Se requiere conexión e ingreso vigente. Retiros deshabilitados.');
+    },
+  ));
 
   useEffect(() => {
     if (!configured) return;
@@ -25,48 +38,42 @@ export default function App() {
     }).then(async response => response.ok ? response.json() : null).then(value => {
       if (active) setFamilyEnabled(value?.family_enabled === true && value?.pickup_enabled === false);
     }).catch(() => { if (active) setFamilyEnabled(false); });
-    const subscription = AppState.addEventListener('change', state => {
-      setRole(null);
-      if (state === 'active') {
-        identity?.check().then(setRole).catch(() => {
-          setStatus('Se requiere conexión e ingreso vigente. Retiros deshabilitados.');
-        });
-      }
-    });
-    return () => { active = false; subscription.remove(); };
-  }, [configured, identity]);
+    visibility.start(AppState.currentState);
+    const subscription = AppState.addEventListener('change', state => visibility.changed(state));
+    return () => { active = false; subscription.remove(); visibility.dispose(); };
+  }, [configured, visibility]);
 
   async function signIn(reauthenticate = false) {
     setPending(true);
-    setRole(null);
+    visibility.beginInteractive();
     try {
       if (!identity) throw new Error('Identity unavailable');
-      setRole(await identity.login(reauthenticate));
+      visibility.finishInteractive(await identity.login(reauthenticate));
       setStatus('Identidad validada en línea. Retiros deshabilitados.');
-    } catch { setStatus('No fue posible validar la identidad. Vuelve a ingresar con MFA.'); }
+    } catch { visibility.finishInteractive(null); setStatus('No fue posible validar la identidad. Vuelve a ingresar con MFA.'); }
     finally { setPending(false); }
   }
 
   async function activate() {
     const token = invitation;
-    setInvitation(''); setRole(null); setPending(true);
+    setInvitation(''); visibility.beginInteractive(); setPending(true);
     try {
       if (!identity) throw new Error('Identity unavailable');
       await identity.activate(token);
       setStatus('Cuenta activada. Ingresa con MFA para consultar tu familia.');
     } catch { setStatus('No se pudo activar. Verifica invitación, contacto verificado y vigencia.'); }
-    finally { setPending(false); }
+    finally { visibility.finishInteractive(null); setPending(false); }
   }
 
   async function signOut() {
-    setRole(null);
+    visibility.beginInteractive();
     setPending(true);
     try {
       const revoked = await identity?.logout();
       setStatus(revoked ? 'Sesión revocada y datos locales borrados.'
         : 'Datos locales borrados. Revocación en servidor sin confirmar.');
     } catch { setStatus('Acceso local bloqueado. No fue posible confirmar el cierre de sesión.'); }
-    finally { setPending(false); }
+    finally { visibility.finishInteractive(null); setPending(false); }
   }
 
   async function checkConnection() {
@@ -92,7 +99,6 @@ export default function App() {
       <View style={styles.card}>
         <Text style={styles.title}>Retiro seguro · Desarrollo</Text>
         <Text>Ensayo con datos sintéticos. Retiros deshabilitados.</Text>
-        {role && <Text>{role === 'PADRE' ? 'Cuenta de padre' : 'Cuenta de guardia'}</Text>}
         <Text accessibilityLiveRegion="polite">{status}</Text>
         <Button title="Comprobar conexión" disabled={pending} onPress={checkConnection} />
         {configured && familyEnabled && !role && <>
@@ -101,11 +107,18 @@ export default function App() {
           <Button title="Activar con invitación y MFA" disabled={pending || invitation.length !== 43} onPress={activate} />
         </>}
         {configured && <Button title="Ingresar con MFA" disabled={pending} onPress={() => signIn()} />}
+        <View style={{ display: sessionVisible ? 'flex' : 'none', gap: 12 }}
+          accessibilityElementsHidden={!sessionVisible}
+          importantForAccessibility={sessionVisible ? 'auto' : 'no-hide-descendants'}
+          pointerEvents={sessionVisible ? 'auto' : 'none'}>
         {role && <>
+          <Text>{role === 'PADRE' ? 'Cuenta de padre' : 'Cuenta de guardia'}</Text>
           <Button title="Reautenticar con MFA" disabled={pending} onPress={() => signIn(true)} />
           <Button title="Cerrar sesión" disabled={pending} onPress={signOut} />
         </>}
-        {familyEnabled && role === 'PADRE' && identity && <Family identity={identity} />}
+        {familyEnabled && role === 'PADRE' && identity && <Family identity={identity}
+          photoActivity={select => visibility.photoActivity(select)} />}
+        </View>
       </View>
     </ScrollView></SafeAreaView>
   );

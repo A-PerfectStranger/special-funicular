@@ -11,7 +11,7 @@ funciones ya disponibles. Contrato funcional:
 
 E0 y E1 están aceptadas con datos sintéticos. E2–E5 siguen pendientes: no hay
 retiros, avisos ni uso con datos reales habilitados. La configuración de
-[staging](infra/environments/staging.json) habilita E1 y exige su gate en CD;
+[staging](infra/environments/staging.json) habilita E1/E2 y exige sus gates en CD;
 [producción](infra/environments/production.json) permanece sin configurar.
 El estado de un despliegue concreto se consulta por commit en
 [Actions](https://github.com/A-PerfectStranger/special-funicular/actions), no se
@@ -162,9 +162,10 @@ las correcciones posteriores ni cierra por sí solo E2.
 | Cuidadores/fotos/autorizaciones/horarios | Reencodificación, recurrencia IANA/DST, revocación y límites de MFA | Protocolo móvil compartido inicial aprobado; recurrencia ampliada pendiente |
 | Evidencia/compatibilidad/distribución | Evento/outbox atómicos; migraciones, tipos, contrato y bundle | Imagen/APK/WORM iniciales aprobados; candidato final pendiente |
 
-**Límites actuales:** E2 está apagada en CD habitual; solo el ensayo explícito puede
-habilitarla en staging sintético. Falta verificar en AWS el cierre de concurrencia
-y el gate compartido con pool real antes de habilitar CD y cerrar la matriz. QR/permisos de
+**Límites actuales:** la rama candidata habilita E2 y su gate obligatorio en CD;
+la integración sigue condicionada al ensayo AWS 42529491296. Falta verificar
+el cierre de concurrencia y el gate compartido con pool real, después el CD
+habitual, antes de cerrar la matriz. QR/permisos de
 entrega pertenecen a E3 y no se declaran probados por invalidar autorizaciones.
 No se ejecutaron importaciones/invitaciones ni mensajes reales. Procedimiento
 CloudShell revisable, sin compartir códigos de verificación: docs/runbooks/e2.md.
