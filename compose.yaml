@@ -10,6 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/local/init.sql:/docker-entrypoint-initdb.d/00-roles.sql:ro
+      - ./infra/local/e1-roles.sql:/docker-entrypoint-initdb.d/10-e1-roles.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d retiro"]
       interval: 2s

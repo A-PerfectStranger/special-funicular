@@ -8,6 +8,7 @@ install:
 	npm ci
 db:
 	docker compose up -d --wait
+	docker compose exec -T db psql -U postgres -d retiro -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/10-e1-roles.sql
 migrate:
 	set -a; source .env; set +a; uv run python scripts/migrate.py
 lint:

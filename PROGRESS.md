@@ -1,4 +1,43 @@
-# Estado de ejecución — E0 completada
+# Estado de ejecución — E1 en implementación
+
+## Sesión E1 actual (7 de noviembre de 2026, America/Bogota)
+
+Base remota comprobada con `git fetch --prune origin`: `bbe48f4`. Checkout
+actualizado por fast-forward desde `33f3ac6`; rama `feat/e1-identity-evidence`.
+Se leyeron AGENTS, PLAN, PROGRESS y requisitos; criterios y etapas previos al
+código en `docs/e1-acceptance.md`. El usuario eligió Cognito para ensayo y
+autorizó siete días de retención WORM exclusivamente para datos sintéticos.
+
+**E1 no está terminada ni aceptada en AWS.** Cambios locales en curso:
+
+- Modelos identity/school_roster/evidence; migraciones compatibles hacia delante,
+  RLS forzada, credenciales SQL separadas, funciones de eventos/sesiones/archivo.
+- OIDC Code/PKCE, firma/issuer/audiencia/nonce/tiempos/MFA, sesiones revocables,
+  BFF Django con CSRF y credencial aislada de lectura del sistema.
+- Archivador S3/KMS, versiones/recibos/manifiestos/checkpoints externos y verificador
+  sin conexión SQL; transporte móvil con navegador del sistema y SecureStore.
+- Nada de esto se ha desplegado. La bandera E1 está desactivada por defecto.
+
+Evidencia local intermedia: baseline `make check` aprobada; 27 regresiones nuevas
+de identidad/aislamiento aprobadas con PostgreSQL real y firmas RSA reales.
+Ruff y mypy aprobaron esa revisión. Los mocks del IdP y recibos simulados de las
+pruebas de SQL **no** acreditan Cognito, WORM ni KMS reales. Pruebas adicionales,
+integración completa, CI/builds, configuración cloud y aceptación E1 pendientes.
+
+El entorno sufrió una interrupción y se recuperó con el árbol/logs intactos.
+Antes de la interrupción, `make db check` completo pasó con **103 pruebas Python
+y siete JS**, lint, tipos, migraciones, Django y Expo. Hay ediciones posteriores
+de archivo/IAM que necesitan revalidación. Se guardó una nota mínima de continuidad
+con autorización del usuario en la rama documental `docs/e1-session-recovery`;
+esa rama no contiene la implementación ni acepta E1.
+
+Próximos pasos: completar/validar archivador y móvil; preparar IaC/commissioning
+E1 sin ampliar permisos del CD E0 de forma implícita; actualizar contratos,
+runbooks y controles de aceptación; ejecutar suites y registrar fallos/bloqueos.
+Esta sesión no dispone aún de una identidad AWS de operador acreditada. OIDC
+de CI/main existente no es esa identidad. No usar el código OAuth viejo.
+
+## E0 completada
 
 E0 está aceptada en staging AWS con datos sintéticos. E1–E5 siguen pendientes;
 la autenticación funcional de usuarios, los datos de menores, los retiros,
