@@ -7,3 +7,6 @@
 !apps/backend/**
 apps/backend/**/__pycache__/
 apps/backend/tests/
+!infra/
+!infra/aws/
+!infra/aws/rds-ca.pem

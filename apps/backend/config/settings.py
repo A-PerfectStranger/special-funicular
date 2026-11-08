@@ -63,7 +63,15 @@ SECURE_HSTS_SECONDS = 31536000 if SECURE_SSL_REDIRECT else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_SSL_REDIRECT
 SECURE_HSTS_PRELOAD = SECURE_SSL_REDIRECT
 X_FRAME_OPTIONS = "DENY"
-# Deliberately no proxy trust header: configure only at a verified ingress boundary.
+# Only set for the ECS ALB boundary: task ingress must be restricted to its managed SG.
+TRUSTED_INGRESS = os.environ.get("TRUSTED_INGRESS", "")
+if TRUSTED_INGRESS not in {"", "ecs-express"}:
+    raise ImproperlyConfigured("Unknown ingress boundary")
+SECURE_PROXY_SSL_HEADER = (
+    ("HTTP_X_FORWARDED_PROTO", "https") if TRUSTED_INGRESS == "ecs-express" else None
+)
+# ALB liveness arrives over the private target-group connection, without XFP.
+SECURE_REDIRECT_EXEMPT = [r"^health/live$"]
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

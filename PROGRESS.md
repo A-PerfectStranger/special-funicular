@@ -4,11 +4,43 @@
 
 Base técnica E0 implementada y verificada. **Identidad AWS de lectura conectada
 por OIDC desde GitHub/main**; créditos y vigencia confirmados por AWS.
-**Staging/producción no aprovisionados**: Cost Explorer y Facturas aún no ofrecen
-datos de gasto. AWS indica que Cost Explorer acaba de habilitarse y que hay que
-volver a comprobar en unas 24 horas. No interpretar ausencia de datos como cero.
+**Staging aún en comisión, producción no aprovisionada**. Cost Explorer ya
+aprobó el preflight completo (42420579085). El presupuesto existe; se prepara la
+base real y el adaptador de staging. Los bloqueos históricos de gasto que figuran
+abajo ya no son el impedimento actual. No presentar la preparación como deploy.
 E1–E5 pendientes; ningún retiro real habilitado. El toolkit interactivo no está
 instalado/autenticado; OIDC de CI no se presenta como ese login humano.
+
+## Comisión actual: PostgreSQL privado y ventana limitada
+
+El usuario confirmó creación de la base y devolvió los ARN Deploy/Migrate de la
+cuenta esperada. El stack independiente lifecycle falló: Scheduler exige
+`yyyy-MM-ddTHH:mm:ss.SSSZ`; su estado ROLLBACK_COMPLETE impide actualizarlo.
+El reparador genera milisegundos y recrea solo ese stack fallido tras verificar
+propiedad y una lista cerrada de recursos IAM/Scheduler. No borra ni modifica
+la base retenida. La guarda aún necesita aplicación real antes de aceptar E0.
+
+
+- Preflight completo aprobado: [42420579085](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42420579085).
+  Presupuesto total creado desde CloudShell; no publica correo ni importes de cuenta.
+- La cuenta Free Plan rechazó Aurora sin Express Configuration. Ese modo obliga
+  a una pasarela de Internet y no admite la VPC privada requerida. Se reemplazó
+  por RDS PostgreSQL 17 privado, cifrado, db.t4g.micro/20 GB, sin ampliar el plan.
+  Fuente y costes residuales en `infra/aws/staging-bootstrap.md`.
+- IaC `0579bf3c330e8861ba3276defc771cc084d82f61` aprobó los checks required,
+  quality, backend-image y development-apk del PR #5. El reintento de CloudShell
+  está pendiente de resultado; todavía no hay aceptación de staging.
+- Guarda horaria de parada de RDS fuera de la ventana activa; retirada del
+  servicio Express a tres horas. La base retenida conserva coste de storage,
+  backups y secretos: detener compute no acredita coste cero.
+- CD separa Deploy/Migrate, verifica SHA/digest y la red ALB→tarea real, y espera
+  tareas nuevas antes de aceptar canary. Las migraciones usan un advisory lock
+  PostgreSQL bajo la identidad migradora; no se cancelan al llegar otro commit.
+- Último `make check`: 59 pruebas Python y 3 JS, PostgreSQL real, lint/tipos,
+  cfn-lint, migraciones, Django y Expo aprobados. Esto es evidencia local;
+  las pruebas de nube siguen pendientes.
+- La API de rama confirmó main protegido y check obligatorio `required`.
+  Los 403 históricos al endpoint detallado no significan ausencia de protección.
 
 ## Continuación E0 — evidencia actual
 
@@ -191,3 +223,15 @@ claves retenidas para ahorrar.
 4. Configurar custodia/firma estable y destino privado de APK; build no equivale a instalación.
 5. Avanzar E1: IdP/MFA, modelos, RLS de dominio, evidencia y WORM/KMS reales sintéticos.
    Ningún requisito E1–E5 queda implementado por esta base E0.
+
+## Reanudación: Cost Explorer disponible
+
+El usuario confirmó disponibilidad y el preflight completo aprobó:
+https://github.com/A-PerfectStranger/special-funicular/actions/runs/42420579085.
+El presupuesto `retiro-seguro-budget` se creó desde CloudShell. El primer stack
+`retiro-staging-base` falló al crear ECS Cluster: no pudo asumir el rol de servicio
+ECS. Se preparó recuperación que comprueba/crea AWSServiceRoleForECS y preserva
+secretos retenidos; se solicitó ejecutar `ef3f2d0c00e5a459bdd617a9d66204bdce0ab362`.
+La base tiene validación estática, pero no se presenta como aprovisionada aún.
+Publicador de imagen por digest, CA RDS e ingreso explícito están preparados;
+faltan comisión SQL y despliegue/probes reales. E0 permanece abierto.

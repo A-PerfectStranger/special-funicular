@@ -1,0 +1,1230 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Synthetic E0 staging base; no business routes or WORM retention configured",
+  "Parameters": {
+    "EngineVersion": {
+      "Type": "String",
+      "AllowedPattern": "[0-9]+\\.[0-9]+.*"
+    },
+    "ExistingRuntimePassword": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/.*"
+    },
+    "ExistingMigrationPassword": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/.*"
+    },
+    "ExistingDjangoSecret": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/.*"
+    }
+  },
+  "Resources": {
+    "Vpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.61.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Internet": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Attach": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "InternetGatewayId": {
+          "Ref": "Internet"
+        }
+      }
+    },
+    "PublicRoutes": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRoutes"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "Internet"
+        }
+      },
+      "DependsOn": "Attach"
+    },
+    "Public0": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.61.0.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Public0Route": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "Public0"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRoutes"
+        }
+      }
+    },
+    "Private0": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.61.10.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Public1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.61.1.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Public1Route": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "Public1"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRoutes"
+        }
+      }
+    },
+    "Private1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.61.11.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "AppSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "E0 tasks: no direct inbound; Express adds its managed ALB ingress group",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "CidrIp": "10.61.0.0/16"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "DbSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Private PostgreSQL from E0 tasks only",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "SourceSecurityGroupId": {
+              "Ref": "AppSecurityGroup"
+            }
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 1,
+            "ToPort": 1,
+            "CidrIp": "127.0.0.1/32"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "DbSubnets": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "Private E0 database",
+        "SubnetIds": [
+          {
+            "Ref": "Private0"
+          },
+          {
+            "Ref": "Private1"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Database": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBInstanceIdentifier": "retiro-staging",
+        "DBName": "retiro",
+        "Engine": "postgres",
+        "EngineVersion": {
+          "Ref": "EngineVersion"
+        },
+        "DBInstanceClass": "db.t4g.micro",
+        "AllocatedStorage": "20",
+        "StorageType": "gp3",
+        "MasterUsername": "retiro_bootstrap",
+        "ManageMasterUserPassword": true,
+        "StorageEncrypted": true,
+        "BackupRetentionPeriod": 1,
+        "DeletionProtection": true,
+        "PubliclyAccessible": false,
+        "DBSubnetGroupName": {
+          "Ref": "DbSubnets"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Ref": "DbSecurityGroup"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "RuntimePassword": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Name": "retiro-staging/RuntimePassword",
+        "GenerateSecretString": {
+          "PasswordLength": 64,
+          "ExcludePunctuation": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateRuntimePassword"
+    },
+    "MigrationPassword": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Name": "retiro-staging/MigrationPassword",
+        "GenerateSecretString": {
+          "PasswordLength": 64,
+          "ExcludePunctuation": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateMigrationPassword"
+    },
+    "DjangoSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Name": "retiro-staging/DjangoSecret",
+        "GenerateSecretString": {
+          "PasswordLength": 64,
+          "ExcludePunctuation": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateDjangoSecret"
+    },
+    "Repository": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "retiro-staging/backend",
+        "ImageTagMutability": "IMMUTABLE",
+        "ImageScanningConfiguration": {
+          "ScanOnPush": true
+        },
+        "EncryptionConfiguration": {
+          "EncryptionType": "KMS"
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Cluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "ClusterName": "retiro-staging",
+        "CapacityProviders": [
+          "FARGATE"
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Logs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/retiro/staging",
+        "RetentionInDays": 7,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "ApiExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "retiro-staging-ApiExecution",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedE0",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetAuthorizationToken"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchCheckLayerAvailability"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Repository",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/retiro/staging:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::If": [
+                        "CreateRuntimePassword",
+                        {
+                          "Ref": "RuntimePassword"
+                        },
+                        {
+                          "Ref": "ExistingRuntimePassword"
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::If": [
+                        "CreateDjangoSecret",
+                        {
+                          "Ref": "DjangoSecret"
+                        },
+                        {
+                          "Ref": "ExistingDjangoSecret"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "MigrationExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "retiro-staging-MigrationExecution",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedE0",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetAuthorizationToken"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchCheckLayerAvailability"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Repository",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/retiro/staging:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::If": [
+                        "CreateMigrationPassword",
+                        {
+                          "Ref": "MigrationPassword"
+                        },
+                        {
+                          "Ref": "ExistingMigrationPassword"
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::If": [
+                        "CreateDjangoSecret",
+                        {
+                          "Ref": "DjangoSecret"
+                        },
+                        {
+                          "Ref": "ExistingDjangoSecret"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "BootstrapExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "retiro-staging-BootstrapExecution",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedE0",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetAuthorizationToken"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchCheckLayerAvailability"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Repository",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/retiro/staging:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "Database",
+                        "MasterUserSecret.SecretArn"
+                      ]
+                    },
+                    {
+                      "Fn::If": [
+                        "CreateRuntimePassword",
+                        {
+                          "Ref": "RuntimePassword"
+                        },
+                        {
+                          "Ref": "ExistingRuntimePassword"
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::If": [
+                        "CreateMigrationPassword",
+                        {
+                          "Ref": "MigrationPassword"
+                        },
+                        {
+                          "Ref": "ExistingMigrationPassword"
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::If": [
+                        "CreateDjangoSecret",
+                        {
+                          "Ref": "DjangoSecret"
+                        },
+                        {
+                          "Ref": "ExistingDjangoSecret"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "ExpressInfrastructure": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "retiro-staging-ExpressInfrastructure",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Deploy": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "retiro-staging-Deploy",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": {
+                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+                }
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": "repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main"
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedE0",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeTasks",
+                    "ecs:DescribeServices",
+                    "ecs:DescribeTaskDefinition",
+                    "ecs:DescribeExpressGatewayService",
+                    "ecs:ListTasks"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:RegisterTaskDefinition"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-base/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetAuthorizationToken"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchGetImage",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:PutImage",
+                    "ecr:UploadLayerPart",
+                    "ecr:DescribeImages"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Repository",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:UpdateExpressGatewayService",
+                    "ecs:DeleteExpressGatewayService"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/retiro-staging/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:PassRole"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ApiExecution",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ExpressInfrastructure",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    },
+    "Migrate": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "retiro-staging-Migrate",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": {
+                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+                }
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": "repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main"
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedE0",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeTasks",
+                    "ecs:DescribeServices",
+                    "ecs:DescribeTaskDefinition",
+                    "ecs:DescribeExpressGatewayService",
+                    "ecs:ListTasks"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:RegisterTaskDefinition"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-base/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:RunTask"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/retiro-staging-migrate:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:PassRole"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "MigrationExecution",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "retiro-seguro"
+          },
+          {
+            "Key": "Environment",
+            "Value": "staging"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "Deploy": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Deploy",
+          "Arn"
+        ]
+      }
+    },
+    "Migrate": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Migrate",
+          "Arn"
+        ]
+      }
+    },
+    "ApiExecution": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ApiExecution",
+          "Arn"
+        ]
+      }
+    },
+    "MigrationExecution": {
+      "Value": {
+        "Fn::GetAtt": [
+          "MigrationExecution",
+          "Arn"
+        ]
+      }
+    },
+    "BootstrapExecution": {
+      "Value": {
+        "Fn::GetAtt": [
+          "BootstrapExecution",
+          "Arn"
+        ]
+      }
+    },
+    "ExpressInfrastructure": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ExpressInfrastructure",
+          "Arn"
+        ]
+      }
+    },
+    "Public0": {
+      "Value": {
+        "Ref": "Public0"
+      }
+    },
+    "Public1": {
+      "Value": {
+        "Ref": "Public1"
+      }
+    },
+    "AppSecurityGroup": {
+      "Value": {
+        "Ref": "AppSecurityGroup"
+      }
+    },
+    "RuntimePassword": {
+      "Value": {
+        "Fn::If": [
+          "CreateRuntimePassword",
+          {
+            "Ref": "RuntimePassword"
+          },
+          {
+            "Ref": "ExistingRuntimePassword"
+          }
+        ]
+      }
+    },
+    "MigrationPassword": {
+      "Value": {
+        "Fn::If": [
+          "CreateMigrationPassword",
+          {
+            "Ref": "MigrationPassword"
+          },
+          {
+            "Ref": "ExistingMigrationPassword"
+          }
+        ]
+      }
+    },
+    "DjangoSecret": {
+      "Value": {
+        "Fn::If": [
+          "CreateDjangoSecret",
+          {
+            "Ref": "DjangoSecret"
+          },
+          {
+            "Ref": "ExistingDjangoSecret"
+          }
+        ]
+      }
+    },
+    "Cluster": {
+      "Value": {
+        "Ref": "Cluster"
+      }
+    },
+    "DbHost": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "MasterSecret": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "MasterUserSecret.SecretArn"
+        ]
+      }
+    },
+    "ImageRepository": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Repository",
+          "RepositoryUri"
+        ]
+      }
+    },
+    "Logs": {
+      "Value": {
+        "Ref": "Logs"
+      }
+    }
+  },
+  "Conditions": {
+    "CreateRuntimePassword": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingRuntimePassword"
+        },
+        ""
+      ]
+    },
+    "CreateMigrationPassword": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingMigrationPassword"
+        },
+        ""
+      ]
+    },
+    "CreateDjangoSecret": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingDjangoSecret"
+        },
+        ""
+      ]
+    }
+  }
+}

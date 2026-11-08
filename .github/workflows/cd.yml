@@ -1,30 +1,99 @@
-name: AWS CD configuration gate
+name: AWS staging and production
 on:
   workflow_run:
     workflows: [E0 CI]
     branches: [main]
     types: [completed]
-  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: aws-staging-production
   cancel-in-progress: false
 jobs:
-  validate-targets:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+  publish:
+    permissions: {contents: read, actions: read, id-token: write}
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      sha: ${{ steps.publish.outputs.git_sha }}
+      digest: ${{ steps.publish.outputs.oci_digest }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Require commissioned staging
+        run: python3 scripts/validate_deploy.py infra/environments/staging.json
+      - run: sudo apt-get update && sudo apt-get install -y skopeo
+      - name: Publish approved immutable digest
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: python3 scripts/aws_oidc.py --role Deploy -- python3 scripts/publish_staging.py --run-id "$CI_RUN_ID"
+  prepare:
+    permissions: {contents: read, id-token: write}
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.publish.outputs.sha }}
+          persist-credentials: false
+      - name: Open bounded active window for private RDS
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+        run: python3 scripts/aws_oidc.py --role Deploy -- python3 -m scripts.prepare_staging_run --sha "$RELEASE_SHA"
+  migrate:
+    permissions: {contents: read, id-token: write}
+    needs: [publish, prepare]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.publish.outputs.sha }}
+          persist-credentials: false
+      - name: Run isolated migration task
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+          RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
+        run: python3 scripts/aws_oidc.py --role Migrate -- python3 -m scripts.deploy_staging --mode migrate --sha "$RELEASE_SHA" --digest "$RELEASE_DIGEST"
+  staging:
+    permissions: {contents: read, id-token: write}
+    needs: [publish, migrate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.publish.outputs.sha }}
+          persist-credentials: false
+      - name: Deploy, verify running digest and TLS probes
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+          RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
+        run: python3 scripts/aws_oidc.py --role Deploy -- python3 -m scripts.deploy_staging --mode deploy --sha "$RELEASE_SHA" --digest "$RELEASE_DIGEST"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: staging-deployment-${{ needs.publish.outputs.sha }}
+          path: work/staging-deployment.json
+          if-no-files-found: warn
+          retention-days: 7
+  production:
+    needs: [publish, staging]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ needs.publish.outputs.sha }}
           persist-credentials: false
-      - name: Require configured staging and production
+      - name: Production remains blocked until E5 commissioning
         run: |
-          python3 scripts/validate_deploy.py infra/environments/staging.json
           python3 scripts/validate_deploy.py infra/environments/production.json
-      - name: Fail closed until live deployment adapter is commissioned
-        run: |
-          echo '::error::BLOCKED: AWS deployment resources, OIDC trust and live staging acceptance are not commissioned. See docs/runbooks/deployment.md.'
+          echo '::error::BLOCKED: production adapter and E5 acceptance are not commissioned.'
           exit 2

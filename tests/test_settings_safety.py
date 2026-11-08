@@ -37,3 +37,16 @@ def test_invalid_settings_cannot_start(override: dict[str, str]) -> None:
     )
     assert result.returncode != 0
     assert "ImproperlyConfigured" in result.stderr
+
+
+def test_only_explicit_verified_ingress_can_trust_forwarded_proto() -> None:
+    from django.test import Client, override_settings
+
+    with override_settings(SECURE_SSL_REDIRECT=True, SECURE_PROXY_SSL_HEADER=None):
+        assert Client().get("/v1/capabilities", HTTP_X_FORWARDED_PROTO="https").status_code == 301
+    with override_settings(
+        SECURE_SSL_REDIRECT=True, SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https")
+    ):
+        response = Client().get("/v1/capabilities", HTTP_X_FORWARDED_PROTO="https")
+        assert response.status_code == 200
+        assert response.json()["pickup_enabled"] is False

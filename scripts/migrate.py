@@ -22,7 +22,7 @@ def main() -> int:
         }
     )
     return subprocess.call(
-        [sys.executable, "apps/backend/manage.py", "migrate", "--noinput"], env=env
+        [sys.executable, "apps/backend/manage.py", "migrate_locked", "--noinput"], env=env
     )
 
 
