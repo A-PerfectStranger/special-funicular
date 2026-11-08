@@ -10,6 +10,32 @@ from botocore.exceptions import ClientError
 from scripts.e1_cognito_controls import exercise, locked
 
 
+def test_private_failure_label_never_returns_provider_messages_or_unknown_errors() -> None:
+    from scripts.e1_cognito_controls import failure_label
+
+    sensitive = "synthetic-password-and-totp-must-not-leak"
+    assert failure_label(RuntimeError(sensitive)) == "unclassified_private_failure"
+    assert failure_label(RuntimeError({"private": sensitive})) == "unclassified_private_failure"
+    assert failure_label(RuntimeError("First native lockout was not observed")) == (
+        "native_first_lockout_not_observed"
+    )
+    assert (
+        failure_label(
+            ClientError(
+                {"Error": {"Code": "TooManyRequestsException", "Message": sensitive}},
+                "AdminInitiateAuth",
+            )
+        )
+        == "provider_rate_limit"
+    )
+    assert (
+        failure_label(
+            ClientError({"Error": {"Code": sensitive, "Message": sensitive}}, "AdminInitiateAuth")
+        )
+        == "unclassified_private_failure"
+    )
+
+
 def test_recovery_does_not_change_a_password_without_a_fresh_totp_challenge() -> None:
     provider, vault = MagicMock(), MagicMock()
     subject = str(uuid.uuid4())
@@ -45,6 +71,62 @@ def test_only_explicit_native_lockout_counts(code: str, message: str, expected: 
         locked(ClientError({"Error": {"Code": code, "Message": message}}, "AdminInitiateAuth"))
         is expected
     )
+
+
+def test_native_trace_contains_only_fixed_outcome_and_timing(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    provider, vault = MagicMock(), MagicMock()
+    private = "synthetic-provider-response-must-not-be-printed"
+    subjects = {name: str(uuid.uuid4()) for name in ["e1-a-p1", "e1-b-s2"]}
+    provider.get_user_pool_mfa_config.return_value = {
+        "MfaConfiguration": "ON",
+        "SoftwareTokenMfaConfiguration": {"Enabled": True},
+    }
+    provider.create_user_pool_client.return_value = {"UserPoolClient": {"ClientId": "test"}}
+    provider.admin_get_user.side_effect = lambda **kw: {
+        "UserAttributes": [{"Name": "sub", "Value": subjects[kw["Username"]]}]
+    }
+    original_calls = 0
+
+    def auth(**values: Any) -> dict[str, str]:
+        nonlocal original_calls
+        if values["AuthParameters"]["USERNAME"] == "e1-b-s2":
+            raise ClientError(
+                {"Error": {"Code": "TooManyRequestsException", "Message": private}},
+                "AdminInitiateAuth",
+            )
+        if values["AuthParameters"]["PASSWORD"] == "original-synthetic":
+            original_calls += 1
+            if original_calls > 1:
+                raise ClientError(
+                    {"Error": {"Code": "NotAuthorizedException", "Message": private}},
+                    "AdminInitiateAuth",
+                )
+        return {"ChallengeName": "SOFTWARE_TOKEN_MFA", "Session": private}
+
+    provider.admin_initiate_auth.side_effect = auth
+    provider.admin_respond_to_auth_challenge.return_value = {
+        "AuthenticationResult": {"IdToken": private}
+    }
+    monkeypatch.setattr("scripts.e1_cognito_controls.time.sleep", lambda _: None)
+    state = {
+        "users": {
+            name: {
+                "sub": sub,
+                "mfa_ready": True,
+                "password": "original-synthetic",
+                "totp_seed": "JBSWY3DPEHPK3PXP",
+            }
+            for name, sub in subjects.items()
+        }
+    }
+    with pytest.raises(ClientError):
+        exercise(provider, vault, {"PoolId": "test", "AcceptanceFixtureSecret": "test"}, state)
+    output = capsys.readouterr().out
+    assert private not in output and "original-synthetic" not in output
+    assert '"native_outcome": "provider_rate_limit"' in output
+    provider.delete_user_pool_client.assert_called_once()
 
 
 def test_interrupted_recovery_finishes_vault_checkpoint_without_replacing_active_password(

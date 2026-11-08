@@ -29,6 +29,10 @@ verificar el gate continuo. No se marcan las casillas del plan por el ensayo sol
   Express cambió la URL al recrearse; el origen anterior de 8bb56b8 falló antes de
   login, conservado como FAIL. WebOrigin solicitado sobre plantilla existente:
   CloudFormation respondió que no había diferencias; ensayo real posterior aprobado.
+- El control privado llegó a native exponential lockout y terminó BLOCKED antes
+  de exportar SQL; no se emitieron metadatos ni se acredita ese control. El nuevo
+  diagnóstico usa barreras y resultados/duración por intento con etiquetas
+  fijas, sin mensajes del proveedor, contraseñas, TOTP, sesiones o tokens.
 - En curso con operador: prepare_e1_snapshot --synthetic-only --exercise-cognito-controls,
   desde el SHA aceptado. Credenciales y copias SQL permanecen en AWS privado.
   Se esperan únicamente report_key/report_version/report_sha256. Después ejecutar
