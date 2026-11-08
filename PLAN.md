@@ -144,36 +144,45 @@ las promociones son concurrentes.
    temporales, rollback y pruebas negativas. Contrato, tipos, migraciones, seguridad,
    bundle/APK y ensayo integrado de staging por commit antes de acreditar E2.
 
-**Implementación candidata:** modelo/migraciones E2 y comandos SQL con RLS forzada;
+**Implementación integrada:** modelo/migraciones E2 y comandos SQL con RLS forzada;
 `family_ops` privado con esquema/hash/aprobación/promoción; invitaciones y canje
 Code/PKCE con email verificado; principal/políticas/baja auditados; API familiar,
-fotos reencodificadas y móvil SDK 56; OpenAPI y runbook operativo. El ensayo
-`e2-trial.yml` comparte gate E2/WORM con CD y consume cohortes nuevas de un pool
-acotado preparado por operador, sin permisos IAM nuevos para CI. El ensayo inicial
-[42524078114](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42524078114)
-aprobó sobre `3085e36`, incluida regresión E1/APK y evidencia externa. No acredita
-las correcciones posteriores ni cierra por sí solo E2.
+fotos reencodificadas y móvil SDK 56; OpenAPI y runbook operativo. La promoción
+serializa UUID de padres en orden global y rechaza reutilización entre escuelas.
+El móvil conserva el formulario bajo máscara durante la galería, revalida online
+al volver y descarta la vista ante logout, rechazo o segundo plano ordinario.
 
-| Criterio | Verificación local | Verificación AWS |
+**Aceptación funcional del backend:**
+[ensayo 42529491296](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42529491296)
+aprobado completo sobre `74297b397b992287272fc63745d4ccb9127e2ea6`, incluido
+E1/APK y WORM independiente. Digest verificado:
+`sha256:7af058a44389aecf2851718d9f976ae96c374ff03006fc868c537f6afd892df2`.
+El protocolo requiere secuencia 489 y el lector externo verificó 490 eventos sin
+SQL. La corrección móvil y habilitación CD se integraron en `855fc2e` tras CI de
+PR aprobado (234 Python/20 JS, imagen/APK/firma). CI main 42534840490 aprobado completo. Falta comprobar su CD habitual antes
+del cierre completo E2; no heredar el resultado de 74297b3.
+El CD [42535508616](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42535508616)
+falló en identidad E1 del guardia y omitió E2. La restauración de fixtures aprobó;
+la fase original quedó oculta por el finally del driver y se investiga con
+diagnóstico saneado. No se cierra E2 ni se relajan las aserciones de seguridad.
+
+| Criterio | Verificación local/CI | Verificación AWS |
 | --- | --- | --- |
-| Lote/hash/aprobación/idempotencia/rollback | PostgreSQL importer real, lote válido/incorrecto y conflicto posterior a staging | Ensayo inicial aprobado; carrera entre escuelas pendiente en AWS |
-| Activación/contacto/issuer-sub/uso único | Firma RSA, PKCE y transporte; PostgreSQL, expiración y ocho canjes concurrentes | Ensayo inicial aprobado; scope email y MFA reales preparados; replay ampliado pendiente |
-| Roles/familias/principal/sesiones | Dos escuelas, negativos, comandos concurrentes y cambio de principal ordenado | Ensayo inicial aprobado; concurrencia bulk/baja ampliadas pendientes |
-| Cuidadores/fotos/autorizaciones/horarios | Reencodificación, recurrencia IANA/DST, revocación y límites de MFA | Protocolo móvil compartido inicial aprobado; recurrencia ampliada pendiente |
-| Evidencia/compatibilidad/distribución | Evento/outbox atómicos; migraciones, tipos, contrato y bundle | Imagen/APK/WORM iniciales aprobados; candidato final pendiente |
+| Lote/hash/aprobación/idempotencia/rollback | Importer real, lote inválido, conflicto tras staging y payload adulterado | Ensayo 74297b3: lote válido/incorrecto y dos escuelas concurrentes; solo una promueve |
+| Activación/contacto/issuer-sub/uso único | Firma RSA, PKCE, expiración y ocho canjes concurrentes | Cognito/MFA real, contacto ajeno rechazado, asociación exacta y replay denegado |
+| Roles/familias/principal/sesiones | Matriz negativa con dos escuelas/familias y comandos concurrentes | Hijos exactos, secundario solo consulta, principal anterior rechazado; baja corta sesiones existentes y nuevas |
+| Cuidadores/fotos/autorizaciones/horarios | Reencodificación/no-store, IANA/DST, MFA y ciclo de vida de galería | Cuidador/versiones/revocación; recurrencia semanal de dos fechas UTC, fuera de horario y bloqueo rechazados |
+| Evidencia/compatibilidad/distribución | Evento/outbox, migraciones, tipos/contrato y bundle; APK/firma de PR | Imagen/APK 74297b3 y WORM 489–490 aprobados; CI/CD habitual de 855fc2e pendiente |
 
-**Límites actuales:** la rama candidata habilita E2 y su gate obligatorio en CD;
-la integración sigue condicionada al ensayo AWS 42529491296. Falta verificar
-el cierre de concurrencia y el gate compartido con pool real, después el CD
-habitual, antes de cerrar la matriz. QR/permisos de
-entrega pertenecen a E3 y no se declaran probados por invalidar autorizaciones.
-No se ejecutaron importaciones/invitaciones ni mensajes reales. Procedimiento
-CloudShell revisable, sin compartir códigos de verificación: docs/runbooks/e2.md.
-
-Orden: importación/operaciones técnicas → activación → autorización familiar/API/
-cliente móvil → regresiones y aceptación del candidato. Estado de ejecución y
-continuidad solicitado por el usuario en PROGRESS.md. Las casillas permanecen
-pendientes hasta verificar los criterios; E3–E5 permanecen deshabilitadas.
+**Límite de cierre actual:** la configuración habilita E2 y su gate obligatorio
+compartido en CD con cohortes privadas nuevas de un pool acotado. Falta comprobar
+la ejecución habitual de `855fc2e` con otra cohorte antes de cerrar la matriz.
+Las casillas E2 permanecen pendientes hasta ese resultado. No se han ejecutado
+importaciones/invitaciones ni mensajes reales. QR y permiso de entrega pertenecen
+a E3; invalidar autorizaciones en E2 no acredita sus controles. Instalación/cámara
+Android física, firma/distribución productiva y producción siguen en E5.
+Operación/reposición del pool: [runbook E2](docs/runbooks/e2.md). Continuidad
+solicitada por el usuario: [PROGRESS.md](PROGRESS.md).
 
 ### E3 — QR y retiro completo
 
