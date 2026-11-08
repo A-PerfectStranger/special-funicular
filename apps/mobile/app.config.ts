@@ -16,12 +16,13 @@ if (environment !== 'development' && !process.env.ANDROID_PACKAGE_ID) {
 const config: ExpoConfig = {
   name: `Retiro seguro${environment === 'production' ? '' : ' · Desarrollo'}`,
   slug: 'retiro-seguro',
+  scheme: process.env.MOBILE_OIDC_SCHEME ?? 'retiro-seguro-dev',
   version: '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   runtimeVersion: '0.1.0',
   updates: { enabled: false },
-  plugins: ['./plugins/withPinnedGradle.cjs'],
+  plugins: ['./plugins/withPinnedGradle.cjs', 'expo-web-browser', 'expo-secure-store'],
   android: {
     package: process.env.ANDROID_PACKAGE_ID ?? 'org.example.retiro.development',
     versionCode: 1,

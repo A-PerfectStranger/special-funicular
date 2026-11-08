@@ -18,12 +18,13 @@ if APP_ENV in {"staging", "production"} and (DEBUG or SECRET_KEY.startswith("syn
 ALLOWED_HOSTS = [x for x in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if x]
 if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
     raise ImproperlyConfigured("Explicit DJANGO_ALLOWED_HOSTS required")
-INSTALLED_APPS = ["core"]
+INSTALLED_APPS = ["core", "django.contrib.sessions", "identity", "school_roster", "evidence"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "core.middleware.SafeResponsesMiddleware",
     "core.middleware.LivenessMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -34,7 +35,7 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
-        "OPTIONS": {"context_processors": []},
+        "OPTIONS": {"context_processors": ["django.template.context_processors.request"]},
     }
 ]
 DATABASES = {
@@ -64,6 +65,31 @@ SECURE_HSTS_SECONDS = 31536000 if SECURE_SSL_REDIRECT else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_SSL_REDIRECT
 SECURE_HSTS_PRELOAD = SECURE_SSL_REDIRECT
 X_FRAME_OPTIONS = "DENY"
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_AGE = 12 * 60 * 60
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+DATA_UPLOAD_MAX_MEMORY_SIZE = 16384
+E1_IDENTITY_ENABLED = os.environ.get("E1_IDENTITY_ENABLED", "false") == "true"
+E1_OIDC = {
+    key: os.environ.get(variable, "")
+    for key, variable in {
+        "issuer": "OIDC_ISSUER",
+        "web_client": "OIDC_WEB_CLIENT_ID",
+        "mobile_client": "OIDC_MOBILE_CLIENT_ID",
+        "web_redirect": "OIDC_WEB_REDIRECT_URI",
+        "mobile_redirect": "OIDC_MOBILE_REDIRECT_URI",
+        "mfa_policy": "OIDC_MFA_POLICY",
+        "pool_id": "OIDC_COGNITO_POOL_ID",
+        "region": "AWS_REGION",
+    }.items()
+}
+if E1_IDENTITY_ENABLED and (
+    not all(E1_OIDC.values())
+    or not (os.environ.get("SYSTEM_READ_DATABASE_URL") or os.environ.get("SYSTEM_READ_PASSWORD"))
+):
+    raise ImproperlyConfigured("E1 requires configured OIDC and an isolated system reader")
+if E1_IDENTITY_ENABLED and APP_ENV == "production":
+    raise ImproperlyConfigured("E1 production commissioning is not configured")
 # Only set for the ECS ALB boundary: task ingress must be restricted to its managed SG.
 TRUSTED_INGRESS = os.environ.get("TRUSTED_INGRESS", "")
 if TRUSTED_INGRESS not in {"", "ecs-express"}:

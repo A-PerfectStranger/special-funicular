@@ -14,7 +14,13 @@ class SafeResponsesMiddleware:
         response = self.get_response(request)
         response["Cache-Control"] = "no-store"
         response["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
-        response["Referrer-Policy"] = "no-referrer"
+        # Chromium sends Origin:null for form POSTs under no-referrer. Django
+        # correctly rejects that origin. Keep referrers local to the web BFF so
+        # its CSRF-protected forms work without disclosing URLs to the IdP.
+        web_form = settings.E1_IDENTITY_ENABLED and request.path_info.startswith(
+            ("/auth/", "/portal/")
+        )
+        response["Referrer-Policy"] = "same-origin" if web_form else "no-referrer"
         return response
 
 

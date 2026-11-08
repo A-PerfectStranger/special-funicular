@@ -1,0 +1,363 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Synthetic E1 Cognito TOTP and seven-day WORM. Separate from retained E0 database.
+Parameters:
+  WebOrigin:
+    Type: String
+    AllowedPattern: 'https://[a-z0-9-]+\.ecs\.us-east-1\.on\.aws'
+  MobileRedirect:
+    Type: String
+    Default: retiro-seguro-staging://auth/callback
+    AllowedValues: [retiro-seguro-staging://auth/callback]
+  ExistingLogsArn:
+    Type: String
+Resources:
+  Pool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: retiro-staging-e1
+      UserPoolTier: LITE
+      DeletionProtection: ACTIVE
+      AdminCreateUserConfig: {AllowAdminCreateUserOnly: true}
+      MfaConfiguration: 'ON'
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      UsernameConfiguration: {CaseSensitive: true}
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 16
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 1
+      AccountRecoverySetting:
+        RecoveryMechanisms: [{Name: admin_only, Priority: 1}]
+      UserPoolTags: {Project: retiro-seguro, Environment: staging, Data: synthetic}
+  WebClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref Pool
+      ClientName: retiro-web-bff
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid]
+      SupportedIdentityProviders: [COGNITO]
+      CallbackURLs: [!Sub '${WebOrigin}/auth/callback']
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 5
+      IdTokenValidity: 5
+      RefreshTokenValidity: 1
+      TokenValidityUnits: {AccessToken: minutes, IdToken: minutes, RefreshToken: days}
+  MobileClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref Pool
+      ClientName: retiro-mobile-pkce
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid]
+      SupportedIdentityProviders: [COGNITO]
+      CallbackURLs: [!Ref MobileRedirect]
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 5
+      IdTokenValidity: 5
+      RefreshTokenValidity: 1
+      TokenValidityUnits: {AccessToken: minutes, IdToken: minutes, RefreshToken: days}
+  Domain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref Pool
+      Domain: !Sub 'retiro-e1-${AWS::AccountId}'
+      ManagedLoginVersion: 1
+  EncryptionKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Synthetic E1 evidence encryption; preserve throughout object retention.
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - {Sid: AccountAdministration, Effect: Allow, Principal: {AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'}, Action: 'kms:*', Resource: '*'}
+          - Sid: ProtectedFromApplicationAdministration
+            Effect: Deny
+            Principal: '*'
+            Action: [kms:DisableKey, kms:ScheduleKeyDeletion, kms:PutKeyPolicy, kms:CreateGrant]
+            Resource: '*'
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/retiro-staging-*'
+      Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: staging}]
+  SigningKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: RSA 3072 PSS SHA256 external manifests; never usable by business runtime.
+      KeySpec: RSA_3072
+      KeyUsage: SIGN_VERIFY
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - {Sid: AccountAdministration, Effect: Allow, Principal: {AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'}, Action: 'kms:*', Resource: '*'}
+          - Sid: ProtectedFromApplicationAdministration
+            Effect: Deny
+            Principal: '*'
+            Action: [kms:DisableKey, kms:ScheduleKeyDeletion, kms:PutKeyPolicy, kms:CreateGrant]
+            Resource: '*'
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/retiro-staging-*'
+      Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: staging}]
+  EvidenceBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'retiro-e1-synthetic-${AWS::AccountId}-${AWS::Region}'
+      ObjectLockEnabled: true
+      ObjectLockConfiguration:
+        ObjectLockEnabled: Enabled
+        Rule: {DefaultRetention: {Mode: COMPLIANCE, Days: 7}}
+      VersioningConfiguration: {Status: Enabled}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls: {Rules: [{ObjectOwnership: BucketOwnerEnforced}]}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: 'aws:kms', KMSMasterKeyID: !GetAtt EncryptionKey.Arn}
+            BucketKeyEnabled: true
+      Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: staging}, {Key: Data, Value: synthetic}]
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref EvidenceBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AuthenticatedTLSOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt EvidenceBucket.Arn, !Sub '${EvidenceBucket.Arn}/*']
+            Condition: {Bool: {aws:SecureTransport: 'false'}}
+          - Sid: ConditionalCreationOnly
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${EvidenceBucket.Arn}/*'
+            Condition:
+              StringNotEquals: {s3:if-none-match: '*'}
+              Bool: {s3:ObjectCreationOperation: 'true'}
+          - Sid: ServicesCannotDeleteOrReduceRetention
+            Effect: Deny
+            Principal: '*'
+            Action: [s3:DeleteObject, s3:DeleteObjectVersion, s3:PutObjectRetention, s3:PutObjectLegalHold]
+            Resource: !Sub '${EvidenceBucket.Arn}/*'
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/retiro-staging-*'
+  SchoolReadPassword:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties: {Name: retiro-staging/e1/SchoolReadPassword, GenerateSecretString: {PasswordLength: 48, ExcludePunctuation: true}}
+  SystemReadPassword:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties: {Name: retiro-staging/e1/SystemReadPassword, GenerateSecretString: {PasswordLength: 48, ExcludePunctuation: true}}
+  ImporterPassword:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties: {Name: retiro-staging/e1/ImporterPassword, GenerateSecretString: {PasswordLength: 48, ExcludePunctuation: true}}
+  ArchivePassword:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties: {Name: retiro-staging/e1/ArchivePassword, GenerateSecretString: {PasswordLength: 48, ExcludePunctuation: true}}
+  NotifierPassword:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties: {Name: retiro-staging/e1/NotifierPassword, GenerateSecretString: {PasswordLength: 48, ExcludePunctuation: true}}
+  ApiTask:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-E1ApiTask
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+              ArnLike: {aws:SourceArn: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:*'}
+      Policies:
+        - PolicyName: LocalPoolPolicyReadOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [cognito-idp:DescribeUserPool, cognito-idp:DescribeUserPoolClient, cognito-idp:GetUserPoolMfaConfig]
+                Resource: !GetAtt Pool.Arn
+  ArchiveTask:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-E1ArchiveTask
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+              ArnLike: {aws:SourceArn: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:*'}
+      Policies:
+        - PolicyName: ProtectedArchiveOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject, s3:GetObjectVersion, s3:GetObjectRetention]
+                Resource: !Sub '${EvidenceBucket.Arn}/*'
+              - {Effect: Allow, Action: 's3:ListBucket', Resource: !GetAtt EvidenceBucket.Arn}
+              - Effect: Allow
+                Action: [kms:GenerateDataKey, kms:Decrypt]
+                Resource: !GetAtt EncryptionKey.Arn
+                Condition: {StringEquals: {kms:ViaService: !Sub 's3.${AWS::Region}.amazonaws.com'}}
+              - {Effect: Allow, Action: [kms:Sign, kms:Verify], Resource: !GetAtt SigningKey.Arn}
+  Verifier:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-E1Verifier
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: 'repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main'
+      Policies:
+        - PolicyName: IndependentVerifyOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: 's3:ListBucket', Resource: !GetAtt EvidenceBucket.Arn}
+              - {Effect: Allow, Action: [s3:GetObject, s3:GetObjectVersion, s3:GetObjectRetention], Resource: !Sub '${EvidenceBucket.Arn}/*'}
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: !GetAtt EncryptionKey.Arn
+                Condition: {StringEquals: {kms:ViaService: !Sub 's3.${AWS::Region}.amazonaws.com'}}
+              - {Effect: Allow, Action: [kms:Verify, kms:GetPublicKey], Resource: !GetAtt SigningKey.Arn}
+  ArchiveExecution:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-E1ArchiveExecution
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+              ArnLike: {aws:SourceArn: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:*'}
+      Policies:
+        - PolicyName: PullLogAndArchiveCredential
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: 'ecr:GetAuthorizationToken', Resource: '*'}
+              - Effect: Allow
+                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
+                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/retiro-staging/backend'
+              - {Effect: Allow, Action: [logs:CreateLogStream, logs:PutLogEvents], Resource: !Ref ExistingLogsArn}
+              - {Effect: Allow, Action: 'secretsmanager:GetSecretValue', Resource: !Ref ArchivePassword}
+  ApiSecretPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: E1SystemReaderCredential
+      Roles: [retiro-staging-ApiExecution]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Action: 'secretsmanager:GetSecretValue', Resource: !Ref SystemReadPassword}]
+  BootstrapSecretPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: E1PrivateSqlProvisioning
+      Roles: [retiro-staging-BootstrapExecution]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: [!Ref SchoolReadPassword, !Ref SystemReadPassword, !Ref ImporterPassword, !Ref ArchivePassword, !Ref NotifierPassword]
+  CiReadPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: E1ReadConfiguration
+      Roles: [retiro-staging-Deploy, retiro-staging-Migrate]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: cloudformation:DescribeStacks
+            Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-e1/*'
+  CiTaskPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: E1BoundedArchiveTask
+      Roles: [retiro-staging-Deploy]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource: [!GetAtt ApiTask.Arn, !GetAtt ArchiveTask.Arn, !GetAtt ArchiveExecution.Arn]
+            Condition: {StringEquals: {iam:PassedToService: ecs-tasks.amazonaws.com}}
+          - Effect: Allow
+            Action: ecs:RunTask
+            Resource: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/retiro-staging-archive:*'
+            Condition: {ArnEquals: {ecs:cluster: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/retiro-staging'}}
+          - Effect: Allow
+            Action: ecs:StopTask
+            Resource: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task/retiro-staging/*'
+            Condition: {ArnEquals: {ecs:cluster: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/retiro-staging'}}
+Outputs:
+  PoolId: {Value: !Ref Pool}
+  Issuer: {Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${Pool}'}
+  WebClientId: {Value: !Ref WebClient}
+  MobileClientId: {Value: !Ref MobileClient}
+  WebRedirect: {Value: !Sub '${WebOrigin}/auth/callback'}
+  MobileRedirect: {Value: !Ref MobileRedirect}
+  Bucket: {Value: !Ref EvidenceBucket}
+  EncryptionKeyArn: {Value: !GetAtt EncryptionKey.Arn}
+  SigningKeyArn: {Value: !GetAtt SigningKey.Arn}
+  ApiTaskArn: {Value: !GetAtt ApiTask.Arn}
+  ArchiveTaskArn: {Value: !GetAtt ArchiveTask.Arn}
+  ArchiveExecutionArn: {Value: !GetAtt ArchiveExecution.Arn}
+  VerifierArn: {Value: !GetAtt Verifier.Arn}
+  SchoolReadPassword: {Value: !Ref SchoolReadPassword}
+  SystemReadPassword: {Value: !Ref SystemReadPassword}
+  ImporterPassword: {Value: !Ref ImporterPassword}
+  ArchivePassword: {Value: !Ref ArchivePassword}
+  NotifierPassword: {Value: !Ref NotifierPassword}

@@ -1,0 +1,6 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><title>Escuela · Retiro seguro</title>
+<main><h1>Portal escolar</h1><p>Acceso registrado y protegido. Los retiros permanecen deshabilitados.</p>
+<p>La consulta de salidas estará disponible al completar su implementación.</p>
+<form method="post" action="{% url 'identity-logout' %}">{% csrf_token %}<button>Cerrar sesión</button></form>
+<form method="post" action="{% url 'identity-login' %}">{% csrf_token %}<input type="hidden" name="purpose" value="reauth"><button>Reautenticar con MFA</button></form>
+</main></html>

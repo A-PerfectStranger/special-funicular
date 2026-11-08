@@ -4,3 +4,6 @@ useDefault = true
 [allowlist]
 description = "Generated artifacts, dependency trees and local secret stores are not source"
 paths = ['''(^|/)work/''', '''(^|/)node_modules/''', '''(^|/)\.venv/''', '''^\.env$''', '''apps/mobile/android/''', '''apps/mobile/dist/''']
+# PostgreSQL timestamp arithmetic, e.g. access_expires_at=stamp+interval '5 minutes'.
+# Exact non-secret expression only; source files and history remain scanned.
+regexes = ['''^stamp\+interval$''']

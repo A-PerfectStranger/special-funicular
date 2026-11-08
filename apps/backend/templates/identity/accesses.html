@@ -1,0 +1,8 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><title>Accesos escolares</title>
+<main><h1>Accesos escolares</h1><form method="get"><label>Escuela (ID) <input name="school" value="{{ request.GET.school }}"></label>
+<label>Desde (UTC) <input type="date" name="from" value="{{ request.GET.from }}"></label><label>Hasta (UTC) <input type="date" name="to" value="{{ request.GET.to }}"></label><button>Filtrar</button></form>
+<table><thead><tr><th>Actor escolar</th><th>Escuela</th><th>Fecha UTC</th><th>Resultado</th></tr></thead>
+<tbody>{% for record in records %}<tr><td>{{ record.actor_id }}</td><td>{{ record.school_id }}</td><td>{{ record.occurred_at|date:"c" }}</td><td>{{ record.result }}</td></tr>
+{% empty %}<tr><td colspan="4">Sin registros para este filtro.</td></tr>{% endfor %}</tbody></table>
+{% if next_cursor %}<a href="?before={{ next_cursor }}&amp;school={{ request.GET.school|urlencode }}&amp;from={{ request.GET.from|urlencode }}&amp;to={{ request.GET.to|urlencode }}">Siguientes</a>{% endif %}
+<form method="post" action="{% url 'identity-logout' %}">{% csrf_token %}<button>Cerrar sesión</button></form></main></html>

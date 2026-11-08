@@ -1,4 +1,83 @@
-# Estado de ejecución — E0 completada
+# Estado de ejecución — E1 en implementación
+
+## Checkpoint E1 (7 de noviembre de 2026, America/Bogota)
+
+**E1 no está terminada, integrada en main ni aceptada en AWS.** Base remota
+`bbe48f4`, sincronizada por fast-forward tras fetch; rama `feat/e1-identity-evidence`.
+AGENTS, PLAN, PROGRESS y requisitos leídos antes del código; criterios previos
+registrados en `docs/e1-acceptance.md`. El usuario eligió Cognito de ensayo y
+siete días COMPLIANCE exclusivamente para evidencia sintética.
+
+Implementación local: identidad OIDC Code/PKCE y sesiones, cuatro roles locales,
+escuelas/sedes/estudiantes/padres/vínculos, restricciones y RLS, funciones de
+escritura restringidas, eventos/outbox y archivador/recibos/manifiestos externos,
+verificador sin BD, BFF/consulta mínima y cliente móvil con SecureStore.
+Contrato OpenAPI, README y runbook E1 actualizados. E1 desactivada por defecto;
+retiros, invitaciones, operaciones E2–E5 y producción sin habilitar.
+
+### Evidencia local del checkpoint
+
+- `make db check`: **115 pruebas Python y siete JS**, PostgreSQL real con roles
+  separados, Ruff/formato, mypy/TypeScript/ESLint, cfn-lint, migraciones, Django
+  y compatibilidad Expo aprobados. No atribuirlo al SHA de E0 ni a AWS.
+- `make security`: pip-audit/npm audit sin vulnerabilidades; gitleaks en historial
+  y árbol sin hallazgos. Excepción estrecha para la expresión SQL literal
+  `stamp+interval`, detectada como falso secreto; no se omiten archivos fuente.
+- Bundle Android/Hermes exportado con los módulos nuevos. APK e imagen nuevos
+  y checks CI por commit: pendientes al escribir este checkpoint.
+- Chromium/Playwright con datos/sesión sintéticos: formulario CSRF, consulta mínima,
+  paginación/controles de fecha y logout con reentrada denegada aprobados. Se corrigió
+  `Origin:null` causado por no-referrer en formularios: BFF usa same-origin;
+  no se envían referencias al IdP. Esto no acredita login Cognito real ni TLS AWS.
+- SQL: aislamiento entre familias/escuelas, principal único/obligatorio, revocación,
+  rotación y carrera de diez refresh, idle/expiración, escritura/mutación/SET ROLE
+  denegados, rollback de evento/outbox/sesión y head sin huecos, lease expirado y
+  recibo único. La devolución PL/pgSQL del archivador requirió cast explícito
+  varchar→text; corregido con migración hacia delante.
+- Tres accesos/tres eventos y no reapertura con recibo tardío aprobados con recibos
+  simulados. RSA real en pruebas; IdP, S3 y KMS simulados no aceptan servicios reales.
+
+### Pendiente y orden de continuación
+
+1. PR #8 abierto como borrador. CI de `2b1355e` aprobada (quality, imagen/smoke,
+   APK y required): https://github.com/A-PerfectStranger/special-funicular/actions/runs/42439770486.
+   La repetición de PR y los commits posteriores se verifican por separado.
+   No integrar main con criterios pendientes.
+2. Comisionar Cognito/WORM/KMS/roles SQL usando el runbook E1 y operador AWS acreditado.
+   No hay credenciales de operador en esta sesión; CI/main no es ese login.
+   No reutilizar el código OAuth antiguo ni pedir claves permanentes.
+3. Completar integración E1 del destino en CD: config/roles API, credencial del
+   lector, arranque/retirada acotada del archivador y aceptación real de E1.
+   El CD existente verifica E0, no acepta E1 por pasar sus probes. Las migraciones
+   ahora bloquean antes de DDL si faltan roles E1 seguros, con diagnóstico explícito.
+4. Provisionar cuentas sintéticas individuales/enrolar MFA; probar flujos completos,
+   revocación, recuperación sin nuevos vínculos, WORM/KMS/retención/denegaciones,
+   versiones/manifiestos y portal sin recibo contra el candidato por SHA/digest.
+5. Completar cada fila de la matriz de aceptación. No marcar E1 completa por mocks,
+   por un build, por recursos ACTIVE ni por la comisión de roles.
+
+`docs/runbooks/e1.md` describe comandos reales y límites. El entorno sufrió una
+interrupción y se recuperó con árbol/logs intactos. El parche interrumpido de fechas
+se reaplicó y verificó. Se guardó una nota mínima pública, autorizada por el usuario,
+en `docs/e1-session-recovery`; es documentación histórica, no la implementación.
+
+### Comisión: primer intento y corrección
+
+El usuario ejecutó el candidato `2b1355e` en CloudShell. El primer intento se
+detuvo antes de CloudFormation: `Exact operator IAM principal required`.
+Diagnóstico de lectura posterior: `billing=PASS`; stack E1 no acreditado
+(`ValidationError` al describirlo). No atribuir recursos creados a ese intento.
+Se elimina la dependencia innecesaria del ARN humano para el verificador: usará
+OIDC GitHub/main con sujeto inmutable y audiencia STS exactos, separado de Deploy.
+La identidad de operador valida cuenta y excluye roles runtime/CI; conserva la
+autoridad real de la sesión CloudShell sin crear un usuario IAM adicional.
+Los errores de comisión ahora muestran etapa y barrera/código AWS saneado.
+Preparadas y probadas las definiciones API/worker E1: mismo digest y credenciales
+por proceso, worker acotado a tres horas; falta conectarlas al despliegue real.
+Último `make check` con estas correcciones: 117 Python y siete JS aprobado.
+Comisión corregida aún pendiente de ejecución real.
+
+## E0 completada
 
 E0 está aceptada en staging AWS con datos sintéticos. E1–E5 siguen pendientes;
 la autenticación funcional de usuarios, los datos de menores, los retiros,
