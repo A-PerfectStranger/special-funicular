@@ -64,3 +64,16 @@ Browser conserva su fallo mobile_native_return; escuela aprobada, GUARDIA no
 alcanzado, archive-drill omitido. Cloud verificó 37 eventos independientemente.
 El APK solo acredita compilación/configuración/firma de desarrollo; no prueba
 física ni distribución. Ningún reporte se transforma en aceptación completa.
+
+## Backend 5/15 real sobre 5ac4f02
+
+`e1-backend-limits-5ac4f02.json`: workflow
+[42456781366](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42456781366),
+artefacto 13608038881, ZIP SHA-256
+8e98045a58baefb2af61a1dc4e0aaf4bbaf21e4d7953f34229a0ac38aa708a39 verificado.
+Código del sondeo 5744794; release/digest observados contrastados con el reporte
+de despliegue estable 5ac4f02. Cinco fallos bloquearon un inicio válido; el web
+continuó disponible, hubo denegación a 890,272 s y recuperación a 905,530 s.
+Muestreo real sin adelantar relojes, sin SQL, AWS o credenciales. No demuestra el
+bloqueo de Cognito ni acepta por sí solo E1. No se desplegó otro SHA durante la
+medición; el PR #11 se integró después de completarla.

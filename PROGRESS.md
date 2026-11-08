@@ -3,9 +3,12 @@
 ## Estado actual para continuar
 
 **E1 sigue sin aceptación integral.** Main remoto verificado en
-`5ac4f0296165361cf530f0f30ad350bbc542d6da` (PR #10). CI main 42452708111
-aprobada; CD 42453335189 publish/prepare/migrate/staging aprobados y producción
-bloqueada hasta E5. Evidence 0013 aplicada en RDS. Retiros y producción apagados.
+`be8f1df5f5d19d86a38ba15a4b10bd01fa1c5155` (PR #11), integrado después de todos
+los checks push/PR de ccbc381 aprobados (42457544785 y 42457547776). CI/CD main
+nuevos pendientes de comprobar. La configuración E1 por defecto sigue false;
+retiros y producción apagados. El último CD acreditado es 42453335189 de 5ac4f02:
+publish/prepare/migrate/staging aprobados, producción bloqueada hasta E5 y evidence
+0013 aplicada. Evidence 0014 sigue pendiente en AWS hasta verificar el CD nuevo.
 
 - El operador confirmó las 13 identidades sintéticas/TOTP y el roster desde
   26d7d47. Contraseñas y semillas permanecen exclusivamente en Secrets Manager.
@@ -14,7 +17,7 @@ bloqueada hasta E5. Evidence 0013 aplicada en RDS. Retiros y producción apagado
   APK aprobados; PADRE volvió a fallar al capturar el retorno nativo, GUARDIA no
   se ejecutó y archive-drill quedó omitido. Reportes conservados sin alterar en
   docs/evidence/*-5ac4f02.json. High-water externo 37; no acredita recuperación SQL.
-- Continuación `feat/e1-identity-checks`: revocación administrativa privada y
+- PR #11 (`feat/e1-identity-checks`) integrado como base preparatoria: revocación administrativa privada y
   restauración de dos cuentas fijas, prueba móvil con credenciales no vencidas,
   migración evidence 0014 con auditoría estrecha. La restauración no reactiva
   sesiones antiguas ni modifica identidad/rol/vínculos. Pendiente ensayo AWS.
@@ -28,9 +31,11 @@ bloqueada hasta E5. Evidence 0013 aplicada en RDS. Retiros y producción apagado
 - Último make check: 154 Python/nueve JS aprobados; tipos, lint, migraciones y
   configuración Expo aprobados. La aceptación real y CI del nuevo candidato se
   registrarán por separado, sin heredar resultados de otro SHA.
-- Sondeo real backend 5/15 iniciado en workflow 42456781366 sobre 5ac4f02/digest
-  ef7b320f; sin AWS/secretos y sin alterar relojes. Resultado aún pendiente.
-  No desplegar otro candidato durante la medición de 905 segundos.
+- Sondeo real backend 5/15 aprobado en workflow 42456781366 sobre 5ac4f02/digest
+  ef7b320f: cinco fallos, inicio válido denegado a 890,272 s, permitido a 905,530 s,
+  otro punto disponible. Sin AWS/secretos ni cambios de reloj; mismo despliegue
+  durante toda la medición. Copia y procedencia verificadas en docs/evidence.
+  No acredita el bloqueo nativo Cognito, todavía pendiente.
 - Faltan móvil real completo, baja/restauración online, archivo ausente/tardío,
   copia SQL divergente y recuperación/lockout Cognito. E1 permanece sin marcar.
 - Decisión autorizada RFS07: Cognito exponencial; backend 5/15. COMPLIANCE siete
@@ -336,3 +341,21 @@ historial de contraseñas al reanudar. Etapas privadas emiten etiquetas constant
 para diagnosticar un BLOCKED sin divulgar errores del proveedor o credenciales.
 Último make check de esta continuación: 154 Python/nueve JS aprobado; escaneo del
 árbol sin secretos. El ensayo real continúa pendiente.
+
+### PR #11 integrado y sondeo real del backend aprobado
+
+PR #11 integrado en be8f1df5f5d19d86a38ba15a4b10bd01fa1c5155 tras CI push
+42457544785 y PR 42457547776 completamente aprobadas (calidad, imagen, APK y
+required; sondeo opcional omitido en esos dos runs). La ejecución separada
+42456781366 sí ejecutó y aprobó el sondeo real de quince minutos, con reporte
+por release 5ac4f02 y digest ef7b320f conservado. Ese run también terminó todos
+sus checks. No se atribuye su medición al nuevo SHA. Último make check local:
+154 Python/nueve JS; cuatro regresiones Chromium y seguridad aprobadas.
+
+Siguiente: verificar CI/CD main be8f1df y evidence 0014; ejecutar el ensayo
+sintético con ese CI aprobado y observar los jobs compartidos de móvil/baja,
+cloud/APK y archivo ausente/tardío. Solo después preparar con operador los
+controles Cognito y copia privada, y verificarla con identidad independiente.
+No hay aceptación E1 ni instrucciones de operador nuevas mientras falten esas
+pruebas dependientes. La configuración continua permanece desactivada hasta
+cerrar la matriz y verificar su activación por CD real.

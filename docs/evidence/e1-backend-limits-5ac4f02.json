@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "e1_accepted": false,
+  "release_sha": "5ac4f0296165361cf530f0f30ad350bbc542d6da",
+  "image_digest": "sha256:ef7b320f55b081c6c25550b2775ca461cd8e803601e1b05c07fe29474f608465",
+  "checked_at": "2026-11-08T07:12:18.809578+00:00",
+  "consecutive_failures": 5,
+  "valid_start_denied_during_block": true,
+  "other_entry_point_available": true,
+  "valid_start_allowed_after_policy_expiry": true,
+  "expected_policy_seconds": 900,
+  "last_denial_after_seconds": 890.272,
+  "allowed_after_seconds": 905.53,
+  "probe_source_sha256": "f3da9f971ebaa3ac88d3443f815b55ca3ae1a0ca6017e56c9b7b8b65996d2371",
+  "scope": "Sampled actual anonymous staging HTTP limits; release/TLS origin evidence is supplied by the deployment report"
+}
