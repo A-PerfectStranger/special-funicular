@@ -191,3 +191,39 @@ def test_adapter_never_accepts_unprotected_or_substituted_object(
         obj["VersionId"] = "different-version"
     with pytest.raises(IntegrityFailure):
         adapter.inspect(protected.key, protected.version, payload)
+
+
+def test_rewritten_copy_with_a_valid_recomputed_chain_is_rejected(archive: Any) -> None:
+    import base64
+    import hashlib
+
+    from scripts.e1_snapshot_data import rewrite_copy, validate_local_chain
+
+    adapter, _, verifier = archive
+    rows = []
+    previous = "0" * 64
+    for sequence in [1, 2]:
+        payload = json.dumps(
+            {
+                "id": f"synthetic-{sequence}",
+                "sequence": sequence,
+                "canonical_format": "pg-jsonb-utf8-v1",
+                "previous_digest": previous,
+                "snapshot": {"result": "VERIFIED"},
+            }
+        ).encode()
+        previous = hashlib.sha256(payload).hexdigest()
+        adapter.archive(payload, previous, sequence)
+        rows.append(
+            {
+                "sequence": sequence,
+                "event_id": f"synthetic-{sequence}",
+                "canonical_base64": base64.b64encode(payload).decode(),
+                "digest": previous,
+            }
+        )
+    rewritten = rewrite_copy(rows)
+    validate_local_chain(rewritten)
+    assert verifier.verify(2, rows)["database_snapshot_compared"] is True
+    with pytest.raises(IntegrityFailure):
+        verifier.verify(2, rewritten)

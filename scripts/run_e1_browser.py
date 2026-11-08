@@ -1,5 +1,6 @@
 """Run real synthetic browser/protocol checks; fixture credentials stay in memory/stdin."""
 
+import argparse
 import json
 import os
 import subprocess
@@ -11,6 +12,9 @@ from scripts.commission_e1 import outputs
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--scenario", choices=["basic", "archive-drill"], default="basic")
+    arguments = parser.parse_args()
     session = boto3.Session(region_name="us-east-1")
     identity = session.client("sts").get_caller_identity()
     if identity["Account"] != "028364485203" or not identity["Arn"].startswith(
@@ -34,6 +38,7 @@ def main() -> int:
     if config["WebRedirect"] != expected + "/auth/callback":
         raise RuntimeError("Observed staging callback differs from reviewed environment")
     payload = {
+        "scenario": arguments.scenario,
         "origin": expected,
         "mobile_redirect": config["MobileRedirect"],
         "users": {name: fixture["users"][name] for name in required},

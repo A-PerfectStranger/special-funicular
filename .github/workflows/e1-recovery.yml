@@ -1,0 +1,49 @@
+name: E1 independent SQL-copy recovery
+on:
+  workflow_dispatch:
+    inputs:
+      report_key:
+        description: Private retained snapshot report key from the operator
+        required: true
+        type: string
+      report_version:
+        description: Exact S3 report VersionId
+        required: true
+        type: string
+      report_sha256:
+        description: SHA256 of the immutable report
+        required: true
+        type: string
+      external_minimum_sequence:
+        description: Previously verified external high-water (never from SQL)
+        required: true
+        type: string
+permissions: {contents: read}
+concurrency:
+  group: aws-staging-production
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    permissions: {contents: read, id-token: write}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {persist-credentials: false}
+      - run: python3 -m pip install --target work/e1-sdk --require-hashes -r infra/aws/e1-ops.txt
+      - name: Compare original and locally rehashed SQL copies with independent WORM anchors
+        env:
+          PYTHONPATH: apps/backend:work/e1-sdk
+          REPORT_KEY: ${{ inputs.report_key }}
+          REPORT_VERSION: ${{ inputs.report_version }}
+          REPORT_HASH: ${{ inputs.report_sha256 }}
+          EXTERNAL_MINIMUM: ${{ inputs.external_minimum_sequence }}
+        run: python3 scripts/aws_oidc.py --role E1Verifier -- python3 -m scripts.verify_e1_recovery --report-key "$REPORT_KEY" --report-version "$REPORT_VERSION" --report-sha256 "$REPORT_HASH" --minimum-sequence "$EXTERNAL_MINIMUM"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e1-recovery-acceptance-${{ github.sha }}
+          path: work/e1-recovery-acceptance.json
+          if-no-files-found: warn
+          retention-days: 7

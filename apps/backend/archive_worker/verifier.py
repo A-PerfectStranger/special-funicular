@@ -13,6 +13,10 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
+class SnapshotDivergence(IntegrityFailure):
+    """The supplied SQL copy differs from the successfully read external evidence."""
+
+
 class ExternalVerifier:
     def __init__(
         self,
@@ -98,10 +102,10 @@ class ExternalVerifier:
             for record in database_snapshot:
                 sequence = record.get("sequence")
                 if type(sequence) is not int or sequence < 1 or sequence in snapshot:
-                    raise IntegrityFailure()
+                    raise SnapshotDivergence()
                 snapshot[sequence] = record
             if len(snapshot) != len(keys):
-                raise IntegrityFailure()
+                raise SnapshotDivergence()
         for sequence, key in enumerate(sorted(keys), 1):
             if key != f"checkpoints/{sequence:020d}.json":
                 raise IntegrityFailure()
@@ -131,16 +135,16 @@ class ExternalVerifier:
             if snapshot is not None:
                 copied = snapshot.get(sequence)
                 if not copied or copied.get("event_id") != event["id"]:
-                    raise IntegrityFailure()
+                    raise SnapshotDivergence()
                 # Treat every byte and hash from the database copy as untrusted.
                 encoded = copied.get("canonical_base64")
                 if not isinstance(encoded, str) or len(encoded) > 90000:
-                    raise IntegrityFailure()
+                    raise SnapshotDivergence()
                 if (
                     base64.b64decode(encoded, validate=True) != event_payload
                     or copied.get("digest") != digest
                 ):
-                    raise IntegrityFailure()
+                    raise SnapshotDivergence()
             previous = digest
             event_ids.add(event["id"])
         # Callers persist a previous external high-water mark, never a DB-derived default.

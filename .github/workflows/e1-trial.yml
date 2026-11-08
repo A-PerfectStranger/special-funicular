@@ -178,3 +178,56 @@ jobs:
           path: work/artifacts/*.apk
           if-no-files-found: error
           retention-days: 3
+  archive-drill:
+    needs: [publish, trial, browser, cloud]
+    permissions: {contents: read, id-token: write}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env: {PYTHONPATH: 'apps/backend:work/e1-sdk'}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {ref: '${{ needs.publish.outputs.sha }}', persist-credentials: false}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version-file: .node-version}
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: python3 -m pip install --target work/e1-sdk --require-hashes -r infra/aws/e1-ops.txt
+      - name: Prove archive absence denies login and late evidence cannot reopen it
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+          RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
+        run: python3 -m scripts.e1_archive_drill --sha "$RELEASE_SHA" --digest "$RELEASE_DIGEST"
+      - name: Retry archive recovery if the coordinator was interrupted
+        if: always()
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+          RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          state, report = Path('work/e1-archive-drill-control.json'), Path('work/e1-archive-recovery.json')
+          recovered = report.exists() and json.loads(report.read_text()).get('archive_recovered') is True
+          if state.exists() and not recovered:
+              subprocess.run(['python3','scripts/aws_oidc.py','--role','Deploy','--','python3','-m','scripts.e1_archive_control','resume','--sha',os.environ['RELEASE_SHA'],'--digest',os.environ['RELEASE_DIGEST']],check=True)
+          PY
+      - name: Verify the late archived attempt with an independent identity
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          report = json.load(open('work/e1-archive-drill.json'))
+          sequence = report.get('denied_event_sequence')
+          if report.get('passed') is not True or type(sequence) is not int or sequence < 1:
+              raise SystemExit('BLOCKED: no proven denied archive attempt')
+          subprocess.run(['python3','scripts/aws_oidc.py','--role','E1Verifier','--','python3','-m','scripts.verify_e1_staging','--minimum-sequence',str(sequence)],check=True)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: e1-archive-drill-${{ needs.publish.outputs.sha }}
+          path: |
+            work/e1-archive-drill.json
+            work/e1-archive-recovery.json
+            work/e1-cloud-acceptance.json
+          if-no-files-found: warn
+          retention-days: 7

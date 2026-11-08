@@ -29,3 +29,21 @@ Publish/prepare/migrate/staging aprobados; CI main 42447792803 aprobada. Se
 comprobó el SHA-256 del ZIP original y el SHA/digest/probes del reporte. Incluye
 las migraciones identity 0003/evidence 0011–0012. E1 desactivada, e1_accepted=false;
 no acredita MFA/fixtures/archivo E1 reales. Producción bloqueada hasta E5.
+
+## Primer ensayo E1 con fixtures reales (aceptación incompleta)
+
+Workflow [42449912611](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42449912611),
+SHA 26d7d47. ZIPs contrastados por SHA-256 del registro de artefactos:
+
+- e1-trial-staging-26d7d47.json, artefacto 13605930697: API/archivador por digest,
+  E1 habilitada solo en ensayo. No aceptación integral.
+- e1-browser-26d7d47.json, artefacto 13606035804: tres logins escolares y lector
+  aprobados; móvil PADRE falló. No ocultar ni reemplazar este fallo por un PASS.
+- e1-cloud-26d7d47.json, artefacto 13605373093: Cognito, WORM/KMS/denegaciones y
+  19 eventos firmados/versionados aprobados; no compara todavía una copia SQL.
+- APK staging compilado, contenido/configuración y firma debug verificados por
+  el job. Manifiesto 13605631927; no implica prueba física ni distribución privada.
+
+El fallo móvil se reprodujo en la captura de response de Chromium para protocolos
+nativos. La corrección se verifica por separado; los resultados de 26d7d47 se
+conservan sin reinterpretarlos como aprobación de toda E1.
