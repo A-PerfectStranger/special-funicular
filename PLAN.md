@@ -62,6 +62,13 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 
 **Aceptación:** AT02, AT04 y parte correspondiente de AT05/AT06; acceso cruzado y mutación denegados; portal bloqueado ante evidencia no protegida. La falta del proveedor deja pendientes los ensayos reales de adaptadores, no se reemplazan por un aprobado con mocks.
 
+**En ejecución:** implementación local de identidad, modelos/RLS, evidencia,
+archivo y clientes, con rutas deshabilitadas por defecto. Cognito de ensayo y
+retención COMPLIANCE sintética de siete días elegidos por el usuario. E1 permanece
+sin marcar hasta cerrar integración/CD y ensayos reales por commit/digest.
+Matriz concreta en `docs/e1-acceptance.md`; comisión y límites en
+`docs/runbooks/e1.md`.
+
 ### E2 — Bulk, activación y autorización familiar
 
 - [ ] Crear importador privado: staging, esquema, hash, aprobación escolar, promoción atómica e idempotencia.

@@ -7,7 +7,8 @@ import secrets
 import time
 import uuid
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, date, datetime, timedelta
+from datetime import time as date_time
 from functools import wraps
 from typing import Any
 
@@ -36,9 +37,10 @@ def origin(request: HttpRequest) -> str:
 
 
 def error(status: int = 401) -> JsonResponse:
-    return JsonResponse(
-        {"error": "unavailable" if status == 503 else "access_denied"}, status=status
+    code = (
+        "unavailable" if status == 503 else "invalid_request" if status == 400 else "access_denied"
     )
+    return JsonResponse({"error": code}, status=status)
 
 
 def safe_endpoint(
@@ -48,8 +50,10 @@ def safe_endpoint(
     def guarded(request: HttpRequest) -> HttpResponse:
         try:
             return function(request)
-        except (IdentityRejected, ValueError, TypeError, KeyError, json.JSONDecodeError):
+        except IdentityRejected:
             return error()
+        except (ValueError, TypeError, KeyError):
+            return error(400)
         except (DatabaseError, psycopg.Error):
             return error(503)
 
@@ -256,8 +260,22 @@ def read_access_records(request: HttpRequest) -> tuple[list[dict[str, Any]], int
     maximum = int(request.GET.get("limit", "25"))
     before = int(request.GET["before"]) if request.GET.get("before") else None
     school = uuid.UUID(request.GET["school"]) if request.GET.get("school") else None
+    since = (
+        datetime.combine(date.fromisoformat(request.GET["from"]), date_time.min, UTC)
+        if request.GET.get("from")
+        else None
+    )
+    until = (
+        datetime.combine(
+            date.fromisoformat(request.GET["to"]) + timedelta(days=1), date_time.min, UTC
+        )
+        if request.GET.get("to")
+        else None
+    )
     if not 1 <= maximum <= 100 or (before is not None and before < 1):
         raise IdentityRejected()
+    if since and until and since >= until:
+        raise ValueError("Invalid date range")
     token = web_secret(request)
     dsn = os.environ.get("SYSTEM_READ_DATABASE_URL", "")
     password = os.environ.get("SYSTEM_READ_PASSWORD")
@@ -276,7 +294,8 @@ def read_access_records(request: HttpRequest) -> tuple[list[dict[str, Any]], int
         # Reading and auditing commit together; failure returns no records.
         cursor.execute("SELECT public.e1_audit_access_read(%s)", (uuid.uuid4(),))
         cursor.execute(
-            "SELECT * FROM public.e1_access_records(%s,%s,%s)", (maximum, before, school)
+            "SELECT * FROM public.e1_access_records(%s,%s,%s,%s,%s)",
+            (maximum, before, school, since, until),
         )
         columns = [col.name for col in cursor.description or []]
         records = [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]

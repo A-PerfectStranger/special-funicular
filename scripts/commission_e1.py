@@ -42,18 +42,6 @@ def operator_principal(identity: dict[str, Any]) -> str:
 def billing_preflight() -> dict[str, bool]:
     today = datetime.now(UTC).date()
     plan = aws("freetier", "get-account-plan-state")
-    cost = aws(
-        "ce",
-        "get-cost-and-usage",
-        "--time-period",
-        f"Start={today.replace(day=1)},End={today + timedelta(days=1)}",
-        "--granularity",
-        "MONTHLY",
-        "--metrics",
-        "UnblendedCost",
-        "--filter",
-        json.dumps({"Not": {"Dimensions": {"Key": "RECORD_TYPE", "Values": ["Credit", "Refund"]}}}),
-    )
     budget = aws(
         "budgets",
         "describe-budget",
@@ -62,6 +50,19 @@ def billing_preflight() -> dict[str, bool]:
         "--budget-name",
         "retiro-seguro-total-150-usd",
     )["Budget"]
+    budget_start = datetime.fromisoformat(budget["TimePeriod"]["Start"])
+    cost = aws(
+        "ce",
+        "get-cost-and-usage",
+        "--time-period",
+        f"Start={budget_start.date()},End={today + timedelta(days=1)}",
+        "--granularity",
+        "MONTHLY",
+        "--metrics",
+        "UnblendedCost",
+        "--filter",
+        json.dumps({"Not": {"Dimensions": {"Key": "RECORD_TYPE", "Values": ["Credit", "Refund"]}}}),
+    )
     credit = plan.get("accountPlanRemainingCredits", {})
     totals = [item["Total"]["UnblendedCost"] for item in cost["ResultsByTime"]]
     # Five USD incremental commissioning + existing 27 USD retained-base reserve.

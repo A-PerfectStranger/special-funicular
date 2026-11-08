@@ -1,7 +1,9 @@
 # Retiro seguro de estudiantes
 
-Monorepo Django/PostgreSQL y Expo SDK 56. E0 crea la base técnica;
-**no autentica usuarios ni permite retiros**. Solo datos sintéticos.
+Monorepo Django/PostgreSQL y Expo SDK 56. E0 está aceptada en staging.
+E1 incorpora identidad/aislamiento/evidencia en desarrollo, con sus rutas
+**desactivadas por defecto hasta completar la comisión y aceptación real**.
+Los retiros permanecen deshabilitados. Solo datos sintéticos.
 El estado verificable y los bloqueos están en [PROGRESS.md](PROGRESS.md).
 
 ## Requisitos y arranque
@@ -80,8 +82,19 @@ siguen sin configurar. OTA permanece deshabilitado.
 
 OpenAPI: `tests/contracts/openapi.yaml`. Respuestas `no-store`, sin PII.
 Readiness técnico **no autoriza retiros**. `/admin/` y rutas de negocio no existen.
-Worker: `python manage.py runworker --check` muestra cero handlers; sin `--check`
-falla explícitamente porque los outboxes se implementan en E1/E4.
+Sin seleccionar un handler, `python manage.py runworker --check` muestra cero
+handlers activos. E1 añade `runworker --archive` con configuración y credencial
+SQL propias; las notificaciones siguen pendientes de E4. La ejecución cloud
+acotada usa `python -m archive_worker.runner --max-runtime-seconds 10800`.
+Guía y estado de aceptación: [runbook E1](docs/runbooks/e1.md).
+
+Con `E1_IDENTITY_ENABLED=true` y configuración completa, E1 añade `/auth/login`,
+`/auth/callback`, `/auth/logout`, `/portal/`, `/v1/auth/mobile/start`,
+`/v1/auth/mobile/exchange`, `/v1/auth/refresh`, `/v1/auth/logout`, `/v1/me` y
+`/v1/system/school-access-records`. No añade CRUD de roles/estudiantes/evidencias.
+Los callbacks de Cognito y el móvil deben coincidir exactamente por entorno;
+el cliente móvil recibe sesiones propias, nunca tokens del IdP. Las consultas
+escolares de salidas corresponden a E4 y los retiros a E3.
 
 ## CI, artefactos y CD
 

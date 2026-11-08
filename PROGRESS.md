@@ -1,41 +1,62 @@
 # Estado de ejecución — E1 en implementación
 
-## Sesión E1 actual (7 de noviembre de 2026, America/Bogota)
+## Checkpoint E1 (7 de noviembre de 2026, America/Bogota)
 
-Base remota comprobada con `git fetch --prune origin`: `bbe48f4`. Checkout
-actualizado por fast-forward desde `33f3ac6`; rama `feat/e1-identity-evidence`.
-Se leyeron AGENTS, PLAN, PROGRESS y requisitos; criterios y etapas previos al
-código en `docs/e1-acceptance.md`. El usuario eligió Cognito para ensayo y
-autorizó siete días de retención WORM exclusivamente para datos sintéticos.
+**E1 no está terminada, integrada en main ni aceptada en AWS.** Base remota
+`bbe48f4`, sincronizada por fast-forward tras fetch; rama `feat/e1-identity-evidence`.
+AGENTS, PLAN, PROGRESS y requisitos leídos antes del código; criterios previos
+registrados en `docs/e1-acceptance.md`. El usuario eligió Cognito de ensayo y
+siete días COMPLIANCE exclusivamente para evidencia sintética.
 
-**E1 no está terminada ni aceptada en AWS.** Cambios locales en curso:
+Implementación local: identidad OIDC Code/PKCE y sesiones, cuatro roles locales,
+escuelas/sedes/estudiantes/padres/vínculos, restricciones y RLS, funciones de
+escritura restringidas, eventos/outbox y archivador/recibos/manifiestos externos,
+verificador sin BD, BFF/consulta mínima y cliente móvil con SecureStore.
+Contrato OpenAPI, README y runbook E1 actualizados. E1 desactivada por defecto;
+retiros, invitaciones, operaciones E2–E5 y producción sin habilitar.
 
-- Modelos identity/school_roster/evidence; migraciones compatibles hacia delante,
-  RLS forzada, credenciales SQL separadas, funciones de eventos/sesiones/archivo.
-- OIDC Code/PKCE, firma/issuer/audiencia/nonce/tiempos/MFA, sesiones revocables,
-  BFF Django con CSRF y credencial aislada de lectura del sistema.
-- Archivador S3/KMS, versiones/recibos/manifiestos/checkpoints externos y verificador
-  sin conexión SQL; transporte móvil con navegador del sistema y SecureStore.
-- Nada de esto se ha desplegado. La bandera E1 está desactivada por defecto.
+### Evidencia local del checkpoint
 
-Evidencia local intermedia: baseline `make check` aprobada; 27 regresiones nuevas
-de identidad/aislamiento aprobadas con PostgreSQL real y firmas RSA reales.
-Ruff y mypy aprobaron esa revisión. Los mocks del IdP y recibos simulados de las
-pruebas de SQL **no** acreditan Cognito, WORM ni KMS reales. Pruebas adicionales,
-integración completa, CI/builds, configuración cloud y aceptación E1 pendientes.
+- `make db check`: **115 pruebas Python y siete JS**, PostgreSQL real con roles
+  separados, Ruff/formato, mypy/TypeScript/ESLint, cfn-lint, migraciones, Django
+  y compatibilidad Expo aprobados. No atribuirlo al SHA de E0 ni a AWS.
+- `make security`: pip-audit/npm audit sin vulnerabilidades; gitleaks en historial
+  y árbol sin hallazgos. Excepción estrecha para la expresión SQL literal
+  `stamp+interval`, detectada como falso secreto; no se omiten archivos fuente.
+- Bundle Android/Hermes exportado con los módulos nuevos. APK e imagen nuevos
+  y checks CI por commit: pendientes al escribir este checkpoint.
+- Chromium/Playwright con datos/sesión sintéticos: formulario CSRF, consulta mínima,
+  paginación/controles de fecha y logout con reentrada denegada aprobados. Se corrigió
+  `Origin:null` causado por no-referrer en formularios: BFF usa same-origin;
+  no se envían referencias al IdP. Esto no acredita login Cognito real ni TLS AWS.
+- SQL: aislamiento entre familias/escuelas, principal único/obligatorio, revocación,
+  rotación y carrera de diez refresh, idle/expiración, escritura/mutación/SET ROLE
+  denegados, rollback de evento/outbox/sesión y head sin huecos, lease expirado y
+  recibo único. La devolución PL/pgSQL del archivador requirió cast explícito
+  varchar→text; corregido con migración hacia delante.
+- Tres accesos/tres eventos y no reapertura con recibo tardío aprobados con recibos
+  simulados. RSA real en pruebas; IdP, S3 y KMS simulados no aceptan servicios reales.
 
-El entorno sufrió una interrupción y se recuperó con el árbol/logs intactos.
-Antes de la interrupción, `make db check` completo pasó con **103 pruebas Python
-y siete JS**, lint, tipos, migraciones, Django y Expo. Hay ediciones posteriores
-de archivo/IAM que necesitan revalidación. Se guardó una nota mínima de continuidad
-con autorización del usuario en la rama documental `docs/e1-session-recovery`;
-esa rama no contiene la implementación ni acepta E1.
+### Pendiente y orden de continuación
 
-Próximos pasos: completar/validar archivador y móvil; preparar IaC/commissioning
-E1 sin ampliar permisos del CD E0 de forma implícita; actualizar contratos,
-runbooks y controles de aceptación; ejecutar suites y registrar fallos/bloqueos.
-Esta sesión no dispone aún de una identidad AWS de operador acreditada. OIDC
-de CI/main existente no es esa identidad. No usar el código OAuth viejo.
+1. Revisar CI/artefactos del commit y PR; no integrar main con criterios pendientes.
+2. Comisionar Cognito/WORM/KMS/roles SQL usando el runbook E1 y operador AWS acreditado.
+   No hay credenciales de operador en esta sesión; CI/main no es ese login.
+   No reutilizar el código OAuth antiguo ni pedir claves permanentes.
+3. Completar integración E1 del destino en CD: config/roles API, credencial del
+   lector, arranque/retirada acotada del archivador y aceptación real de E1.
+   El CD existente verifica E0, no acepta E1 por pasar sus probes. Las migraciones
+   ahora bloquean antes de DDL si faltan roles E1 seguros, con diagnóstico explícito.
+4. Provisionar cuentas sintéticas individuales/enrolar MFA; probar flujos completos,
+   revocación, recuperación sin nuevos vínculos, WORM/KMS/retención/denegaciones,
+   versiones/manifiestos y portal sin recibo contra el candidato por SHA/digest.
+5. Completar cada fila de la matriz de aceptación. No marcar E1 completa por mocks,
+   por un build, por recursos ACTIVE ni por la comisión de roles.
+
+`docs/runbooks/e1.md` describe comandos reales y límites. El entorno sufrió una
+interrupción y se recuperó con árbol/logs intactos. El parche interrumpido de fechas
+se reaplicó y verificó. Se guardó una nota mínima pública, autorizada por el usuario,
+en `docs/e1-session-recovery`; es documentación histórica, no la implementación.
 
 ## E0 completada
 

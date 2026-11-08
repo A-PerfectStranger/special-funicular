@@ -59,6 +59,21 @@ def test_callback_one_use_pkce_binding_and_claimed_role_ignored() -> None:
         assert provider.return_value.exchange.call_count == 1
 
 
+@pytest.mark.parametrize(
+    "channel,role", [("web", "PADRE"), ("mobile", "ADMIN_SISTEMA"), ("web", None)]
+)
+def test_verified_idp_identity_still_needs_local_account_and_channel(
+    channel: str, role: str | None
+) -> None:
+    data = roster()
+    state, binding, verifier = pending_login(channel)
+    account = data["accounts"][role] if role else uuid.uuid4()
+    with patch.object(Provider, "configured") as provider:
+        provider.return_value.exchange.return_value = verified(account)
+        with pytest.raises(IdentityRejected):
+            services.finish_login(state, binding, "code", verifier, channel)
+
+
 def test_entrypoint_five_failures_block_fifteen_minutes_per_origin() -> None:
     key = services.bucket("login", "synthetic-account", str(uuid.uuid4()))
     for _ in range(5):
@@ -101,11 +116,12 @@ def test_rls_session_context_rolls_back_after_exception() -> None:
     assert services.scalar("SELECT count(*) FROM school_roster_student", ()) == 0
 
 
-@override_settings(ROOT_URLCONF="identity.urls")
+@override_settings(ROOT_URLCONF="identity.urls", E1_IDENTITY_ENABLED=True)
 def test_web_login_csrf_and_cookie_security() -> None:
     client = Client(enforce_csrf_checks=True)
     response = client.get("/auth/login", secure=True)
     assert response.status_code == 200
+    assert response["Referrer-Policy"] == "same-origin"
     assert client.post("/auth/login", secure=True).status_code == 403
     with patch(
         "identity.services.begin_login",
@@ -160,6 +176,7 @@ def test_school_login_fails_closed_without_receipt_and_late_archive_does_not_ena
     access, _, meta = login(data["accounts"]["ADMIN_ESCUELA"], "web")
     with pytest.raises(IdentityRejected):
         services.authenticate(access)
+
     assert services.scalar("SELECT e1_enable_school_session(%s)", (digest(access),)) is False
     # Advance only this operational session using the no-login owner via the migration role.
     # Test clock injection must not grant any such capability to runtime.
@@ -177,3 +194,54 @@ def test_school_login_fails_closed_without_receipt_and_late_archive_does_not_ena
     assert services.scalar("SELECT e1_enable_school_session(%s)", (digest(access),)) is False
     with pytest.raises(IdentityRejected):
         services.authenticate(access)
+
+
+@override_settings(ROOT_URLCONF="identity.urls")
+def test_identity_contract_and_isolated_system_date_filter() -> None:
+    import os
+    from pathlib import Path
+
+    import yaml
+    from jsonschema import Draft202012Validator, FormatChecker
+
+    spec = yaml.safe_load(Path("tests/contracts/openapi.yaml").read_text())
+
+    def validate(name: str, value: Any) -> None:
+        Draft202012Validator(
+            {"$ref": f"#/components/schemas/{name}", "components": spec["components"]},
+            format_checker=FormatChecker(),
+        ).validate(value)
+
+    data = roster()
+    token, _, _ = login(data["accounts"]["PADRE"])
+    response = Client().get("/v1/me", secure=True, HTTP_AUTHORIZATION=f"Bearer {token}")
+    assert response.status_code == 200
+    validate("Me", response.json())
+    login(data["accounts"]["ADMIN_ESCUELA"], "web")
+    token, _, _ = login(data["accounts"]["ADMIN_SISTEMA"], "web")
+    client = Client()
+    session = client.session
+    session["identity_secret"] = token
+    session.save()
+    with patch.dict(
+        os.environ,
+        {
+            "SYSTEM_READ_DATABASE_URL": "postgresql://retiro_system_read:synthetic-system-read-only@127.0.0.1:5432/retiro"
+        },
+    ):
+        response = client.get(
+            "/v1/system/school-access-records",
+            {"school": str(data["school"]), "limit": 1},
+            secure=True,
+        )
+        assert response.status_code == 200 and len(response.json()["records"]) == 1
+        validate("AccessPage", response.json())
+        response = client.get(
+            "/v1/system/school-access-records",
+            {"school": str(data["school"]), "from": "2099-01-01"},
+            secure=True,
+        )
+        assert response.status_code == 200 and response.json()["records"] == []
+        response = client.get("/v1/system/school-access-records", {"limit": "invalid"}, secure=True)
+        assert response.status_code == 400
+        validate("Error", response.json())

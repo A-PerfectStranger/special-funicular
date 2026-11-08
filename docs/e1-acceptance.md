@@ -12,7 +12,7 @@ requisitos leídos antes de implementar. E0 aceptada; E2–E5 fuera de esta entr
 | E1-02 | Escuelas/sedes, estudiantes, padres y vínculos con referencias por escuela y exactamente un principal activo por estudiante activo. Claims/inputs no asignan permisos ni hijos. | AT02, RF03/14, RFS02/03, AB02/10/24. Dos escuelas/dos familias; principal/secundario; restricciones PostgreSQL. Activación/bulk se completan en E2. |
 | E1-03 | RLS ENABLE/FORCE y contexto transaccional derivado del actor autenticado; identidades SQL separadas sin DDL/BYPASSRLS/propiedad; lector sistema sin menores. | AT02/05, RFS02/12/22, AB02/10/14. Roles reales, conexión reutilizada, accesos laterales y mutaciones denegados. |
 | E1-04 | Eventos canónicos append-only construidos por funciones estrechas; evento y outbox atómicos; worker idempotente, reintentos y diagnóstico observable. | AT05, RFS11/12/13/23, AB14/21/22/23. Sin INSERT libre, rollback, crash/reintento, ausencia de secretos/PII excesiva. |
-| E1-05 | S3 Object Lock COMPLIANCE/KMS de ensayo real; hash, versión y retención exactos verificados; manifiestos firmados/anclados fuera de BD; verificador independiente detecta huecos/divergencias. | AT05/06, RFS10/12/17/23, AB22/25. Denegación real de mutación/retención/clave; no sustituir por mocks. Retención sintética pendiente de respuesta; productiva sin definir. |
+| E1-05 | S3 Object Lock COMPLIANCE/KMS de ensayo real; hash, versión y retención exactos verificados; manifiestos firmados/anclados fuera de BD; verificador independiente detecta huecos/divergencias. | AT05/06, RFS10/12/17/23, AB22/25. Denegación real de mutación/retención/clave; no sustituir por mocks. Retención sintética siete días autorizada; productiva sin definir. |
 | E1-06 | Login escolar protegido antes de abrir sesión, deduplicación por login, fallos cierran acceso; admin sistema solo consulta accesos paginados y lectura auditada. | RF16/17, CA-F16/17, RFS14/21/22, AB10/21. Tres logins/tres eventos, refresh/callback duplicado sin duplicación, archivo ausente/tardío bloquea portal. |
 
 ## Etapas verificables
@@ -34,3 +34,18 @@ requisitos leídos antes de implementar. E0 aceptada; E2–E5 fuera de esta entr
   ni permite asumir que esta sesión puede aprovisionar recursos nuevos.
 - No se habilitan retiros, invitaciones, datos reales ni producción.
 - Ningún criterio E1 se considera aprobado hasta registrar su evidencia.
+
+## Verificación del checkpoint local (sin aceptación AWS)
+
+| Criterio | Evidencia local | Falta para cierre |
+| --- | --- | --- |
+| E1-01 | test_oidc, test_e1_identity, test_e1_school_access y pruebas móvil: firmas, PKCE/binding/replay, roles/canales, reauth/idle, revocación/refresh, CSRF. | Cognito/MFA y recuperación reales; retorno nativo y destino integrado. |
+| E1-02 | test_e1_isolation: dos escuelas/familias, principal obligatorio/único, referencias compuestas. | Verificar migración/provisión del esquema en destino real. |
+| E1-03 | Credenciales reales locales; RLS, conexión reutilizada/rollback, mutaciones y SET ROLE denegados. Lector sistema sin SELECT de menores. | Mismos límites comprobados con credenciales AWS/SQL del destino. |
+| E1-04 | test_e1_outbox: rollback sesión/evento/outbox, head sin huecos, crash/reclaim, lease antiguo rechazado, recibo único; test_archive: escritura idempotente. | Worker desplegado, fallos/reintentos/latencias reales y observabilidad del destino. |
+| E1-05 | Canonical bytes, RSA-PSS, versiones/retención/hash y huecos/divergencia probados con adaptadores simulados; IaC cfn-lint aprobada. | WORM/KMS/denegaciones/manifiestos REALES, high-water externo y custodia de claves. |
+| E1-06 | Tres sesiones/tres eventos, callbacks únicos, archivo tardío sin reapertura; DTO/fechas/paginación auditados y navegador local. | Login escolar completo con Cognito y recibo AWS dentro del plazo. |
+
+Resultado: ninguna fila acredita por sí sola el cierre integral de E1. Las casillas
+E1 de PLAN permanecen pendientes. Evidencia global local: make check, 115 Python/7 JS;
+seguridad y bundle Android aprobados. CI/artefactos y aceptación real pendientes.

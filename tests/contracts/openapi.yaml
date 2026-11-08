@@ -1,7 +1,9 @@
 openapi: 3.1.0
 info:
-  title: Retiro seguro - E0 technical surface
-  version: 0.1.0
+  title: Retiro seguro - E1 identity (disabled until commissioned)
+  version: 0.2.0
+  description: E1 routes require E1_IDENTITY_ENABLED. Pickups remain disabled. IdP tokens never leave
+    the BFF. Web POSTs require Django CSRF.
 paths:
   /health/live:
     get:
@@ -14,9 +16,11 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [status]
+                required:
+                - status
                 properties:
-                  status: {const: ok}
+                  status:
+                    const: ok
   /health/ready:
     get:
       operationId: readiness
@@ -28,9 +32,11 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [status]
+                required:
+                - status
                 properties:
-                  status: {const: ready}
+                  status:
+                    const: ready
         '503':
           description: Technical dependency unavailable
           content:
@@ -38,9 +44,11 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [status]
+                required:
+                - status
                 properties:
-                  status: {const: unavailable}
+                  status:
+                    const: unavailable
   /v1/capabilities:
     get:
       operationId: capabilities
@@ -52,7 +60,448 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [api_version, pickup_enabled]
+                required:
+                - api_version
+                - pickup_enabled
                 properties:
-                  api_version: {const: v1}
-                  pickup_enabled: {const: false}
+                  api_version:
+                    const: v1
+                  pickup_enabled:
+                    const: false
+  /v1/auth/mobile/start:
+    post:
+      operationId: startMobileOidc
+      responses:
+        '200':
+          description: Successful command or query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginStart'
+        '401':
+          description: Missing/invalid/revoked identity or failed login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Invalid input without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileStart'
+      description: Authorization Code/PKCE S256 in system browser. Reauth requires current mobile Bearer
+        session.
+  /v1/auth/mobile/exchange:
+    post:
+      operationId: exchangeMobileCode
+      responses:
+        '200':
+          description: Successful command or query
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/MobileLogin'
+                - $ref: '#/components/schemas/Reauthenticated'
+        '401':
+          description: Missing/invalid/revoked identity or failed login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Invalid input without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeExchange'
+  /v1/auth/refresh:
+    post:
+      operationId: rotateMobileRefresh
+      responses:
+        '200':
+          description: Successful command or query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tokens'
+        '401':
+          description: Missing/invalid/revoked identity or failed login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Invalid input without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - refresh_token
+              properties:
+                refresh_token: &id001
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+  /v1/auth/logout:
+    post:
+      operationId: revokeMobileSession
+      responses:
+        '200':
+          description: Successful command or query
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - status
+                properties:
+                  status:
+                    const: revoked
+        '401':
+          description: Missing/invalid/revoked identity or failed login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Invalid input without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - refresh_token
+              properties:
+                refresh_token: *id001
+  /v1/me:
+    get:
+      operationId: readCurrentIdentity
+      responses:
+        '200':
+          description: Successful command or query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          description: Missing/invalid/revoked identity or failed login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Invalid input without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - MobileBearer: []
+      - DjangoSession: []
+  /v1/system/school-access-records:
+    get:
+      operationId: readSchoolAccessRecords
+      responses:
+        '200':
+          description: Successful command or query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPage'
+        '401':
+          description: Missing/invalid/revoked identity or failed login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable; no authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Only local ADMIN_SISTEMA; no child, caregiver or pickup data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Invalid input without object enumeration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - DjangoSession: []
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 25
+      - in: query
+        name: before
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: school
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date
+      description: ADMIN_SISTEMA web session only. Date filters are inclusive UTC dates. Every read and
+        its audit event commit together. Keyset pagination.
+components:
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          type: string
+          enum:
+          - access_denied
+          - unavailable
+          - invalid_request
+    MobileStart:
+      type: object
+      additionalProperties: false
+      required:
+      - code_challenge
+      properties:
+        code_challenge: *id001
+        purpose:
+          enum:
+          - login
+          - reauth
+    LoginStart:
+      type: object
+      additionalProperties: false
+      required:
+      - authorization_url
+      - state
+      - exchange_key
+      properties:
+        authorization_url:
+          type: string
+          format: uri
+        state: *id001
+        exchange_key: *id001
+    CodeExchange:
+      type: object
+      additionalProperties: false
+      required:
+      - state
+      - exchange_key
+      - code
+      - code_verifier
+      properties:
+        state: *id001
+        exchange_key: *id001
+        code:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        code_verifier:
+          type: string
+          pattern: ^[A-Za-z0-9._~-]{43,128}$
+    Tokens:
+      type: object
+      additionalProperties: false
+      required:
+      - access_token
+      - refresh_token
+      - expires_in
+      properties:
+        access_token: *id001
+        refresh_token: *id001
+        expires_in: &id002
+          const: 300
+    MobileLogin:
+      type: object
+      additionalProperties: false
+      required:
+      - access_token
+      - refresh_token
+      - expires_in
+      - role
+      properties:
+        access_token: *id001
+        refresh_token: *id001
+        expires_in: *id002
+        role:
+          enum:
+          - PADRE
+          - GUARDIA
+    Reauthenticated:
+      type: object
+      additionalProperties: false
+      required:
+      - reauthenticated
+      properties:
+        reauthenticated:
+          const: true
+    Me:
+      type: object
+      additionalProperties: false
+      required:
+      - role
+      - school_id
+      - site_id
+      - pickup_enabled
+      properties:
+        role:
+          type: string
+          enum:
+          - PADRE
+          - GUARDIA
+          - ADMIN_ESCUELA
+          - ADMIN_SISTEMA
+        school_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        site_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        pickup_enabled:
+          const: false
+    AccessRecord:
+      type: object
+      additionalProperties: false
+      required:
+      - sequence
+      - event_id
+      - actor_id
+      - school_id
+      - occurred_at
+      - result
+      properties:
+        sequence:
+          type: integer
+          minimum: 1
+        event_id:
+          type: string
+          format: uuid
+        actor_id:
+          type: string
+          format: uuid
+        school_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+        result:
+          enum:
+          - OPENED
+          - DENIED
+          - PENDING_PROTECTION
+    AccessPage:
+      type: object
+      additionalProperties: false
+      required:
+      - records
+      - next_cursor
+      properties:
+        records:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/AccessRecord'
+        next_cursor:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+  securitySchemes:
+    MobileBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque session secret
+    DjangoSession:
+      type: apiKey
+      in: cookie
+      name: sessionid

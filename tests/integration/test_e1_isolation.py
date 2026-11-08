@@ -128,6 +128,7 @@ def test_at05_every_runtime_identity_denied_free_event_mutation() -> None:
                 "ALTER TABLE evidence_event DISABLE ROW LEVEL SECURITY",
                 "SELECT e1_append('FORGED',NULL,NULL,gen_random_uuid(),'{}')",
                 "CREATE TABLE public.forbidden_e1(id integer)",
+                "SET ROLE retiro_evidence_writer",
             ]:
                 with pytest.raises(psycopg.errors.InsufficientPrivilege):
                     db.execute(statement)

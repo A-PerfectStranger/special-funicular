@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import DatabaseError, connection, transaction
 from django.utils import timezone
 
 from identity.models import EntryLimit, LoginRequest
@@ -149,17 +149,22 @@ def finish_login(
             raise IdentityRejected()
         return {"reauthenticated": True}
     access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-    data = scalar(
-        "SELECT public.e1_open_session(%s,%s,%s,%s,%s,%s)",
-        (
-            login.id,
-            verified.issuer,
-            verified.subject,
-            sha256(access),
-            sha256(refresh),
-            authenticated_at,
-        ),
-    )
+    try:
+        data = scalar(
+            "SELECT public.e1_open_session(%s,%s,%s,%s,%s,%s)",
+            (
+                login.id,
+                verified.issuer,
+                verified.subject,
+                sha256(access),
+                sha256(refresh),
+                authenticated_at,
+            ),
+        )
+    except DatabaseError as exc:
+        if getattr(exc.__cause__, "sqlstate", None) == "28000":
+            raise IdentityRejected() from None
+        raise
     if data["role"] == "ADMIN_ESCUELA":
         # A separate archive process must finish before the original five-second deadline.
         # No network call occurs while holding a SQL lock.
