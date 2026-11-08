@@ -61,11 +61,12 @@ Continuación local en `feat/e2-acceptance-close`; no avanzar main durante el en
 
 1. PR #18 integrada con checks completos. No avanzar main durante un
    archive-drill activo cuyo guard exija latest main.
-2. CI del merge aprobado. Se solicita al operador un pool nuevo, con checkout temporal
-   limpio fijado al SHA aprobado y `provision_e2_fixtures --pool-size 4` según
-   docs/runbooks/e2.md. No repetir comisión ya confirmada salvo evidencia de cambio.
-3. Cuando el operador confirme `E2 synthetic MFA fixtures prepared`, ejecutar
-   e2-trial en main 74297b3 con ci_run_id 42528545599, comprobando antes latest main. Verificar carrera bulk,
+2. CI del merge aprobado y operador confirmó pool nuevo de cuatro cohortes MFA
+   para 74297b3 (`E2 synthetic MFA fixtures prepared`), sin secretos compartidos.
+   No repetir comisión ya confirmada salvo evidencia de cambio.
+3. Ensayo E2 42529491296 lanzado en main 74297b3 con ci_run_id 42528545599
+   y latest main confirmado. Está en cola serializada detrás del CD 42529252429,
+   que ya migró 0005 y está desplegando. No cancelar migraciones ni avanzar main. Verificar carrera bulk,
    protocolo ampliado, imagen/APK y WORM hasta la última secuencia. Si falla,
    investigar y corregir; nunca saltar controles ni resetear cohortes usadas.
 4. Solo tras aprobar, habilitar e2_enabled en staging mediante PR/checks y comprobar
@@ -82,7 +83,18 @@ lanzar el ensayo que sí aprobó. Resultados y scratch locales en work/, ignorad
 Handoff actual: bloque CloudShell revisado fija
 74297b397b992287272fc63745d4ccb9127e2ea6 en checkout temporal nuevo, instala
 SDK --require-hashes en work/e1-sdk y ejecuta provision_e2_fixtures con UUID
-nuevo, --pool-size 4 y --synthetic-only. Solo falta su resultado saneado; no pedir
-códigos, contraseñas ni semillas. No repetir commission_e1 ya confirmada.
+nuevo, --pool-size 4 y --synthetic-only. Operador confirmó éxito; ensayo final
+42529491296 pendiente. No pedir códigos, contraseñas ni semillas ni repetir commission_e1.
 La rama de cierre contiene solo esta actualización de documentación: no está
 desplegada y no sustituye la aceptación pendiente del candidato main.
+
+Revisión móvil durante la cola AWS: AppState desmontaba Family al abrir la
+galería, con riesgo de perder toda selección. Corrección local en App.tsx,
+Family.tsx y sessionVisibility.ts: máscara sin interacción/accesibilidad mientras
+la galería conserva el formulario en memoria; vuelta exige check online vigente.
+Segundo plano ordinario, logout o rechazo descartan la vista; generaciones
+impiden restaurar datos desde checks tardíos o competir con OIDC interactivo.
+Seis regresiones nuevas pasan (20 JS totales); 234 Python previas sin cambio de
+backend. Bundle Android/Hermes final aprobado; CI propio aún pendiente. No atribuir esta corrección
+al APK de 74297b3 ni declarar prueba física Android. Integrar solo después del
+ensayo 742 y de sus propios checks; podrá acompañar habilitación de E2 en CD.
