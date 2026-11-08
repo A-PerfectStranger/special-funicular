@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import uuid
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -128,3 +129,73 @@ def test_cloud_seed_uses_the_same_private_boundary_and_never_receives_raw_invite
         seed(db, command)
     token = issue(payload)
     redeem(payload, token)
+
+
+def test_consumed_cohort_is_not_reset_for_another_gate() -> None:
+    from scripts.seed_e2_roster import CohortUsed, seed
+
+    payload = batch()
+    command = {
+        "action": "seed",
+        "batch": payload,
+        "parents": [
+            {"id": p["id"], "hash": digest("synthetic " + p["id"])} for p in payload["parents"]
+        ],
+    }
+    with connect("importer") as db:
+        seed(db, command)
+        with pytest.raises(CohortUsed):
+            seed(db, command)
+        assert db.execute(
+            "SELECT count(*) FROM school_roster_student WHERE id=%s",
+            (payload["students"][0]["id"],),
+        ).fetchone() == (1,)
+
+
+def test_live_bulk_scope_drill_runs_with_the_private_importer_only() -> None:
+    from scripts.seed_e2_roster import bulk_drill
+    from tests.integration.e1_support import roster
+
+    first = batch()
+    second = roster()
+    data = {
+        "action": "bulk-drill",
+        "batch": first,
+        "other_school_id": str(second["school"]),
+        "other_site_id": str(second["site"]),
+    }
+    # Only the synthetic test connections change identity; SQL/RLS/locks remain real.
+    with patch.dict(
+        os.environ, {"PGUSER": "retiro_importer", "PGPASSWORD": "synthetic-importer-only"}
+    ):
+        with connect("importer") as db:
+            bulk_drill(db, data)
+
+
+def test_private_technical_fixture_validates_oidc_subject_then_deactivates() -> None:
+    from scripts.seed_e2_roster import seed
+    from tests.integration.e1_support import login, roster
+
+    scope = roster()
+    target = scope["accounts"]["PADRE"]
+    access, _, _ = login(target)
+    command = {
+        "action": "deactivate",
+        "operation": "DEACTIVATE",
+        "school_id": str(scope["school"]),
+        "target": str(scope["student"]),
+        "data": {},
+        "issuer": "https://idp.example",
+        "account_parent_id": str(scope["parent"]),
+        "expected_accounts": [{"parent_id": str(scope["parent"]), "subject": str(target)}],
+    }
+    with connect("importer") as db:
+        seed(db, command)
+    with connect() as db:
+        assert db.execute("SELECT e1_authenticate(%s,true)", (digest(access),)).fetchone() == (
+            None,
+        )
+    # A prepared subject mismatch cannot execute even the fixed technical command.
+    command["expected_accounts"][0]["subject"] = str(uuid.uuid4())
+    with connect("importer") as db, pytest.raises(RuntimeError, match="subject"):
+        seed(db, command)

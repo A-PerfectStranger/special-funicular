@@ -29,7 +29,11 @@ def test_e2_gate_is_explicit_and_never_adds_private_import_credentials_to_api() 
     trial = yaml.safe_load(Path(".github/workflows/e2-trial.yml").read_text())
     assert trial["concurrency"] == standard["concurrency"]
     assert trial["jobs"]["family"]["needs"] == ["publish", "acceptance"]
-    assert "E1Verifier" in json.dumps(trial["jobs"]["family"])
+    shared = yaml.safe_load(Path(".github/workflows/e2-checks.yml").read_text())
+    assert "E1Verifier" in json.dumps(shared["jobs"]["family"])
+    assert standard["jobs"]["e2-acceptance"]["uses"] == "./.github/workflows/e2-checks.yml"
+    assert "e2-acceptance" in standard["jobs"]["production"]["needs"]
+    assert "needs.e2-acceptance.result == 'success'" in standard["jobs"]["production"]["if"]
 
 
 def test_synthetic_cohort_has_no_real_contacts_and_finite_policies() -> None:

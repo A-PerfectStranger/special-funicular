@@ -21,13 +21,21 @@ def owner_sql(statement: str, params: tuple[Any, ...]) -> None:
 
 
 def fake_receipt(event_id: str) -> None:
-    owner_sql(
-        "INSERT INTO evidence_receipt(event_id,bucket,key,version_id,digest,retained_until,"
-        "verified_at,manifest_key,manifest_version) "
-        "SELECT id,'SIMULATED','SIMULATED','SIMULATED',digest,%s,clock_timestamp(),"
-        "'SIMULATED','SIMULATED' FROM evidence_event WHERE id=%s",
-        (datetime.now(UTC) + timedelta(days=7), event_id),
-    )
+    with psycopg.connect(os.environ["MIGRATION_DATABASE_URL"]) as owner:
+        owner.execute("SET ROLE retiro_evidence_writer")
+        owner.execute(
+            "INSERT INTO evidence_receipt(event_id,bucket,key,version_id,digest,retained_until,"
+            "verified_at,manifest_key,manifest_version) "
+            "SELECT id,'SIMULATED','SIMULATED','SIMULATED',digest,%s,clock_timestamp(),"
+            "'SIMULATED','SIMULATED' FROM evidence_event WHERE id=%s",
+            (datetime.now(UTC) + timedelta(days=7), event_id),
+        )
+        # Simulate the whole archive commit, not an inconsistent receipt without its projection.
+        owner.execute(
+            "UPDATE evidence_archivejob SET completed_at=clock_timestamp(),lease_id=NULL,"
+            "lease_until=NULL WHERE event_id=%s",
+            (event_id,),
+        )
 
 
 def test_three_logins_protected_gate_and_minimal_system_projection() -> None:

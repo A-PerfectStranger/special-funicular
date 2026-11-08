@@ -68,6 +68,7 @@ jobs:
     timeout-minutes: 35
     outputs:
       e1_enabled: ${{ steps.e1.outputs.enabled }}
+      e2_enabled: ${{ steps.e1.outputs.family }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -78,9 +79,12 @@ jobs:
         run: |
           python3 - <<'PYCODE'
           import json, os
-          enabled = json.load(open('infra/environments/staging.json')).get('e1_enabled') is True
+          configuration = json.load(open('infra/environments/staging.json'))
+          enabled = configuration.get('e1_enabled') is True
+          family = configuration.get('e2_enabled') is True
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write('enabled=' + str(enabled).lower() + '\n')
+              stream.write('family=' + str(family).lower() + '\n')
           PYCODE
       - name: Deploy, verify running digest and TLS probes
         env:
@@ -102,9 +106,17 @@ jobs:
     with:
       release_sha: ${{ needs.publish.outputs.sha }}
       release_digest: ${{ needs.publish.outputs.digest }}
-  production:
+  e2-acceptance:
     needs: [publish, staging, e1-acceptance]
-    if: always() && needs.staging.result == 'success' && (needs.e1-acceptance.result == 'success' || (needs.e1-acceptance.result == 'skipped' && needs.staging.outputs.e1_enabled != 'true'))
+    if: needs.staging.outputs.e2_enabled == 'true' && needs.e1-acceptance.result == 'success'
+    permissions: {contents: read, id-token: write}
+    uses: ./.github/workflows/e2-checks.yml
+    with:
+      release_sha: ${{ needs.publish.outputs.sha }}
+      release_digest: ${{ needs.publish.outputs.digest }}
+  production:
+    needs: [publish, staging, e1-acceptance, e2-acceptance]
+    if: always() && needs.staging.result == 'success' && (needs.e1-acceptance.result == 'success' || (needs.e1-acceptance.result == 'skipped' && needs.staging.outputs.e1_enabled != 'true')) && (needs.e2-acceptance.result == 'success' || (needs.e2-acceptance.result == 'skipped' && needs.staging.outputs.e2_enabled != 'true'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
