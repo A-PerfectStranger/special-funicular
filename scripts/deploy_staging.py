@@ -48,6 +48,85 @@ def candidate_running(cluster: str, definition: str, expected: set[str]) -> bool
     )
 
 
+def deploy_express(outputs: dict[str, str], definition: str) -> tuple[str, str | None, str]:
+    service = "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api"
+    state_result = subprocess.run(
+        [
+            "aws",
+            "ecs",
+            "describe-express-gateway-service",
+            "--service-arn",
+            service,
+            "--output",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    previous_definition = None
+    state = None
+    if state_result.returncode:
+        if (
+            "ServiceNotFound" not in state_result.stderr
+            and "ClusterNotFound" not in state_result.stderr
+        ):
+            raise RuntimeError("Service lookup failed; absence not established")
+    else:
+        state = json.loads(state_result.stdout)["service"]
+        status = state.get("status", {}).get("statusCode")
+        if status == "INACTIVE":
+            # Express retains the description after scheduled deletion. An HTTP
+            # success from Describe does not mean that the service can be updated.
+            state = None
+        elif status != "ACTIVE" or not state.get("activeConfigurations"):
+            raise RuntimeError("Express service not ready; no creation or update performed")
+    if state is None:
+        service = aws(
+            "ecs",
+            "create-express-gateway-service",
+            "--cluster",
+            outputs["Cluster"],
+            "--service-name",
+            "retiro-api",
+            "--infrastructure-role-arn",
+            outputs["ExpressInfrastructure"],
+            "--task-definition-arn",
+            definition,
+            "--health-check-path",
+            "/health/live",
+            "--network-configuration",
+            json.dumps(
+                {
+                    "subnets": [outputs["Public0"], outputs["Public1"]],
+                    "securityGroups": [outputs["AppSecurityGroup"]],
+                }
+            ),
+            "--scaling-target",
+            '{"minTaskCount":1,"maxTaskCount":1}',
+            "--tags",
+            "key=Project,value=retiro-seguro",
+            "key=Environment,value=staging",
+        )["service"]["serviceArn"]
+        try:
+            expiry = arm_expiry(service)
+        except Exception:
+            aws("ecs", "delete-express-gateway-service", "--service-arn", service)
+            raise RuntimeError("Expiry failed; service deletion requested") from None
+    else:
+        previous_definition = state["activeConfigurations"][0]["taskDefinitionArn"]
+        aws(
+            "ecs",
+            "update-express-gateway-service",
+            "--service-arn",
+            service,
+            "--task-definition-arn",
+            definition,
+        )
+        expiry = arm_expiry(service)
+    return service, previous_definition, expiry
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=["migrate", "deploy"], required=True)
@@ -148,71 +227,7 @@ def main() -> int:
     else:
         api = task_definition(outputs, image, args.sha, False)
     definition = register(api)
-    service = "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api"
-    state_result = subprocess.run(
-        [
-            "aws",
-            "ecs",
-            "describe-express-gateway-service",
-            "--service-arn",
-            service,
-            "--output",
-            "json",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    previous_definition = None
-    if state_result.returncode:
-        if (
-            "ServiceNotFound" not in state_result.stderr
-            and "ClusterNotFound" not in state_result.stderr
-        ):
-            raise RuntimeError("Service lookup failed; absence not established")
-        service = aws(
-            "ecs",
-            "create-express-gateway-service",
-            "--cluster",
-            outputs["Cluster"],
-            "--service-name",
-            "retiro-api",
-            "--infrastructure-role-arn",
-            outputs["ExpressInfrastructure"],
-            "--task-definition-arn",
-            definition,
-            "--health-check-path",
-            "/health/live",
-            "--network-configuration",
-            json.dumps(
-                {
-                    "subnets": [outputs["Public0"], outputs["Public1"]],
-                    "securityGroups": [outputs["AppSecurityGroup"]],
-                }
-            ),
-            "--scaling-target",
-            '{"minTaskCount":1,"maxTaskCount":1}',
-            "--tags",
-            "key=Project,value=retiro-seguro",
-            "key=Environment,value=staging",
-        )["service"]["serviceArn"]
-        try:
-            expiry = arm_expiry(service)
-        except Exception:
-            aws("ecs", "delete-express-gateway-service", "--service-arn", service)
-            raise RuntimeError("Expiry failed; service deletion requested") from None
-    else:
-        state = json.loads(state_result.stdout)["service"]
-        previous_definition = state["activeConfigurations"][0]["taskDefinitionArn"]
-        aws(
-            "ecs",
-            "update-express-gateway-service",
-            "--service-arn",
-            service,
-            "--task-definition-arn",
-            definition,
-        )
-        expiry = arm_expiry(service)
+    service, previous_definition, expiry = deploy_express(outputs, definition)
     origin = ""
     for _ in range(100):
         state = aws("ecs", "describe-express-gateway-service", "--service-arn", service)["service"]

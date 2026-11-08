@@ -77,3 +77,13 @@ continuó disponible, hubo denegación a 890,272 s y recuperación a 905,530 s.
 Muestreo real sin adelantar relojes, sin SQL, AWS o credenciales. No demuestra el
 bloqueo de Cognito ni acepta por sí solo E1. No se desplegó otro SHA durante la
 medición; el PR #11 se integró después de completarla.
+
+## Base preparatoria be8f1df
+
+`e1-base-staging-be8f1df.json`: artefacto 13609012854 del CD
+[42458832112](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42458832112).
+ZIP SHA-256 35e3826a1ce7d0c1bbd9abd71d755352dbaf4127b15439262ab1db293c87a1ed
+verificado de nuevo contra el artefacto original al reanudar. CI main
+42458226675 aprobada; publish/prepare/migrate/staging aprobados, evidence 0014
+incluida. Producción bloqueada E5 y gate E1 omitido por flag false. E1 desactivada,
+sin aceptación funcional. La copia se recuperó de la rama documental al reanudar.

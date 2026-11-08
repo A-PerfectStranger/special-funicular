@@ -4,11 +4,24 @@
 
 **E1 sigue sin aceptación integral.** Main remoto verificado en
 `be8f1df5f5d19d86a38ba15a4b10bd01fa1c5155` (PR #11), integrado después de todos
-los checks push/PR de ccbc381 aprobados (42457544785 y 42457547776). CI/CD main
-nuevos pendientes de comprobar. La configuración E1 por defecto sigue false;
-retiros y producción apagados. El último CD acreditado es 42453335189 de 5ac4f02:
-publish/prepare/migrate/staging aprobados, producción bloqueada hasta E5 y evidence
-0013 aplicada. Evidence 0014 sigue pendiente en AWS hasta verificar el CD nuevo.
+los checks push/PR de ccbc381 aprobados (42457544785 y 42457547776). CI main
+42458226675 aprobada. CD 42458832112: publish/prepare/migrate/staging aprobados,
+evidence 0014 aplicada; producción bloqueada E5 y gate E1 omitido por flag false.
+Reporte técnico conservado en docs/evidence/e1-base-staging-be8f1df.json. La
+instrucción actual del usuario reanuda el cierre después de la pausa documentada
+en origin/docs/e1-runtime-checkpoint. Ensayo 42494427376 sobre be8f1df: publicación,
+preparación y migración aprobadas; actualización de Express rechazada con
+InvalidParameterException, suites funcionales omitidas. El operador confirmó
+INACTIVE con la definición API:9 y el origen original. La regresión local
+reproduce ese rechazo al actualizar una descripción INACTIVE retenida; el
+adaptador ahora recrea ese estado y bloquea DRAINING/estados desconocidos.
+La corrección y su repetición AWS se verifican por separado.
+La configuración continua conserva E1 false,
+retiros y producción apagados.
+
+Corrección de reactivación: make check aprobado (158 Python/nueve JS) y cinco
+regresiones específicas aprobadas, incluida denegación de lectura sin recreación.
+CI/integración y repetición real de este cambio todavía pendientes.
 
 - El operador confirmó las 13 identidades sintéticas/TOTP y el roster desde
   26d7d47. Contraseñas y semillas permanecen exclusivamente en Secrets Manager.
