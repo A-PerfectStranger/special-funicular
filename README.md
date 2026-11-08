@@ -13,6 +13,7 @@ Cada documento tiene un propósito único:
 | [AGENTS](AGENTS.md) | Reglas de desarrollo, validación e integración. |
 | Este README | Instalación, comandos y superficie disponible para desarrollo. |
 | [Despliegue](docs/runbooks/deployment.md) | Publicación, diagnóstico y rollback. |
+| [Importación y familia](docs/runbooks/e2.md) | Comandos privados, esquema, activación y ensayo E2. |
 | [Identidad y evidencia](docs/runbooks/e1.md) | Comisión, ensayos y recuperación sintética de E1. |
 | [AWS](infra/aws/README.md) | Infraestructura, presupuesto y bootstrap. |
 
@@ -135,3 +136,15 @@ La URL temporal de staging se obtiene de `base_url` en
 desplegar; recrear Express puede cambiarla. Ventanas, retirada y costes:
 [runbook](docs/runbooks/deployment.md) y [AWS](infra/aws/README.md).
 CI valida también las plantillas de infraestructura.
+
+
+Con `E2_FAMILY_ENABLED=true` y E1 configurada, se añaden las rutas familiares
+versionadas de OpenAPI: `/v1/students`, activación, cuidadores, fotos autenticadas,
+autorizaciones y revocación. `/v1/family/capabilities` existe solo con E2 habilitada;
+el móvil consulta esa disponibilidad antes de mostrar activación/gestión familiar.
+Los retiros permanecen deshabilitados. El importador y las operaciones técnicas
+son `python apps/backend/manage.py family_ops --help`, con credencial importer
+privada, aprobación escolar y motivo; no hay CRUD administrativo público.
+Comandos, límites, tratamiento de fotos y ensayo CloudShell: [runbook E2](docs/runbooks/e2.md).
+El workflow `e2-trial.yml` prepara un candidato acotado; no habilita E2 en el CD
+habitual ni acredita aceptación sin sus resultados reales.

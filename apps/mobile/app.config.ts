@@ -26,7 +26,8 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'light',
   runtimeVersion: '0.1.0',
   updates: { enabled: false },
-  plugins: ['./plugins/withPinnedGradle.cjs', 'expo-web-browser', 'expo-secure-store'],
+  plugins: ['./plugins/withPinnedGradle.cjs', 'expo-web-browser', 'expo-secure-store',
+    ['expo-image-picker', { photosPermission: 'Selecciona la foto del cuidador para autorizar su identificación.', cameraPermission: false, microphonePermission: false }]],
   android: {
     package: process.env.ANDROID_PACKAGE_ID ?? 'org.example.retiro.development',
     versionCode: 1,

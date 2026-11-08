@@ -13,3 +13,8 @@ if settings.E1_IDENTITY_ENABLED:
     from django.urls import include
 
     urlpatterns += [path("", include("identity.urls"))]
+
+if settings.E2_FAMILY_ENABLED:
+    from django.urls import include
+
+    urlpatterns += [path("v1/", include("authorization.urls"))]

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { IdentityClient } from '../src/identity.ts';
 import type { IdentityDependencies } from '../src/identity.ts';
@@ -102,4 +103,40 @@ test('a secure-store deletion failure cannot restore the session in memory', asy
   refuseDelete = true;
   await assert.rejects(client.logout());
   await assert.rejects(client.check());
+});
+
+test('activation uses PKCE and one invitation without persisting an IdP token or child data', async () => {
+  const calls: { path: string; payload: Record<string, unknown> }[] = [];
+  const { client, saved } = harness({ request: async (url, options) => {
+    const path = new URL(String(url)).pathname;
+    calls.push({ path, payload: JSON.parse(String(options?.body)) });
+    return new Response(JSON.stringify(path.endsWith('/start')
+      ? { authorization_url: 'https://idp.example/authorize', state, exchange_key: 'e'.repeat(43) }
+      : { status: 'activated' }));
+  } });
+  await client.activate('i'.repeat(43));
+  assert.equal(saved(), null);
+  assert.equal(calls[0].payload.purpose, 'activate');
+  assert.equal(calls[1].path, '/v1/activation/redeem');
+  assert.equal(calls[1].payload.invitation, 'i'.repeat(43));
+  assert.equal(calls[1].payload.code_verifier, 'v'.repeat(43));
+  await assert.rejects(client.check());
+});
+
+test('activation rejects a substituted native callback before sending an invitation', async () => {
+  const { client, calls } = harness({ browser: async () => `evil://auth/callback?code=code&state=${state}` });
+  await assert.rejects(client.activate('i'.repeat(43)));
+  assert.equal(calls.length, 1);
+});
+
+test('family commands preserve the provided idempotency key and require online identity', async () => {
+  const { client, calls } = harness();
+  await client.login();
+  const key = randomUUID();
+  await client.familyRequest('/v1/caregivers', { student_id: 'synthetic' }, key);
+  assert.equal((calls.at(-1)?.headers as Record<string, string>)['Idempotency-Key'], key);
+  assert.equal((calls.at(-1)?.headers as Record<string, string>).Authorization, `Bearer ${access}`);
+  await client.logout();
+  await assert.rejects(client.familyRequest('/v1/students'));
+  await assert.rejects(client.familyRequest('https://other.example/v1/students'));
 });

@@ -137,6 +137,50 @@ export class IdentityClient {
     return data.role;
   }
 
+  async familyRequest<T>(path: string, payload?: object, key?: string): Promise<T> {
+    if (!/^\/v1\/(students|caregivers|authorizations)(\/|$)/.test(path)) throw new Error('Invalid route');
+    await this.check();
+    const generation = this.generation;
+    const response = await this.dependencies.request(`${this.dependencies.apiUrl}${path}`, {
+      method: payload ? 'POST' : 'GET', cache: 'no-store', credentials: 'omit', redirect: 'error',
+      headers: { Authorization: `Bearer ${this.access}`, ...(payload
+        ? { 'Content-Type': 'application/json', 'Idempotency-Key': key ?? '' } : {}) },
+      ...(payload ? { body: JSON.stringify(payload) } : {}), signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok || generation !== this.generation) throw new Error('Online family request failed');
+    const result = await response.json();
+    if (generation !== this.generation) throw new Error('Session changed');
+    return result as T;
+  }
+
+  async activate(invitation: string): Promise<void> {
+    if (!validSecret(invitation) || this.authenticating || this.closing) throw new Error('Invalid invitation');
+    this.authenticating = true;
+    try {
+      await this.logout();
+      const generation = ++this.generation;
+      const pkce = await this.dependencies.pkce();
+      const started = await this.post('/v1/auth/mobile/start', {
+        code_challenge: pkce.challenge, purpose: 'activate',
+      }) as { authorization_url: string; state: string; exchange_key: string };
+      if (!validSecret(started.state) || !validSecret(started.exchange_key) ||
+          new URL(started.authorization_url).protocol !== 'https:') throw new Error('Invalid login');
+      const result = await this.dependencies.browser(started.authorization_url, this.dependencies.redirectUri);
+      if (!result || generation !== this.generation) throw new Error('Activation cancelled');
+      const callback = new URL(result);
+      const expected = new URL(this.dependencies.redirectUri);
+      if (callback.protocol !== expected.protocol || callback.host !== expected.host ||
+          callback.pathname !== expected.pathname || callback.searchParams.has('error') ||
+          callback.searchParams.getAll('state').length !== 1 || callback.searchParams.getAll('code').length !== 1 ||
+          callback.searchParams.get('state') !== started.state) throw new Error('Invalid callback');
+      const response = await this.post('/v1/activation/redeem', {
+        state: started.state, exchange_key: started.exchange_key, code: callback.searchParams.get('code'),
+        code_verifier: pkce.verifier, invitation,
+      }) as { status: string };
+      if (response.status !== 'activated' || generation !== this.generation) throw new Error('Activation denied');
+    } finally { this.authenticating = false; }
+  }
+
   async logout(): Promise<boolean> {
     this.closing = true;
     this.requiresLogin = true;

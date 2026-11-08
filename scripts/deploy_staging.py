@@ -135,6 +135,9 @@ def main() -> int:
     parser.add_argument(
         "--e1-trial", action="store_true", help="Synthetic E1 trial, not acceptance"
     )
+    parser.add_argument(
+        "--e2-trial", action="store_true", help="Bounded synthetic E2 trial; not acceptance"
+    )
     args = parser.parse_args()
     if not re.fullmatch("[0-9a-f]{40}", args.sha) or not re.fullmatch(
         "sha256:[0-9a-f]{64}", args.digest
@@ -157,7 +160,7 @@ def main() -> int:
         or environment.get("pickup_enabled") is not False
     ):
         raise SystemExit("BLOCKED: synthetic-only staging with pickups disabled required")
-    e1_enabled = args.e1_trial or environment.get("e1_enabled") is True
+    e1_enabled = args.e1_trial or args.e2_trial or environment.get("e1_enabled") is True
     outputs = {
         v["OutputKey"]: v["OutputValue"]
         for v in aws("cloudformation", "describe-stacks", "--stack-name", "retiro-staging-base")[
@@ -221,7 +224,7 @@ def main() -> int:
             ][0]["Outputs"]
         }
         # Validate both definitions before starting a process. Same image, isolated credentials.
-        api = api_definition(outputs, e1, image, args.sha)
+        api = api_definition(outputs, e1, image, args.sha, enable_family=args.e2_trial)
         archive = register(archive_definition(outputs, e1, image, args.sha))
         archive_task = start_archive(outputs, archive, expected)
     else:
@@ -274,6 +277,7 @@ def main() -> int:
         "probes": report,
         "passed": passed,
         "e1_identity_enabled": e1_enabled,
+        "e2_family_enabled": args.e2_trial,
         "archive_task": archive_task,
         "e1_accepted": False,
         "scope": "Deployment and technical probes only; functional E1 acceptance is separate",

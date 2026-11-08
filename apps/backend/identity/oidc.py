@@ -42,6 +42,7 @@ class VerifiedIdentity:
     issuer: str
     subject: str
     authenticated_at: int
+    verified_contact: str | None = None
 
 
 @dataclass(frozen=True)
@@ -100,7 +101,9 @@ class Provider:
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             raise IdentityRejected() from exc
 
-    def authorize_url(self, channel: str, state: str, nonce: str, challenge: str) -> str:
+    def authorize_url(
+        self, channel: str, state: str, nonce: str, challenge: str, require_contact: bool = False
+    ) -> str:
         metadata = self.metadata()
         return (
             str(metadata["authorization_endpoint"])
@@ -110,7 +113,7 @@ class Provider:
                     "client_id": self.client(channel),
                     "redirect_uri": self.redirect(channel),
                     "response_type": "code",
-                    "scope": "openid",
+                    "scope": "openid email" if require_contact else "openid",
                     "state": state,
                     "nonce": nonce,
                     "code_challenge": challenge,
@@ -250,7 +253,17 @@ class Provider:
                 or (self.mfa_policy == "cognito_required_totp" and claims.get("token_use") != "id")
             ):
                 raise IdentityRejected()
-            return VerifiedIdentity(self.issuer, claims["sub"], claims["auth_time"])
+            contact = claims.get("email")
+            verified_contact = (
+                contact.lower()
+                if claims.get("email_verified") is True
+                and isinstance(contact, str)
+                and 3 <= len(contact) <= 254
+                else None
+            )
+            return VerifiedIdentity(
+                self.issuer, claims["sub"], claims["auth_time"], verified_contact
+            )
         except (jwt.PyJWTError, ValueError, TypeError, KeyError) as exc:
             raise IdentityRejected() from exc
 

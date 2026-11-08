@@ -55,3 +55,27 @@ class Link(models.Model):
                 name="one_active_principal",
             ),
         ]
+
+
+class ImportBatch(models.Model):
+    id = models.UUIDField(primary_key=True)
+    school = models.ForeignKey(School, on_delete=models.PROTECT)
+    payload = models.TextField()
+    digest = models.CharField(max_length=64)
+    operator = models.CharField(max_length=160)
+    approval = models.CharField(max_length=160, default="")
+    staged_at = models.DateTimeField()
+    approved_at = models.DateTimeField(null=True)
+    promoted_at = models.DateTimeField(null=True)
+
+
+class Enrollment(models.Model):
+    parent = models.OneToOneField(Parent, primary_key=True, on_delete=models.PROTECT)
+    school = models.ForeignKey(School, on_delete=models.PROTECT)
+    contact = models.EmailField(max_length=254)
+    approval = models.CharField(max_length=160)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["contact"], name="enrollment_contact_unique")
+        ]

@@ -119,6 +119,54 @@ Operación y repetición de ensayos: [runbook E1](docs/runbooks/e1.md).
 
 **Aceptación:** AT01 y casos relevantes AT02/AT04; ninguna asignación por datos declarados; lote incorrecto sin activación parcial; secundario sin capacidad de autorizar; cambios sensibles invalidan tokens.
 
+**Criterios verificables y ejecución E2:**
+
+1. Importador privado separado del runtime: esquema versionado, validación completa,
+   hash de bytes, aprobación escolar vinculada al hash y promoción atómica. Replay
+   idéntico conserva resultado; mismo ID con contenido distinto falla. Sin acceso
+   desde apps administrativas ni activación parcial ante referencias inválidas.
+2. Operaciones técnicas con ejecutor, motivo y aprobación: altas/bajas de personal,
+   cambio de principal y restricciones. Invalidación online de sesiones pertinentes
+   y versiones/autorizaciones afectadas, con evento/outbox en la misma transacción.
+3. Invitación de 32 bytes CSPRNG, hash único y vida de 24 h, un solo uso y revocable.
+   Canje con Code/PKCE, nonce, MFA y contacto verificado por IdP que coincide con
+   la precarga; asociación exclusiva issuer/sub. Sin enumeración ni autoasignación.
+4. API/móvil: estudiantes propios, capacidad por vínculo y aislamiento de familias,
+   escuelas y roles. Principal registra/actualiza cuidador completo con foto
+   reencodificada; autorizaciones por fecha o recurrencia semanal finita dentro de
+   ventanas IANA precargadas. MFA <=5 min en cambios; revocación y actualización
+   invalidan versiones anteriores. Sin QR permanente ni retiro habilitado.
+5. PostgreSQL real con roles separados, RLS forzada, concurrencia, replay, límites
+   temporales, rollback y pruebas negativas. Contrato, tipos, migraciones, seguridad,
+   bundle/APK y ensayo integrado de staging por commit antes de acreditar E2.
+
+**Implementación candidata:** modelo/migraciones E2 y comandos SQL con RLS forzada;
+`family_ops` privado con esquema/hash/aprobación/promoción; invitaciones y canje
+Code/PKCE con email verificado; principal/políticas/baja auditados; API familiar,
+fotos reencodificadas y móvil SDK 56; OpenAPI y runbook operativo. El ensayo
+`e2-trial.yml` usa cohortes nuevas y el gate E1/WORM existente, sin permisos IAM
+nuevos. Aún no se acredita E2 por la existencia de este código.
+
+| Criterio | Verificación local | Verificación AWS |
+| --- | --- | --- |
+| Lote/hash/aprobación/idempotencia/rollback | PostgreSQL importer real, lote válido/incorrecto y conflicto posterior a staging | Pendiente candidato integrado + cohorte nueva |
+| Activación/contacto/issuer-sub/uso único | Firma RSA, PKCE y transporte; PostgreSQL, expiración y ocho canjes concurrentes | Pendiente scope email y MFA nuevos en Cognito |
+| Roles/familias/principal/sesiones | Dos escuelas, negativos, comandos concurrentes y cambio de principal ordenado | Pendiente ensayo E2; E1 conserva su aceptación propia |
+| Cuidadores/fotos/autorizaciones/horarios | Reencodificación, recurrencia IANA/DST, revocación y límites de MFA | Pendiente API móvil compartida contra candidato |
+| Evidencia/compatibilidad/distribución | Evento/outbox atómicos; migraciones, tipos, contrato y bundle | Pendiente imagen/APK por SHA y WORM independiente |
+
+**Límites actuales:** E2 está apagada en CD habitual; solo el ensayo explícito puede
+habilitarla en staging sintético. Falta ejecutar el ensayo y cerrar su matriz;
+la habilitación continua requiere gate E2 y cohortes repetibles. QR/permisos de
+entrega pertenecen a E3 y no se declaran probados por invalidar autorizaciones.
+No se ejecutaron importaciones/invitaciones ni mensajes reales. Procedimiento
+CloudShell revisable, sin compartir códigos de verificación: docs/runbooks/e2.md.
+
+Orden: importación/operaciones técnicas → activación → autorización familiar/API/
+cliente móvil → regresiones y aceptación del candidato. Estado de ejecución y
+continuidad solicitado por el usuario en PROGRESS.md. Las casillas permanecen
+pendientes hasta verificar los criterios; E3–E5 permanecen deshabilitadas.
+
 ### E3 — QR y retiro completo
 
 - [ ] Implementar emisión/renovación/reprogramación y fórmula temporal del QR.

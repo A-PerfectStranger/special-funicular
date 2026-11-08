@@ -166,3 +166,13 @@ def test_cognito_mfa_attestation_checks_real_policy_shapes(degradation: str | No
             api.describe_user_pool_client.assert_called_once_with(
                 UserPoolId=provider.pool_id, ClientId="mobile"
             )
+
+
+@pytest.mark.parametrize("verified", [True, False, "true", None])
+def test_activation_contact_must_be_a_verified_signed_claim(
+    signed_identity: Any, verified: Any
+) -> None:
+    provider, key, jwk, claims = signed_identity
+    claims.update(email="Synthetic@Example.invalid", email_verified=verified)
+    identity = provider.verify_token(token(key, claims), [jwk], "mobile", "bound-nonce")
+    assert identity.verified_contact == ("synthetic@example.invalid" if verified is True else None)
