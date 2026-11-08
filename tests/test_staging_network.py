@@ -19,15 +19,22 @@ def test_only_alb_group_can_reach_task_http(cidr: bool, monkeypatch: pytest.Monk
         permission["IpRanges"] = [{"CidrIp": "0.0.0.0/0"}]
 
     def read(*args: str) -> dict[str, Any]:
-        if args[0] == "ecs":
+        if args[1] == "describe-express-gateway-service":
             return {
-                "services": [
-                    {
-                        "networkConfiguration": {
-                            "awsvpcConfiguration": {"securityGroups": ["sg-task"]}
-                        },
-                        "loadBalancers": [{"targetGroupArn": "target"}],
-                    }
+                "service": {
+                    "status": {"statusCode": "ACTIVE"},
+                    "activeConfigurations": [
+                        {
+                            "serviceRevisionArn": "revision",
+                            "networkConfiguration": {"securityGroups": ["sg-task"]},
+                        }
+                    ],
+                }
+            }
+        if args[1] == "describe-service-revisions":
+            return {
+                "serviceRevisions": [
+                    {"resolvedConfiguration": {"loadBalancers": [{"targetGroupArn": "target"}]}}
                 ]
             }
         if args[1] == "describe-target-groups":
@@ -54,3 +61,15 @@ def test_only_alb_group_can_reach_task_http(cidr: bool, monkeypatch: pytest.Monk
             ]
             is True
         )
+
+
+def test_missing_revision_resolution_cannot_accept_proxy_trust(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        verify_staging_network,
+        "aws",
+        lambda *args: {"service": {"status": {"statusCode": "ACTIVE"}, "activeConfigurations": []}},
+    )
+    with pytest.raises(RuntimeError, match="No active Express revision"):
+        verify_staging_network.verify_ingress("cluster", "service", "sg-app")

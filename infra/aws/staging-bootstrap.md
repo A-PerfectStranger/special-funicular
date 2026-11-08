@@ -132,3 +132,17 @@ milisegundos, formato exigido por CloudFormation/Scheduler. Ante ROLLBACK_COMPLE
 solo recrea `retiro-staging-lifecycle` si pertenece al proyecto y contiene
 exclusivamente los recursos IAM/Scheduler previstos; no elimina el stack de datos.
 El bootstrap y la comisión inicial utilizan este mismo reparador. RFS22/CA-S22.
+
+## Reanudar una API ya creada
+
+Express puede omitir networkConfiguration/loadBalancers/taskDefinition de
+DescribeServices. La comprobación consulta activeConfigurations de Express y
+resuelve los target groups de DescribeServiceRevisions; verifica el ALB y los
+security groups reales antes de confiar en X-Forwarded-Proto. La política
+lifecycle añade solo esa lectura regional, sin acceso a valores de secretos.
+
+`commission-staging.sh SOURCE_SHA IMAGE_SHA DIGEST --existing-service` actualiza
+lifecycle, repite las comprobaciones SQL sintéticas y acepta la API existente sin
+crearla otra vez. Comprueba el presupuesto real y emite configuración pública de
+entorno, digest y probes. La configuración solo se integra tras passed=true y
+posterior verificación del CD con los roles separados. RFS09/13/14/22 y CA-S09/13/14/22.

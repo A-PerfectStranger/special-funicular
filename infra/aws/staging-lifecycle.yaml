@@ -74,7 +74,7 @@ Resources:
             Condition:
               StringEquals: {iam:PassedToService: scheduler.amazonaws.com}
           - Effect: Allow
-            Action: [ec2:DescribeSecurityGroups, elasticloadbalancing:DescribeTargetGroups, elasticloadbalancing:DescribeLoadBalancers]
+            Action: [ecs:DescribeServiceRevisions, ec2:DescribeSecurityGroups, elasticloadbalancing:DescribeTargetGroups, elasticloadbalancing:DescribeLoadBalancers]
             Resource: '*'
             Condition:
               StringEquals: {aws:RequestedRegion: us-east-1}

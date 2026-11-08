@@ -5,13 +5,45 @@
 Base técnica E0 implementada y verificada. **Identidad AWS de lectura conectada
 por OIDC desde GitHub/main**; créditos y vigencia confirmados por AWS.
 **Staging aún en comisión, producción no aprovisionada**. Cost Explorer ya
-aprobó el preflight completo (42420579085). El presupuesto existe; se prepara la
-base real y el adaptador de staging. Los bloqueos históricos de gasto que figuran
+aprobó el preflight completo, repetido con éxito en 42430538070. El presupuesto,
+la base privada y la guarda horaria ya se aplicaron; falta aceptar la API real. Los bloqueos históricos de gasto que figuran
 abajo ya no son el impedimento actual. No presentar la preparación como deploy.
 E1–E5 pendientes; ningún retiro real habilitado. El toolkit interactivo no está
 instalado/autenticado; OIDC de CI no se presenta como ese login humano.
 
 ## Comisión actual: PostgreSQL privado y ventana limitada
+
+La comisión del artefacto `9f988a1` completó SQL y creó la API Express, estado
+ACTIVE según CloudShell. URL observada:
+https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws.
+La aceptación falló en el verificador: DescribeServices omite la red y los target
+groups en este servicio Express. Se corrige para consultar la revisión activa y
+los target groups resueltos. No se marca staging aprobado por estar ACTIVE.
+
+
+- Publicación OIDC real aprobada: [42430973973](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42430973973).
+  Deploy publicó el artefacto de CI main `42430283578` del commit
+  `9f988a132ae72812a4d329f97d30ae2265bcd988` en ECR y verificó el digest
+  `sha256:bf3e47b155d9c43f07fa1c722f7f263860e290c271ded7fe4e925382f51f132d`.
+  Artefacto público de metadatos `13597795597`. Esto acredita publicación,
+  no el estado del servicio; comisión SQL/API y aceptación pendientes.
+
+
+- PR #5 integrado en `9f988a132ae72812a4d329f97d30ae2265bcd988` con todos los
+  checks aprobados. [CI de main 42430283578](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42430283578)
+  aprobó quality, imagen con smoke real, APK y required. Último `make check`
+  local: 62 pruebas Python y 3 JS, todos los checks aprobados.
+- El usuario confirmó que el reparador `98fd5b34aeaf1e04f36146a81a90cb64c56ad64a`
+  terminó con `Lifecycle configured`. Base y roles Deploy/Migrate existen;
+  Scheduler tiene ventana activa inicial de tres horas y guarda horaria de RDS.
+  La aplicación de la guarda no acredita aún una invocación de parada real.
+- Preflight de facturación repetido después de crear la base:
+  [42430538070](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42430538070),
+  artefacto `13596459500`: cuenta correcta, acceso IAM ajeno denegado,
+  créditos cubren el techo de 150 USD, vigencia hasta 2027-05-06 y gasto mensual
+  bruto consultado bajo el techo; `passed=true`, sin errores. Solo booleanos
+  en el artefacto público; no publica saldos ni correo de alertas.
+
 
 El usuario confirmó creación de la base y devolvió los ARN Deploy/Migrate de la
 cuenta esperada. El stack independiente lifecycle falló: Scheduler exige
