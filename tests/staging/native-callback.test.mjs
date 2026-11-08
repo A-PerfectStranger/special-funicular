@@ -4,11 +4,16 @@ import { createServer } from 'node:http';
 import { chromium } from 'playwright';
 import { nativeCallback } from './native-callback.mjs';
 
-async function exercise(target, check) {
+async function exercise(target, check, scriptRedirect = false) {
   const server = createServer((request, response) => {
     if (request.method === 'POST') {
-      response.writeHead(302, { Location: target });
-      response.end();
+      if (scriptRedirect) {
+        response.writeHead(200, { 'Content-Type': 'text/html' });
+        response.end('<script>window.location.assign(' + JSON.stringify(target) + ')</script>');
+      } else {
+        response.writeHead(302, { Location: target });
+        response.end();
+      }
     } else {
       response.writeHead(200, { 'Content-Type': 'text/html' });
       response.end('<form method="post"><button type="submit">Continue</button></form>');
@@ -55,4 +60,26 @@ test('a foreign native scheme never satisfies the registered callback', { timeou
       await assert.rejects(capture.callback, /Unregistered native callback/);
     } finally { await capture.dispose(); }
   });
+});
+
+test('native callback requested by provider script is captured', { timeout: 15000 }, async () => {
+  const redirect = 'retiro-seguro-staging://auth/callback';
+  const expected = redirect + '?code=synthetic-code&state=synthetic-state';
+  await exercise(expected, async page => {
+    const capture = await nativeCallback(page, redirect, 5000);
+    try {
+      await page.locator('button').click({ noWaitAfter: true });
+      assert.equal(await capture.callback, expected);
+    } finally { await capture.dispose(); }
+  }, true);
+});
+
+test('script navigation to a foreign native callback is rejected', { timeout: 15000 }, async () => {
+  await exercise('unexpected-native://auth/callback?code=synthetic', async page => {
+    const capture = await nativeCallback(page, 'retiro-seguro-staging://auth/callback', 5000);
+    try {
+      await page.locator('button').click({ noWaitAfter: true });
+      await assert.rejects(capture.callback, /Unregistered native callback/);
+    } finally { await capture.dispose(); }
+  }, true);
 });

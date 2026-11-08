@@ -47,3 +47,20 @@ SHA 26d7d47. ZIPs contrastados por SHA-256 del registro de artefactos:
 El fallo móvil se reprodujo en la captura de response de Chromium para protocolos
 nativos. La corrección se verifica por separado; los resultados de 26d7d47 se
 conservan sin reinterpretarlos como aprobación de toda E1.
+
+## Segundo ensayo 5ac4f02 (sin aceptación integral)
+
+Workflow [42454301027](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42454301027).
+Las copias se extrajeron tras verificar SHA-256 de cada ZIP original:
+
+| Copia | Artefacto | SHA-256 ZIP |
+| --- | --- | --- |
+| e1-trial-staging-5ac4f02.json | 13606304888 | 7cf1f6cbd1f92909f184086b9520a3bf17b09d5ac5b3f53095af9028d791f59c |
+| e1-browser-5ac4f02.json | 13606943244 | e0d1b162c0de8158668b04f08051d0acb09624e7ccd7b757cebb0fdd1f64d7fb |
+| e1-cloud-5ac4f02.json | 13606969728 | 9bee13f0db3b7940628b78cc515cedabdd609fa2f1a98aece1d2258de656661f |
+| e1-apk-manifest-5ac4f02.json | 13607316973 | a1d8bb1afc2631d84e57fe64edf79304ec7d8446230e0fc078671a0d09145d96 |
+
+Browser conserva su fallo mobile_native_return; escuela aprobada, GUARDIA no
+alcanzado, archive-drill omitido. Cloud verificó 37 eventos independientemente.
+El APK solo acredita compilación/configuración/firma de desarrollo; no prueba
+física ni distribución. Ningún reporte se transforma en aceptación completa.

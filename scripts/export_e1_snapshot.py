@@ -6,6 +6,56 @@ import uuid
 from typing import Any
 
 import psycopg
+from psycopg import sql
+
+ROSTER_TABLES = {
+    "schools": "school_roster_school",
+    "sites": "school_roster_site",
+    "accounts": "identity_account",
+    "parents": "school_roster_parent",
+    "students": "school_roster_student",
+    "links": "school_roster_link",
+}
+
+
+def verify_roster_rows(db: psycopg.Connection[Any], data: dict[str, Any]) -> None:
+    if data.get("synthetic_only") is not True or data.get("schema_version") != 1:
+        raise RuntimeError("Original synthetic import manifest required")
+    for group, table in ROSTER_TABLES.items():
+        for row in data[group]:
+            fields = {
+                **row,
+                **(
+                    {"active": True}
+                    if group in {"schools", "accounts", "students", "links"}
+                    else {}
+                ),
+            }
+            names = list(fields)
+            actual = db.execute(
+                sql.SQL("SELECT {} FROM public.{} WHERE id=%s").format(
+                    sql.SQL(",").join(map(sql.Identifier, names)), sql.Identifier(table)
+                ),
+                (row["id"],),
+            ).fetchone()
+            expected = tuple(
+                uuid.UUID(value)
+                if name == "id" or name.endswith("_id") and value is not None
+                else value
+                for name, value in fields.items()
+            )
+            if actual != expected:
+                raise RuntimeError("Original roster or identity binding changed")
+
+
+def verify_closed_fixture(db: psycopg.Connection[Any], data: dict[str, Any]) -> None:
+    verify_roster_rows(db, data)
+    for group, table in ROSTER_TABLES.items():
+        count = db.execute(
+            sql.SQL("SELECT count(*) FROM public.{}").format(sql.Identifier(table))
+        ).fetchone()
+        if count != (len(data[group]),):
+            raise RuntimeError("Staging dataset is not the closed synthetic fixture")
 
 
 def inspect_boundaries(db: psycopg.Connection[Any]) -> dict[str, bool]:
@@ -88,7 +138,10 @@ def main() -> None:
             True,
         ):
             raise RuntimeError("Authenticated TLS required")
+        expected = json.loads(os.environ["E1_EXPECTED_ROSTER"])
+        verify_closed_fixture(db, expected)
         checks = inspect_boundaries(db)
+        checks["roster_matches_original_import"] = True
         rows = db.execute(
             "SELECT * FROM e1_export_fixture_snapshot(%s)", (uuid.uuid4(),)
         ).fetchall()

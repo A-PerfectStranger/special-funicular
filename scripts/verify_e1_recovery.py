@@ -105,6 +105,7 @@ def verify(
         "e1_accepted": False,
         "sql_credentials_used": False,
         "operator_inspected_boundaries": boundaries,
+        "operator_cognito_controls": report.get("cognito_controls"),
         "original_matches_external_archive": True,
         "rewritten_local_chain_valid": True,
         "external_rejected_rewritten_copy": True,
