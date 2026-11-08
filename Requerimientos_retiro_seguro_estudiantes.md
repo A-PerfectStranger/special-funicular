@@ -1,6 +1,6 @@
 # Requerimientos del producto — Retiro seguro de estudiantes
 
-Base de implementación · 6 de noviembre de 2026 · Proyecto: Aplicación Segura de Rastreo.
+Contrato del producto · Proyecto: Aplicación Segura de Rastreo.
 
 Este archivo define comportamiento, permisos, contratos y aceptación del producto. `AGENTS.md` rige la implementación y `PLAN.md` ordena el trabajo y el despliegue continuo. Las decisiones de arquitectura aquí indicadas están fijadas; los valores de conexión de cada entorno se configuran al aprovisionarlo.
 
@@ -18,7 +18,7 @@ El MVP permite autorizar el retiro escolar, presentar un QR, verificar presencia
 | Identidad | IdP administrado OIDC y MFA para los cuatro roles. |
 | Evidencia | Eventos append-only, archivo WORM independiente, manifiestos verificables y claves KMS. |
 | Procesamiento | Workers de archivo y notificaciones; outbox transaccional y reintentos idempotentes. |
-| Despliegue | GitHub Actions: CI → staging → pruebas → producción automática. AWS seleccionado el 7 de noviembre de 2026; región us-east-1 y techo total de créditos 150 USD. Staging sintético E0/E1 verificado; producción pendiente E5. |
+| Despliegue | GitHub Actions: CI → staging → pruebas → producción automática. AWS, región us-east-1 y techo total de créditos 150 USD. Estado de implementación en [PLAN.md](PLAN.md); configuración y presupuesto en [infra/aws/README.md](infra/aws/README.md). |
 
 La escuela verifica vínculos, contactos, restricciones y horarios antes de entregarlos. El equipo técnico del proyecto ejecuta bulk, altas/bajas de personal, cambios de principal, configuración e incidencias urgentes mediante procesos privados auditados. Estas tareas no añaden permisos al administrador de escuela ni al administrador de sistema.
 

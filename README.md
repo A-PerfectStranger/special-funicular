@@ -1,11 +1,24 @@
 # Retiro seguro de estudiantes
 
-Monorepo Django/PostgreSQL y Expo SDK 56. E0 está aceptada en staging.
-E1 tiene aceptación funcional sintética de identidad, aislamiento y evidencia.
-La configuración de staging habilita E1 con browser/cloud/APK/archive-drill
-obligatorios en CD; desarrollo conserva las rutas desactivadas por defecto.
-Los retiros permanecen deshabilitados. Solo datos sintéticos.
-El estado verificable y los bloqueos están en [PROGRESS.md](PROGRESS.md).
+Monorepo Django/PostgreSQL y Expo SDK 56 para el retiro escolar seguro.
+
+## Documentación
+
+Cada documento tiene un propósito único:
+
+| Documento | Fuente de referencia para |
+| --- | --- |
+| [Requisitos](Requerimientos_retiro_seguro_estudiantes.md) | Comportamiento, arquitectura, permisos y criterios de aceptación del producto. |
+| [Plan](PLAN.md) | Estado de las entregas, aceptación acreditada y trabajo pendiente. |
+| [AGENTS](AGENTS.md) | Reglas de desarrollo, validación e integración. |
+| Este README | Instalación, comandos y superficie disponible para desarrollo. |
+| [Despliegue](docs/runbooks/deployment.md) | Publicación, diagnóstico y rollback. |
+| [Identidad y evidencia](docs/runbooks/e1.md) | Comisión, ensayos y recuperación sintética de E1. |
+| [AWS](infra/aws/README.md) | Infraestructura, presupuesto y bootstrap. |
+
+La configuración de cada destino vive en [infra/environments](infra/environments).
+Mantener el estado en el plan y los resultados por commit en Actions; no añadir
+bitácoras de sesión ni copias de reportes históricos al repositorio.
 
 ## Requisitos y arranque
 
@@ -42,12 +55,12 @@ detiene la base sin borrar su volumen; no usar `down -v` sobre datos que se deba
 | `make db` / `make migrate` | PostgreSQL / migraciones con identidad separada. |
 | `make lint` | Ruff, formato y ESLint. |
 | `make typecheck` | mypy estricto y TypeScript. |
-| `make test` | Unitarias, contratos, PostgreSQL/RLS y pruebas móvil. |
+| `make test` | Unitarias, contratos, PostgreSQL/RLS, móvil y regresión vendor. |
 | `node --test tests/staging/native-callback.test.mjs` | Regresión real de Chromium para retorno nativo; requiere navegador Playwright o E1_CHROMIUM_PATH. |
-| `make check` | Todo lo anterior, checks Django, deriva de migraciones y compatibilidad Expo. |
+| `make check` | Lint, tipos, migraciones, `make test`, checks Django y compatibilidad Expo. |
 | `make security` | pip-audit, npm audit y gitleaks 8.30.1 (instalar binario oficial en PATH). |
 | `npm run mobile:export` | Compila el bundle Android/Hermes; no es un APK. |
-| `make image` | Imagen no privilegiada, compartida por API y futuro worker. |
+| `make image` | Imagen no privilegiada, compartida por API y worker de archivo. |
 | `bash scripts/smoke_image.sh retiro-backend:<SHA>` | Probes reales de imagen, runtime sin credencial de migración y diagnóstico worker. |
 | `make apk` | APK arm64 de desarrollo firmado con debug key, requiere Android SDK/JDK 21. |
 
@@ -55,7 +68,7 @@ Para la regresión de navegador: `npx playwright install chromium` (dependencias
 Linux con `--with-deps`), o `E1_CHROMIUM_PATH=/ruta/a/chromium` con un navegador
 local. CI instala el navegador oficial y ejecuta la misma prueba sin credenciales.
 
-`make security` necesita `work/` (crear con `mkdir -p work`). Instalar gitleaks
+`make security` crea `work/` para sus archivos temporales. Instalar gitleaks
 desde su release oficial y comprobar el checksum publicado; CI contiene los comandos.
 Los escaneos no se sustituyen por mocks ni se ignoran fallos de dependencia.
 Los overrides de Zod/glob/minimatch corrigen avisos transitivos sin cambiar SDK 56.
@@ -89,12 +102,12 @@ y manifiesto público, sin binario interno público. OTA permanece deshabilitado
 | `/v1/capabilities` | `pickup_enabled: false`, contrato público mínimo. |
 
 OpenAPI: `tests/contracts/openapi.yaml`. Respuestas `no-store`, sin PII.
-Readiness técnico **no autoriza retiros**. `/admin/` y rutas de negocio no existen.
-Sin seleccionar un handler, `python manage.py runworker --check` muestra cero
+Readiness técnico **no autoriza retiros**. `/admin/` y rutas de retiro no existen.
+Sin seleccionar un handler, `python apps/backend/manage.py runworker --check` muestra cero
 handlers activos. E1 añade `runworker --archive` con configuración y credencial
 SQL propias; las notificaciones siguen pendientes de E4. La ejecución cloud
 acotada usa `python -m archive_worker.runner --max-runtime-seconds 10800`.
-Guía y estado de aceptación: [runbook E1](docs/runbooks/e1.md).
+Operación: [runbook E1](docs/runbooks/e1.md); aceptación y pendientes: [plan](PLAN.md).
 
 Con `E1_IDENTITY_ENABLED=true` y configuración completa, E1 añade `/auth/login`,
 `/auth/callback`, `/auth/logout`, `/portal/`, `/v1/auth/mobile/start`,
@@ -109,33 +122,16 @@ escolares de salidas corresponden a E4 y los retiros a E3.
 `.github/workflows/ci.yml` usa los mismos comandos. Checks de PR sin secretos,
 acciones por SHA, imagen OCI con digest y manifiestos por commit. El job `required`
 exige calidad y ambos builds. Las pruebas locales E1 incluyen roles/familias y RLS
-con PostgreSQL real. Los ensayos 42501830048 y 42507955250 acreditan IdP/MFA,
-WORM/KMS, revocación, archivo tardío y copia SQL con servicios sintéticos reales.
-Los AT01–AT08 completos y operación de retiros corresponden a E2–E5.
+con PostgreSQL real. El [plan](PLAN.md) delimita la aceptación funcional de cada
+entrega; pasar los probes técnicos no acredita funciones pendientes.
 
 El repositorio es público. El APK interno no se sube como artefacto público:
 se conserva el checksum; el binario solo se sube automáticamente si el repositorio
 es privado. Para distribución interna en este repositorio falta conectar un destino privado.
 No hay código privilegiado ejecutado desde forks ni `pull_request_target`.
 
-CD serializado real en AWS: publica el artefacto aprobado de main preservando el
-digest, abre la ventana RDS, migra con identidad separada y despliega/verifica
-staging con Deploy. Rechaza candidatos obsoletos y serializa migraciones mediante
-advisory lock SQL. Datos sintéticos, retiros deshabilitados. Producción permanece
-BLOCKED/NOT_CONFIGURED hasta E5, sin aprobación manual rutinaria añadida.
-
-Staging temporal: https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws. API/ALB se retiran a las tres horas de cada despliegue;
-RDS se detiene fuera de ensayos, con coste residual reservado. La evidencia de
-SHA/digest, TLS/red y ejecución está en [PROGRESS.md](PROGRESS.md).
-Ver [runbook](docs/runbooks/deployment.md) y [presupuesto AWS](infra/aws/README.md).
-Los probes HTTPS de `scripts/verify_staging.py` se ejecutaron realmente desde CI,
-con certificado/hostname verificados y TLS 1.3. El plano de control y el digest
-se verifican por separado; no se infieren de una respuesta de health.
-
-Los requisitos de producto permanecen en `Requerimientos_retiro_seguro_estudiantes.md`;
-`PLAN.md` fija E0–E5 y `AGENTS.md` las convenciones de trabajo.
-
-La infraestructura y operación sintética se documentan en
-[bootstrap de staging](infra/aws/staging-bootstrap.md). Cost Explorer, presupuesto,
-base privada, publicación y aceptación de staging tienen evidencia real E0.
+La URL temporal de staging se obtiene de `base_url` en
+[su configuración](infra/environments/staging.json) y se contrasta con AWS al
+desplegar; recrear Express puede cambiarla. Ventanas, retirada y costes:
+[runbook](docs/runbooks/deployment.md) y [AWS](infra/aws/README.md).
 CI valida también las plantillas de infraestructura.

@@ -1,202 +1,156 @@
-# AWS: configuración y límite de créditos
+# AWS — infraestructura y operación de staging
 
-Proveedor decidido por el usuario: AWS, `us-east-1`, perfil `aesir`.
-Techo total 150 USD para TODO el desarrollo y primer despliegue.
-El usuario confirmó saldo suficiente y plazo de financiación hasta el 6 de mayo
-de 2027. El techo del proyecto sigue siendo **150 USD totales**. El importe real
-se mantiene fuera del repositorio público. AWS ya confirmó créditos suficientes
-y vigencia; Cost Explorer y el preflight completo ya aprobaron. Presupuesto,
-base privada y staging están aplicados/verificados, con evidencia en PROGRESS.md.
-CloudShell se usó para bootstrap y GitHub OIDC para publicación/migración/deploy;
-el login interactivo del kit descrito abajo sigue sin acreditarse. No equivale
-a gasto cero de la cuenta ni a operación indefinida.
+AWS `us-east-1`, perfil humano `aesir`. Parámetros del destino en
+[staging.json](../environments/staging.json) y
+[production.json](../environments/production.json); estado y alcance de aceptación
+en [PLAN.md](../../PLAN.md). Las plantillas y scripts son la fuente ejecutable.
+La URL de Express es temporal: contrastar el origen observado por AWS con la
+configuración y los callbacks antes de usar identidad.
 
-## Distribución propuesta del techo
+## Presupuesto y costes retenidos
 
-Son límites de trabajo, **no cotizaciones ni precios de servicios**.
+Techo de **150 USD totales** para desarrollo y primer despliegue. El crédito
+confirmado vence el 6 de mayo de 2027; verificar saldo, vigencia y gasto antes de
+cada sesión cloud, sin publicar balances ni correo de alertas.
 
 | Uso | Máximo reservado USD |
 | --- | ---: |
-| E0: ventana inicial de staging, además de local/CI | 3 |
-| E1: ensayos IdP/PostgreSQL/KMS/WORM sintéticos | 22 |
+| E0: ventana inicial de staging | 3 |
+| E1: ensayos IdP/PostgreSQL/KMS/WORM | 22 |
 | E2/E3: integración y concurrencia | 35 |
-| E4: avisos/consulta/observabilidad | 20 |
+| E4: avisos, consulta y observabilidad | 20 |
 | E5 y primera ventana de despliegue | 40 |
-| Reserva para incidentes, almacenamiento retenido y variación | 30 |
+| Reserva: incidentes, retención y variación | 30 |
 | Total | 150 |
 
-Antes de gastar: verificar créditos restantes/fecha de expiración, consultar
-precios actuales oficiales de la región y presupuestar por horas, almacenamiento,
-PITR, claves, requests, logs y transferencia. Revisar gasto al inicio/fin de cada
-sesión cloud. Si el saldo no cubre la reserva y lo que resta del plan, no aprovisionar.
-El tiempo de servicio sostenible depende del uso; 150 USD no garantiza operación indefinida.
+Son límites de trabajo, no tarifas. `budget.yaml` define un presupuesto total de
+coste bruto, sin descontar créditos, con alertas 25/50/75/90/100%; requiere correo y
+fechas reales. Budgets tiene demora y no impone un corte rígido. Si faltan datos de
+gasto o el saldo no cubre la reserva y el plan restante, no aprovisionar. Cost
+Explorer debe estar habilitado y disponer de datos; un resultado ausente no es cero.
 
-Preferir builds/pruebas locales y GitHub Actions sobre máquinas AWS de build.
-Activar staging solo durante ensayos. Evitar NAT Gateway, balanceadores, endpoints
-privados y réplicas siempre encendidos sin cálculo previo; no eliminar controles
-de seguridad para ahorrar. RDS detenido conserva costes de almacenamiento y puede
-reiniciarse automáticamente; no usar «stop» como garantía de gasto cero.
-No destruir WORM ni claves retenidas: su coste debe quedar reservado hasta vencimiento.
+La base retenida tiene una reserva de hasta 27 USD dentro de los 30 anteriores.
+RDS detenido conserva costes de almacenamiento, backups y secretos, y puede
+reiniciarse a los siete días. E1 añade claves KMS, secretos y archivo retenido:
+recalcular el inventario completo y sus costes hasta el vencimiento. No eliminar
+WORM ni claves necesarias durante su retención para reducir gasto.
 
-`budget.yaml` prepara un presupuesto TOTAL de coste bruto, sin descontar créditos,
-con alertas 25/50/75/90/100%. Requiere correo y fechas reales de vigencia.
-AWS Budgets tiene demoras y no impone un corte rígido de gasto. Revisar costes de
-Budgets/alertas antes de crearlo. La plantilla ya se aplicó y el presupuesto bruto real se contrastó en la comisión.
+Antes de nuevos recursos, consultar precios oficiales vigentes de
+[RDS](https://aws.amazon.com/rds/postgresql/pricing/),
+[Fargate](https://aws.amazon.com/fargate/pricing/),
+[ALB](https://aws.amazon.com/elasticloadbalancing/pricing/),
+[VPC/IPv4](https://aws.amazon.com/vpc/pricing/),
+[S3](https://aws.amazon.com/s3/pricing/),
+[KMS](https://aws.amazon.com/kms/pricing/),
+[Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/) y
+[Cognito](https://aws.amazon.com/cognito/pricing/).
+Incluir horas, almacenamiento, backup/PITR, versiones de claves, requests, logs,
+ECR, transferencia e impuestos. Preferir builds locales/CI y ventanas de ensayo;
+no dejar NAT Gateway, réplicas o ingreso encendidos sin presupuesto.
 
-### Histórico: bloqueo de facturación resuelto
+## Infraestructura versionada
 
-Este bloqueo histórico se resolvió: el preflight completo 42430538070 aprobó tras habilitar Cost Explorer. La evidencia anterior se conserva para diagnóstico.
+| Plantilla | Responsabilidad |
+| --- | --- |
+| `github-preflight.yaml` | OIDC de lectura de facturación; sin despliegue ni secretos. |
+| `budget.yaml` | Presupuesto total y alertas. |
+| `staging-base.json` | VPC, RDS, ECR, secretos base y roles Deploy/Migrate. |
+| `staging-lifecycle.yaml` | Retirada de API/ALB y guarda de RDS. |
+| `e1-staging.yaml` | Cognito, WORM/KMS, secretos e identidades separadas E1. |
 
-El segundo preflight comprobó STS, denegación de acceso IAM ajeno y créditos/vigencia:
-https://github.com/A-PerfectStranger/special-funicular/actions/runs/42386350234.
-El gasto quedó pendiente. El usuario ejecutó la consulta desde CloudShell y AWS
-devolvió `DataUnavailableException`; también confirmó que Facturas no tiene datos.
-No equivale a coste cero y no se resuelve ampliando IAM.
+La base usa RDS PostgreSQL 17 privado y cifrado, db.t4g.micro/20 GB, backup
+sintético de un día y protección contra borrado. Aurora Express exige una pasarela
+pública sin VPC y no satisface este contrato. No ampliar el plan de cuenta para
+sustituir la base. El backup de ensayo no define conservación institucional ni
+acredita recuperación productiva.
 
-[AWS documenta](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-enable.html)
-que hay que abrir Cost Explorer y pulsar **Launch Cost Explorer** si aún no está
-habilitado; la API no puede habilitarlo. Los datos del mes suelen estar disponibles
-unas 24 horas después. Verificar el estado de la consola antes de asumir que ese
-plazo empezó. No aprovisionar mientras siga sin acreditarse el gasto.
+Tareas/ingreso en subredes públicas, PostgreSQL en privadas y sin NAT Gateway.
+ECS Express proporciona URL/certificado administrados, sin comprar dominio.
+La entrada a tareas se limita a las SG del ALB real. ECR usa tags inmutables;
+logs de ensayo de siete días; datos, secretos y claves tienen políticas de retención.
 
-Para repetir la comprobación actual, ejecutar el workflow con el mismo rol:
+GitHub OIDC confía en audiencia `sts.amazonaws.com` y sujeto exacto
+`repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main`.
+Si cambia el repositorio o su personalización OIDC, contrastar metadatos y ajustar
+plantillas/pruebas; no sustituir por wildcard. Deploy publica/despliega y Migrate
+migra con identidad SQL separada. El bootstrap SQL queda en tareas privadas;
+CI/runtime no reciben la credencial raíz. No usar claves permanentes.
 
-```bash
-gh workflow run aws-preflight.yml --ref main \
-  -f role_arn=arn:aws:iam::CUENTA:role/retiro-seguro-github-preflight
-```
+## Bootstrap con operador CloudShell
 
-Después de aprobarlo siguen siendo necesarios cotización completa, alertas,
-IaC de aplicación, identidades de despliegue/migración y adaptador live, antes
-de ejecutar los probes de staging. No marcar E0 terminado por aprobar solo OIDC.
-Ver [tarifas consultadas y límites de la estimación](cost-estimate.md).
+Ejecutar desde un checkout limpio del SHA completo revisado, con AWS CLI/Python 3
+y sesión de operador de la cuenta. No confundir ese login con la identidad OIDC
+limitada de CI. La ruta operativa es CloudShell/OIDC; el toolkit interactivo no
+es requisito del repositorio.
 
-## Conexión alternativa desde AWS CloudShell
+1. Preparar el rol de lectura si falta:
 
-El usuario confirmó acceso a CloudShell; no puede acceder al Desktop compartido.
-`github-preflight.yaml` crea un rol OIDC de **solo lectura**, confiando exactamente
-en `repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main` y audiencia
-`sts.amazonaws.com`. Solo permite `freetier:GetAccountPlanState` y `ce:GetCostAndUsage`.
-No permite desplegar, modificar IAM, leer secretos o asumir el rol desde PR/forks.
-El proveedor OIDC existente se reutiliza sin modificarlo; si falta, se crea y retiene.
+   ```bash
+   bash scripts/bootstrap-aws-preflight.sh SHA_COMPLETO_REVISADO
+   gh workflow run aws-preflight.yml --ref main \
+     -f role_arn=ARN_DEVUELTO_POR_BOOTSTRAP
+   ```
 
-GitHub confirmó mediante `GET /repos/A-PerfectStranger/special-funicular/actions/oidc/customization/sub`
-que `use_immutable_subject=true`, con el prefijo que incluye los IDs de propietario
-y repositorio. Se usa ese sujeto exacto con `:ref:refs/heads/main`; el formato
-antiguo sin IDs no coincide y el primer preflight no pudo asumir el rol.
-No sustituirlo por un wildcard para resolverlo. Un cambio de repositorio o de
-personalización OIDC requiere contrastar los metadatos y actualizar template/pruebas.
+   Comprueba STS, denegación de IAM ajeno, créditos/vigencia y gasto bruto.
+   El reporte público contiene booleanos; el rol no puede desplegar ni leer secretos.
+2. Crear o actualizar presupuesto y base:
 
-Revisar el template/script en el commit que se va a ejecutar y, desde CloudShell:
+   ```bash
+   bash scripts/bootstrap-staging.sh SHA_COMPLETO_REVISADO CORREO_DE_ALERTAS
+   ```
 
-```bash
-retiro_sha=SHA_COMPLETO_REVISADO
-curl --proto '=https' --tlsv1.3 -fsSL \
-  "https://raw.githubusercontent.com/A-PerfectStranger/special-funicular/$retiro_sha/scripts/bootstrap-aws-preflight.sh" \
-  -o /tmp/retiro-bootstrap.sh
-bash /tmp/retiro-bootstrap.sh "$retiro_sha"
-```
+   Valida cuenta/crédito/gasto, aplica presupuesto y base, selecciona una versión
+   PostgreSQL 17 disponible y arma lifecycle. La base no crea por sí sola API/ALB.
+3. Publicar el OCI de un CI de push main aprobado mediante `staging-publish.yml`.
+   Su input es `ci_run_id`; conserva checksum/digest. Publicar no acredita deploy.
+4. Comisionar SQL, API y retirada con el mismo artefacto aprobado:
 
-El script valida el template en AWS y aplica únicamente el stack
-`retiro-seguro-github-preflight`, sin claves permanentes. El ARN devuelto no es
-una credencial; permite lanzar desde main el workflow manual `AWS read-only preflight`.
-Su sesión efímera comprueba STS, la denegación de `iam:ListUsers`, créditos,
-vencimiento y gasto bruto mensual excluyendo créditos/reembolsos. Cost Explorer
-puede cobrar la consulta de su API. No crea recursos de aplicación.
+   ```bash
+   bash scripts/commission-staging.sh SHA_FUENTE_REVISADO SHA_IMAGEN_APROBADA DIGEST_OCI
+   ```
 
-El repo es público: el artefacto contiene exclusivamente comprobaciones booleanas,
-sin balances, respuestas AWS, credenciales o correo de alertas. Un resultado ausente
-o permiso denegado en facturación mantiene el bloqueo. Tampoco un preflight aprobado
-acredita por sí solo el presupuesto completo: comprobar cotización, alertas y
-costes de recursos/retención antes de nuevos aprovisionamientos. La autorización de despliegue/migración
-ya se configuró mediante roles separados; no ampliar este rol de lectura para ese fin.
+   Añadir `--existing-service` para verificar una API existente sin volver a
+   crearla. La comisión comprueba TLS SQL, RLS, permisos, migraciones y probes;
+   registra `work/staging-evidence.json`. Validar la configuración pública emitida
+   antes de incorporarla al archivo del entorno.
+5. Comisionar identidad y archivo con el [runbook E1](../../docs/runbooks/e1.md).
+   La publicación rutinaria sigue el [runbook de despliegue](../../docs/runbooks/deployment.md).
 
-## Login interactivo: evidencia y selectores privados
+Los scripts preparan la identidad de servicio ECS si falta. Solo se recupera un
+stack base `ROLLBACK_COMPLETE` cuando no conserva recursos RDS; los secretos
+retenidos se reutilizan tras verificar etiquetas y ausencia de borrado pendiente.
+No destruir datos o secretos para reintentar un bootstrap.
 
-La variable `AWS_VERIFICATION_CODE` está disponible en la sesión del 7 de noviembre.
-Ese código corresponde a un intento anterior; **no es una credencial AWS ni permite
-iniciar un login nuevo**. La CLI genera `state`, un verificador PKCE y una clave
-privada por intento; un código de otro proceso no los reemplaza. No imprimirlo ni
-guardarlo en Git. No trasladar códigos entre contenedores reiniciados.
-
-La CLI 2.39.6 se reinstaló desde AWS con firma GPG verificada. STS devolvió
-`NoCredentials`, sin identidad autenticada. La herramienta de control de navegador
-sigue fallando con `the gaas-browser node_repl sandbox cannot be disabled`, pero
-se consiguió abrir Chromium directamente en **el escritorio compartido**. La
-pantalla de sign-in AWS fue observada; el login nuevo necesita la intervención
-del usuario en ese escritorio. Como el usuario no pudo acceder a Desktop, el
-intento se canceló y se preparó la ruta CloudShell/OIDC anterior.
-Un navegador abierto no acredita STS ni el toolkit.
-
-Todas las órdenes de la sesión deben usar los mismos selectores privados:
+## Lifecycle, red y diagnóstico
 
 ```bash
-source scripts/aws-env.sh
-aws login --region us-east-1 --profile aesir
-aws sts get-caller-identity --profile aesir
+python3 -m scripts.configure_staging_lifecycle --template infra/aws/staging-lifecycle.yaml
 ```
 
-El helper configura perfil, región, configuración y caché de login bajo `work/aws/`
-(ignorado); no escribe en el directorio personal. Si la CLI no existe, reinstalarla
-desde el instalador oficial con firma, usando `XDG_DATA_HOME="$PWD/work/tools"` y
-`XDG_BIN_HOME="$PWD/work/bin"`. No usar `--skip-signature-verification`.
-Si el navegador no se abre, `aws login --remote` requiere que el **mismo proceso**
-siga vivo y que el código nuevo se introduzca directamente en su terminal privada.
-Actualizar un secreto que solo llega a una instancia nueva no completa ese flujo.
+El configurador valida cuenta y ventana de tres horas; usa fecha UTC con
+milisegundos para Scheduler. Solo recrea un lifecycle `ROLLBACK_COMPLETE` si
+pertenece al proyecto y contiene exclusivamente los recursos IAM/Scheduler
+previstos. Nunca elimina el stack de datos.
 
-## Kit oficial: instalación después de autenticar
+Scheduler retira API/ALB a las tres horas. La guarda horaria detiene RDS fuera de
+ventanas, incluidos reinicios automáticos semanales. Bajar tareas solamente no
+elimina ALB/IP. Comprobar la retirada real; una programación no prueba ejecución.
+El archivador E1 también tiene vida acotada, descrita en su runbook.
 
-Fuente solicitada:
-https://raw.githubusercontent.com/aws/agent-toolkit-for-aws/refs/heads/main/setup-instructions/setup.md
+Recrear Express requiere `ecs:TagResource` limitado al ARN de `retiro-api`, contexto
+de creación y tags Project/Environment del staging. No ampliar a reetiquetado
+arbitrario. Referencia:
+[autorización de tags ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/supported-iam-actions-tagging.html).
 
-Después de STS aprobado, continuar con el wizard y el catálogo. **Login, STS,
-wizard, MCP y catálogo aún no verificados.** No marcar setup completo sin evidencia.
+DescribeServices puede omitir red/targets/definición: el adaptador resuelve
+activeConfigurations y DescribeServiceRevisions y contrasta ALB/SG reales.
+`TRUSTED_INGRESS=ecs-express` solo es válido con acceso limitado al ALB;
+`/health/live` permite GET/HEAD stateless con Host=IP privada para su sonda.
+Las demás rutas mantienen ALLOWED_HOSTS/CSRF/HTTPS; no abrir un wildcard.
+SQL cloud usa `PGSSLMODE=verify-full` y `/app/rds-ca.pem`, incluido en la imagen.
 
-```bash
-source scripts/aws-env.sh
-aws configure agent-toolkit --yes --region us-east-1 --profile aesir
-aws agent-toolkit list-available-skills --region us-east-1 --profile aesir
-```
-
-La autenticación y los prompts del wizard los completa el humano. Nunca pedir
-access keys/secret keys en chat. Credenciales: 12 h, renovables hasta 90 días sin
-repetir login de navegador. El endpoint del toolkit siempre es `us-east-1`.
-Si el usuario prefiere instalarlo en su propio equipo, seguir la misma guía
-oficial y usar esos comandos con su CLI local; ese login no autentica este contenedor.
-
-Después del wizard, añadir exclusivamente a cada entrada `aws-mcp` generada:
-
-```json
-"env": {"AWS_MCP_PROXY_PROFILES": "aesir"}
-```
-
-Preservar command/args/timeout/transport y otros servidores. Si ya existe una
-entrada, preguntar cómo reconciliarla. Las reglas avanzadas oficiales se descargaron
-para revisión; su incorporación idempotente en AGENTS.md entre marcadores
-`BEGIN/END AWS Agent Toolkit rules` sigue pendiente del flujo de instalación.
-Las instrucciones propias del proyecto prevalecen. Verificar catálogo antes de
-declarar instalación completa. Para otra cuenta: `aws login --profile <nombre>`,
-añadir el nombre a la lista separada por espacios `AWS_MCP_PROXY_PROFILES` y reiniciar
-la herramienta de IA tras terminar la configuración.
-
-## Comprobaciones de la superficie pública E0
-
-Cuando exista el destino, ejecutar desde un runner con confianza CA normal:
-
-```bash
-uv run python scripts/verify_staging.py https://DOMINIO-STAGING --report work/staging-probes.json
-```
-
-Exige TLS 1.3 con certificado/hostname verificados, readiness DB, capabilities
-exactas con retiros deshabilitados, rutas de negocio/admin ausentes, escrituras
-rechazadas, cabeceras de seguridad y ausencia de cookies. No sigue redirecciones
-ni registra cuerpos, cookies o excepciones remotas. Un fallo devuelve 1;
-configuración inválida devuelve 2. Las pruebas usan un servidor HTTPS local real
-con certificado sintético y verifican también rechazo de TLS 1.2/certificado no
-confiable. No son evidencia de despliegue AWS.
-
-El reporte solo acredita esa superficie. No certifica IAM, presupuesto, SHA/digest
-de las tareas, IdP, WORM/KMS ni E1–E5. Si existe un proxy que intercepta TLS, el
-reporte señala el límite: la negociación cliente-proxy no acredita el TLS del
-origen. Completar la aceptación desde un runner sin interceptación y conservar
-por separado la evidencia del plano de control, costes y procedencia de release.
+Validación local: `make lint` incluye cfn-lint; CI y pruebas de infraestructura
+comprueban las plantillas. Eso no acredita IAM efectivo, coste o despliegue real.
+Probes públicos, verificación de digest y límites de un proxy TLS se describen en
+el runbook de despliegue. Un fallo se inspecciona privadamente en eventos de
+CloudFormation/CloudWatch; publicar solo diagnósticos saneados.

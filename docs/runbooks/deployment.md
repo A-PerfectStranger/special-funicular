@@ -1,21 +1,19 @@
-# Publicación y recuperación: estado E0
+# Publicación, diagnóstico y rollback
 
-## Estado real
+## Fuentes operativas
 
-AWS elegido: región `us-east-1`, perfil humano `aesir`, máximo TOTAL 150 USD
-de créditos para desarrollo/despliegue. No equivale a 150 USD mensuales.
-Identidades AWS OIDC de lectura, Deploy y Migrate verificadas desde GitHub/main.
-Staging real aceptado: https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws. SHA/digest y ejecución concreta en PROGRESS.md.
-Producción sigue sin configurar hasta E5; el job production bloquea explícitamente.
-La CLI interactiva local/kit no está autenticada; los comandos de bootstrap se
-realizaron en CloudShell. No hacen falta claves permanentes para el CD.
+Estado y aceptación: [PLAN.md](../../PLAN.md). Parámetros del destino:
+[staging](../../infra/environments/staging.json) y
+[producción](../../infra/environments/production.json). Infraestructura, bootstrap,
+presupuesto y lifecycle: [AWS](../../infra/aws/README.md). Ensayos de identidad y
+archivo: [E1](e1.md). No se requieren claves AWS permanentes para CD.
 
 ## Publicación rutinaria
 
 1. Abrir PR y completar required: calidad, imagen inmutable y APK. main exige PR/check.
 2. Al integrar, E0 CI construye los artefactos del SHA main. workflow_run de CD
    verifica repositorio/evento, conserva checksum/digest y publica en ECR inmutable.
-3. Deploy abre una ventana de tres horas e inicia solo RDS staging si está detenido.
+3. Deploy abre la ventana acotada de staging e inicia RDS si está detenido.
 4. Migrate ejecuta una tarea Fargate con su secreto SQL separado y migrate_locked;
    el advisory lock PostgreSQL serializa incluso si un runner deja de esperar.
 5. Deploy actualiza Express con el mismo digest; espera todas las tareas nuevas,
@@ -26,7 +24,10 @@ realizaron en CloudShell. No hacen falta claves permanentes para el CD.
    desconocido bloquean la creación/actualización. Un fallo de lectura o permisos
    nunca demuestra que el servicio no existe. Contrastar el origen resultante con
    los callbacks de E1 antes de aceptar los flujos de identidad.
-6. Producción solo se habilita tras configuración/aceptación E5. No añadir una
+6. Si `e1_enabled=true`, ejecutar browser/cloud/staging-apk/archive-drill mediante
+   `e1-checks.yml`. Todos deben aprobar; un fallo bloquea promoción. Consultar
+   resultados y artefactos del commit en Actions, sin copiar reportes al repositorio.
+7. Producción solo se habilita tras configuración/aceptación E5. No añadir una
    aprobación humana rutinaria de promoción. cancel-in-progress=false en CD.
 
 ```bash
@@ -34,34 +35,29 @@ python3 scripts/validate_deploy.py infra/environments/staging.json
 python3 scripts/validate_deploy.py infra/environments/production.json
 ```
 
-Staging valida estructura; producción sale 2 hasta configurar E5. Un archivo
-válido por sí solo no prueba IAM, coste, TLS ni despliegue. Para diagnóstico público:
-`python3 scripts/verify_staging.py https://DOMINIO-STAGING --report work/staging-probes.json`.
+Los validadores comprueban estructura; un archivo válido por sí solo no prueba
+IAM, coste, TLS ni despliegue. Un destino incompleto sale 2. Para diagnóstico
+público, usar el origen verificado de staging:
+
+```bash
+python3 scripts/verify_staging.py https://ORIGEN_STAGING_VERIFICADO --report work/staging-probes.json
+```
+
+Exige TLS 1.3/certificado/hostname, live/ready/capabilities, rutas de negocio/admin
+ausentes, escrituras rechazadas y cabeceras seguras. Un fallo devuelve 1 y una
+configuración inválida, 2. No sigue redirecciones ni registra cuerpos/cookies o
+excepciones remotas. El reporte no acredita SHA/digest, IAM, presupuesto ni E1.
 Un proxy TLS interceptante impide usar ese cliente como atestación TLS del origen;
 los probes de aceptación se ejecutan desde runner sin ese proxy.
 
-## Comisión y coste
+## Infraestructura y diagnóstico
 
-Infraestructura/recuperación: infra/aws/staging-bootstrap.md. La comisión inicial
-CloudShell conserva DB/secretos; --existing-service verifica la API ya creada sin
-volver a crearla. DescribeServices puede omitir red/targets: usar la revisión
-activa de Express y DescribeServiceRevisions, no asumir campos de servicios clásicos.
-La sonda ALB con Host=IP privada solo está exceptuada para GET/HEAD stateless de
-/health/live en la configuración explícita ecs-express. Nunca ampliar ALLOWED_HOSTS
-a un wildcard general para resolver el healthcheck.
-
-API/ALB se retiran a las tres horas por Scheduler. RDS conserva datos y se detiene
-mediante guarda horaria fuera de ventanas, cubriendo reinicios automáticos semanales.
-Storage/backups/secretos conservan coste reservado. Comprobar coste y reserva antes
-de nuevas sesiones. El presupuesto de 150 USD genera alertas, no un corte rígido.
-
-Recrear Express con sus tags requiere también `ecs:TagResource`. La plantilla
-lifecycle limita ese permiso al ARN exacto de retiro-api, al contexto de creación
-y a Project=retiro-seguro/Environment=staging; no permite reetiquetado arbitrario.
-Aplicar cambios de esta plantilla con el operador y el comando de configuración
-documentado en infra/aws/staging-bootstrap.md. Validar después el despliegue real:
-una plantilla aprobada por cfn-lint no acredita permisos efectivos de AWS.
-Referencia: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/supported-iam-actions-tagging.html.
+Ante fallos de creación, permisos, red o expiración, seguir el diagnóstico de
+[AWS](../../infra/aws/README.md#lifecycle-red-y-diagnóstico). Contrastar siempre
+el origen de Express con configuración/callbacks; un health 200 no demuestra
+digest correcto ni login funcional. No borrar base, evidencia, secretos o claves
+para recuperar la API. La comisión inicial es una operación de operador distinta
+de la publicación rutinaria automática.
 
 ## Rollback y recuperación
 
