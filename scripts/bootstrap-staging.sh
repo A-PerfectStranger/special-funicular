@@ -48,10 +48,9 @@ if ! aws cloudformation deploy --region us-east-1 --stack-name retiro-staging-ba
   exit 2
 fi
 curl --proto '=https' --tlsv1.3 -fsSL "https://raw.githubusercontent.com/A-PerfectStranger/special-funicular/$1/infra/aws/staging-lifecycle.yaml" -o "$retiro_stage_dir/staging-lifecycle.yaml"
-retiro_stop_after="$(python3 -c 'from datetime import datetime,UTC,timedelta; print((datetime.now(UTC)+timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
-if ! aws cloudformation deploy --region us-east-1 --stack-name retiro-staging-lifecycle --template-file "$retiro_stage_dir/staging-lifecycle.yaml" --capabilities CAPABILITY_NAMED_IAM --parameter-overrides "StopNotBefore=$retiro_stop_after" --tags Project=retiro-seguro Environment=staging --no-fail-on-empty-changeset; then
-  aws cloudformation describe-stack-events --region us-east-1 --stack-name retiro-staging-lifecycle --query "StackEvents[?ResourceStatus=='CREATE_FAILED'].[LogicalResourceId,ResourceStatusReason]" --output table
-  aws cloudformation describe-stacks --region us-east-1 --stack-name retiro-staging-base --query 'Stacks[0].Outputs[?OutputKey==`Deploy` || OutputKey==`Migrate`]' --output table
-  exit 2
-fi
+mkdir -p "$retiro_stage_dir/scripts"
+for retiro_helper in aws_cli.py configure_staging_lifecycle.py; do
+  curl --proto '=https' --tlsv1.3 -fsSL "https://raw.githubusercontent.com/A-PerfectStranger/special-funicular/$1/scripts/$retiro_helper" -o "$retiro_stage_dir/scripts/$retiro_helper"
+done
+(cd "$retiro_stage_dir" && python3 -m scripts.configure_staging_lifecycle --template "$retiro_stage_dir/staging-lifecycle.yaml")
 aws cloudformation describe-stacks --region us-east-1 --stack-name retiro-staging-base --query 'Stacks[0].Outputs[?OutputKey==`Deploy` || OutputKey==`Migrate`]' --output table

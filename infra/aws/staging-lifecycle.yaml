@@ -3,7 +3,8 @@ Description: Synthetic staging expiry and narrowly scoped lifecycle permissions
 Parameters:
   StopNotBefore:
     Type: String
-    Description: UTC ISO8601 end of initial active staging window
+    Description: UTC ISO8601 end of initial active staging window, including milliseconds
+    AllowedPattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$'
 Resources:
   Expiry:
     Type: AWS::IAM::Role

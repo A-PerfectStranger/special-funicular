@@ -13,6 +13,14 @@ instalado/autenticado; OIDC de CI no se presenta como ese login humano.
 
 ## Comisión actual: PostgreSQL privado y ventana limitada
 
+El usuario confirmó creación de la base y devolvió los ARN Deploy/Migrate de la
+cuenta esperada. El stack independiente lifecycle falló: Scheduler exige
+`yyyy-MM-ddTHH:mm:ss.SSSZ`; su estado ROLLBACK_COMPLETE impide actualizarlo.
+El reparador genera milisegundos y recrea solo ese stack fallido tras verificar
+propiedad y una lista cerrada de recursos IAM/Scheduler. No borra ni modifica
+la base retenida. La guarda aún necesita aplicación real antes de aceptar E0.
+
+
 - Preflight completo aprobado: [42420579085](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42420579085).
   Presupuesto total creado desde CloudShell; no publica correo ni importes de cuenta.
 - La cuenta Free Plan rechazó Aurora sin Express Configuration. Ese modo obliga

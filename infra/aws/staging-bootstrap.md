@@ -123,3 +123,12 @@ Free Plan, sin cambiar el requisito de PostgreSQL administrado ni ampliar el pla
 La primera limitación observada de backup y el experimento Aurora anteriores son
 históricos, no configuración productiva. La retención de un día aquí es un backup
 técnico de ensayo; no define conservación de datos personales/evidencia E1–E5.
+
+## Recuperación de lifecycle
+
+`python3 -m scripts.configure_staging_lifecycle --template infra/aws/staging-lifecycle.yaml`
+comprueba la cuenta y aplica la ventana de tres horas con fecha UTC que incluye
+milisegundos, formato exigido por CloudFormation/Scheduler. Ante ROLLBACK_COMPLETE,
+solo recrea `retiro-staging-lifecycle` si pertenece al proyecto y contiene
+exclusivamente los recursos IAM/Scheduler previstos; no elimina el stack de datos.
+El bootstrap y la comisión inicial utilizan este mismo reparador. RFS22/CA-S22.
