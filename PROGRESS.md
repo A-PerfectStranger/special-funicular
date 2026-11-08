@@ -37,7 +37,8 @@ con ALB y URL administrada, sin comprar dominio ni NAT Gateway.
 Retirada de API programada a tres horas por despliegue; guarda horaria detiene RDS
 fuera de la ventana activa y tras sus reinicios automáticos semanales. La guarda
 está configurada; no se atribuye una ejecución futura de parada ya realizada.
-La caducidad de esta aceptación es `2026-11-08T04:18:19.487474+00:00` (UTC). Detener RDS no
+La retirada programada de este reporte es el 7 de noviembre de 2026 a las 23:18
+(America/Bogota); el instante UTC exacto está en el JSON. Detener RDS no
 elimina costes de storage, backups y secretos; reserva de hasta 27 USD dentro de
 los 30 existentes. E0 reserva 3 USD, reasignados de E1 (22 USD), manteniendo total
 150 USD. Tarifas y límites en infra/aws/cost-estimate.md.
