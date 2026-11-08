@@ -2,7 +2,7 @@
 
 Monorepo Django/PostgreSQL y Expo SDK 56. E0 está aceptada en staging.
 E1 incorpora identidad/aislamiento/evidencia en desarrollo, con sus rutas
-**desactivadas por defecto hasta completar la comisión y aceptación real**.
+**desactivadas por defecto; el workflow E1 synthetic trial permite un ensayo acotado antes de la aceptación**.
 Los retiros permanecen deshabilitados. Solo datos sintéticos.
 El estado verificable y los bloqueos están en [PROGRESS.md](PROGRESS.md).
 
@@ -69,7 +69,9 @@ Salida: `work/artifacts/mobile-development-<SHA>.apk` y manifiesto SHA-256.
 por su commit. La configuración fija Gradle 8.14.3 con checksum oficial para
 evitar la incompatibilidad de Foojay/RN 0.85 con Gradle 9.
 `eas.json` define los perfiles futuros; cuenta Expo, firma estable y package IDs cloud
-siguen sin configurar. OTA permanece deshabilitado.
+productivos siguen sin configurar. El ensayo E1 fija package ID
+`org.retiroseguro.staging`, endpoint y callback; su APK mantiene firma de desarrollo
+y manifiesto público, sin binario interno público. OTA permanece deshabilitado.
 
 ## Superficie implementada
 
@@ -100,8 +102,8 @@ escolares de salidas corresponden a E4 y los retiros a E3.
 
 `.github/workflows/ci.yml` usa los mismos comandos. Checks de PR sin secretos,
 acciones por SHA, imagen OCI con digest y manifiestos por commit. El job `required`
-exige calidad y ambos builds. Los tests RLS son una sonda de infraestructura E0;
-no acreditan las futuras políticas por rol/estudiante ni las suites AT01–AT08.
+exige calidad y ambos builds. Las pruebas locales E1 incluyen roles/familias y RLS
+con PostgreSQL real; no sustituyen IdP/WORM/KMS reales ni todos los ensayos AT01–AT08.
 
 El repositorio es público. El APK interno no se sube como artefacto público:
 se conserva el checksum; el binario solo se sube automáticamente si el repositorio

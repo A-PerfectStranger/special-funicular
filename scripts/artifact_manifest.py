@@ -8,7 +8,9 @@ from pathlib import Path
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("artifact", type=Path)
-    parser.add_argument("--kind", required=True, choices=["development-apk", "backend-oci"])
+    parser.add_argument(
+        "--kind", required=True, choices=["development-apk", "staging-apk", "backend-oci"]
+    )
     parser.add_argument("--sha", required=True)
     parser.add_argument("--digest")
     args = parser.parse_args()

@@ -214,3 +214,28 @@ regional separada, resto de permisos Cognito continúa acotado al pool.
 Android/Hermes exportado. La IaC posterior de permiso regional también pasó
 cfn-lint y tipos. CI del primer checkpoint 4324519: quality aprobado; imagen/APK
 seguían en ejecución al registrar esta línea.
+
+El operador actualizó el stack desde `0dd67fb` y confirmó nuevamente todas las
+etapas y `E1 resources and SQL roles commissioned. E1 ACCEPTANCE PENDING.`
+Tras la actualización, Chromium obtuvo HTTP 200 del login real, con username y
+password visibles; no se introdujeron credenciales ni se acredita MFA todavía.
+
+La continuación prepara jobs de navegador/protocolo real y verificador externo
+bajo E1Acceptance/E1Verifier distintos. Los secretos sintéticos entran solo por
+stdin/memoria: sin screenshots, trazas o logs de códigos/tokens. El verificador
+consulta configuración real y confronta firmas/versiones/retención, prueba Sign,
+Put, delete de versión COMPLIANCE vigente y reducción de retención denegados.
+No intenta deshabilitar claves. Falta ejecutar estas suites, recuperación con
+copia SQL divergente, revocación administrativa y fallo/retardo real de archivo.
+También se prepara build APK con endpoint/scheme/package de staging, firma de
+desarrollo y solo manifiesto público; no acredita retorno nativo en un teléfono.
+Validación local de estas herramientas: `make check` aprobado (136 Python/nueve
+JS), actionlint 1.7.12 oficial con checksum verificado, sintaxis Bash y Node
+aprobadas. Las suites browser/cloud aún NO se ejecutaron contra AWS. No atribuir
+al próximo commit el APK ya compilado por CI de una revisión anterior.
+Se reprodujo un bundle de staging sin endpoint/callback al reutilizar caché Metro.
+La exportación con --clear produjo otro hash e incluyó ambos valores, contrastados
+contra los bytes Hermes reales. El build APK ahora limpia esa caché, fuerza tareas
+y verifica el bundle/manifest del APK real antes de emitir manifiesto; falta
+compilar ese APK en CI. CI push/PR de 0dd67fb aprobadas, incluidos imagen y APK de
+desarrollo; no se atribuyen a los cambios posteriores.
