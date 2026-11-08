@@ -17,7 +17,7 @@
   "security_groups": [
     "sg-0060eb52744a55f89"
   ],
-  "base_url": "https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws",
+  "base_url": "https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws",
   "budget_verified": true,
   "credit_ceiling_usd": 150,
   "pickup_enabled": false,

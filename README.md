@@ -121,7 +121,7 @@ staging con Deploy. Rechaza candidatos obsoletos y serializa migraciones mediant
 advisory lock SQL. Datos sintéticos, retiros deshabilitados. Producción permanece
 BLOCKED/NOT_CONFIGURED hasta E5, sin aprobación manual rutinaria añadida.
 
-Staging temporal: https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws. API/ALB se retiran a las tres horas de cada despliegue;
+Staging temporal: https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws. API/ALB se retiran a las tres horas de cada despliegue;
 RDS se detiene fuera de ensayos, con coste residual reservado. La evidencia de
 SHA/digest, TLS/red y ejecución está en [PROGRESS.md](PROGRESS.md).
 Ver [runbook](docs/runbooks/deployment.md) y [presupuesto AWS](infra/aws/README.md).

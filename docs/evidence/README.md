@@ -1,5 +1,22 @@
 # Evidencia de AWS
 
+## Recreación de staging 8bb56b8
+
+Workflow 42497020512, reintento posterior a la aplicación de lifecycle e328c43
+por el operador. Los ZIP originales se verificaron por SHA-256 antes de copiar:
+
+| Reporte | Artefacto | SHA-256 ZIP |
+| --- | --- | --- |
+| e1-trial-staging-8bb56b8.json | 13624802150 | d1dd9ba8909e1fcc6790b999da723d5c801c72966512f7bb7aacb813b2e063c2 |
+| e1-browser-8bb56b8.json | 13624972586 | 2655edff3ea7fe7458daec2e0e03313e1717b6bd915b64174361e3aa6cdcd68c |
+| e1-cloud-8bb56b8.json | 13624677814 | ba06694565108d563d6586d6d4c4aa817a2df784af6aee10d1ac15e88e7c5414 |
+
+Despliegue por digest/TLS/red aprobado. Express cambió el origen a
+re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws. Browser falló antes
+del login al conservar la referencia anterior; no acredita identidad móvil/web.
+Se preserva el fallo y se actualizan entorno/callback antes del siguiente ensayo.
+Cloud es una verificación independiente; ningún reporte acepta E1 por sí solo.
+
 Copias sin credenciales de los artefactos reales de GitHub Actions. Los ZIP
 originales tienen retención limitada; estas copias conservan el resultado por SHA.
 

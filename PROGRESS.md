@@ -2,14 +2,26 @@
 
 ## Estado actual para continuar
 
+Reintento tras comisión IAM: 42497020512 aprobó despliegue real de 8bb56b8,
+OCI sha256:5093fa94e4df73725e1771a87ad59cb609928fcba7858de45a427840a8962da1,
+API/archivo y TLS/red. Express recreó el origen como
+https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws.
+Browser falló antes del login por la referencia anterior; no acredita MFA/móvil.
+Se actualiza la configuración versionada y se solicita al operador solo WebOrigin
+sobre la plantilla existente de E1. No reaprovisionar usuarios ni alterar WORM.
+La aceptación completa continúa pendiente.
+
 Continuación actual: PR #12 integrado en 8bb56b80238f863215801b80c8d0188a8cdbcb77,
 CI push/PR aprobadas y CI main 42496281982 aprobada (159 Python/nueve JS,
 Chromium, auditorías, imagen/APK y required). CD 42496983905 y ensayo 42497020512
 aprobaron publicación/preparación/migración, pero la recreación de Express falló
 con AccessDeniedException; suites E1 sin ejecutar. La política lifecycle prepara
 el permiso TagResource limitado a creación del servicio exacto y tags sintéticos.
-Diagnóstico CloudTrail y aplicación/verificación AWS todavía pendientes. Ninguno
-de estos resultados constituye aceptación E1.
+CloudTrail confirmó específicamente ecs:TagResource denegado para retiro-api en
+los dos intentos. El operador aplicó e328c43 a retiro-staging-lifecycle y confirmó
+UPDATE completo con ventana acotada. CI push 42497714972 y PR 42497740147 del
+candidato aprobadas (160 Python/nueve JS, Chromium, seguridad, imagen/APK y
+required). Repetición de 42497020512 en curso; todavía sin aceptación E1.
 
 **E1 sigue sin aceptación integral.** Main remoto verificado en
 `be8f1df5f5d19d86a38ba15a4b10bd01fa1c5155` (PR #11), integrado después de todos

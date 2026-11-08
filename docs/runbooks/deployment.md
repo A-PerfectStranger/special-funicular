@@ -5,7 +5,7 @@
 AWS elegido: región `us-east-1`, perfil humano `aesir`, máximo TOTAL 150 USD
 de créditos para desarrollo/despliegue. No equivale a 150 USD mensuales.
 Identidades AWS OIDC de lectura, Deploy y Migrate verificadas desde GitHub/main.
-Staging real aceptado: https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws. SHA/digest y ejecución concreta en PROGRESS.md.
+Staging real aceptado: https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws. SHA/digest y ejecución concreta en PROGRESS.md.
 Producción sigue sin configurar hasta E5; el job production bloquea explícitamente.
 La CLI interactiva local/kit no está autenticada; los comandos de bootstrap se
 realizaron en CloudShell. No hacen falta claves permanentes para el CD.
