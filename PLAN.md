@@ -14,7 +14,7 @@ Este plan transforma los requisitos en incrementos implementables. Las casillas 
 | Backend | Django modular, PostgreSQL, OIDC/MFA, workers/outbox, KMS y WORM. |
 | Integración | GitHub Actions, checks obligatorios y artefactos vinculados al commit. |
 | Promoción | Staging y pruebas automáticas antes de producción automática, sin aprobación manual rutinaria. |
-| Infraestructura | AWS seleccionado por el usuario; us-east-1, perfil aesir. Destinos aún sin aprovisionar; crédito total máximo 150 USD. |
+| Infraestructura | AWS seleccionado por el usuario; us-east-1, perfil aesir. Staging sintético aprovisionado y verificado; producción pendiente E5; crédito total máximo 150 USD. |
 | Operaciones escolares | Escuela verifica los datos; equipo técnico ejecuta bulk, provisioning, bajas y cambios urgentes. |
 
 Se puede empezar repositorio, dominio, API, móvil y CI con datos sintéticos. La falta de proveedor impide conectar el destino real de despliegue y validar sus controles; no impide avanzar en esas tareas. Los adaptadores locales deben identificarse como simulaciones y nunca activarse en producción.
@@ -45,9 +45,9 @@ Cada entrega incluye implementación y pruebas de sus controles; la seguridad se
 - [x] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno (firma de desarrollo; sin distribución productiva).
 - [x] Crear estructura de CD y validación obligatoria: destinos incompletos fallan con BLOCKED/NOT_CONFIGURED.
 - [x] Conectar identidad OIDC de lectura para GitHub/main y verificar en AWS cuenta, créditos y denegación de acceso ajeno (evidencia en PROGRESS.md).
-- [ ] Aprovisionar y verificar staging AWS: en comisión: Cost Explorer aprobado y presupuesto aplicado; faltan completar base, adaptador y aceptación real. Kit interactivo no acreditado.
+- [x] Aprovisionar y verificar staging AWS privado, presupuesto/alertas y CD real con OIDC, roles separados, SHA/digest y probes TLS; evidencia en PROGRESS.md.
 
-**Estado:** base técnica, artefactos e identidad AWS de lectura verificados. Cierre operativo E0 abierto: AWS ya verificó gasto/créditos/vigencia; el presupuesto está creado. Se implementa y comisiona staging, todavía sin aceptación de despliegue. Evidencia por commit en PROGRESS.md.
+**Estado:** E0 completada y aceptada en staging sintético. CI, publicación OCI, preparación RDS, migración aislada y despliegue/probes reales aprobados. Producción y negocio permanecen pendientes de E1–E5. El kit interactivo no se acredita como instalado; la identidad operativa verificada es CloudShell/OIDC de CI. Evidencia por SHA/digest en PROGRESS.md.
 
 **Aceptación:** un checkout limpio ejecuta los comandos documentados y CI; artefactos llevan SHA. Sin destino, el estado de deploy es bloqueado/no configurado y no se publica un éxito ficticio.
 
@@ -170,7 +170,7 @@ Estos valores completan la configuración; no reabren la arquitectura. No invent
 | Dato pendiente | Quién lo aporta / efecto |
 | --- | --- |
 | URL `organización/repositorio` y accesos GitHub | Equipo técnico; permite alojar código y activar Actions. |
-| Proveedor, cuenta/proyecto, región y presupuesto operativo | Equipo técnico con responsable del proyecto; habilita IaC y destinos de staging/producción. AWS elegido; cuenta autenticada y recursos aún pendientes. |
+| Proveedor, cuenta/proyecto, región y presupuesto operativo | Equipo técnico con responsable del proyecto; habilita IaC y destinos de staging/producción. AWS elegido; cuenta/créditos/presupuesto y staging verificados; producción pendiente E5. |
 | Dominio, DNS y certificados | Equipo técnico; URLs API/web y callbacks OIDC reales. |
 | IdP, tenant, issuer, client IDs y métodos MFA | Equipo técnico; configuración de autenticación, enrolamiento y recuperación. |
 | PostgreSQL, WORM, KMS y políticas de retención por categoría | Equipo técnico configura; institución define plazos. Sin plazos no cargar datos reales ni fijar retención productiva irreversible por omisión. |

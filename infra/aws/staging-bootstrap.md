@@ -2,7 +2,8 @@
 
 Cost Explorer ya aprobó el preflight en la ejecución
 https://github.com/A-PerfectStranger/special-funicular/actions/runs/42420579085.
-Este incremento prepara infraestructura; no acredita aún un despliegue.
+Infraestructura y API sintética aplicadas; la aceptación real de CD y probes
+por SHA/digest está en PROGRESS.md. Preparar una plantilla no acredita deploy.
 RFS09/10/22, CA-S09/10/22. No habilita negocio E1–E5.
 
 `scripts/bootstrap-staging.sh <SHA revisado> <correo de alertas>` se ejecuta en
@@ -25,7 +26,7 @@ total de 150 USD con las cinco alertas existentes y después la base CloudFormat
 - Rol de infraestructura Express asumible solo por ECS con la política oficial
   AWS; nunca se entrega al contenedor ni al humano de aplicación.
 
-No crea servicio API/ALB todavía. Eso requiere publicar el artefacto aprobado,
+El bootstrap de base no crea el servicio API/ALB. Eso requiere publicar el artefacto aprobado,
 crear roles SQL con la tarea privada de bootstrap, aplicar migraciones y verificar
 canal/aislamiento; se completa durante la comisión de staging. La base y secretos
 se retienen ante borrado/reemplazo; no hay borrados genéricos ni evidencia WORM.

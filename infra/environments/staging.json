@@ -8,7 +8,7 @@
   "image_repository": "028364485203.dkr.ecr.us-east-1.amazonaws.com/retiro-staging/backend",
   "cluster": "retiro-staging",
   "service": "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api",
-  "task_definition": "arn:aws:ecs:us-east-1:028364485203:task-definition/retiro-staging-api:1",
+  "task_definition": "arn:aws:ecs:us-east-1:028364485203:task-definition/retiro-staging-api:2",
   "migration_task_definition": "retiro-staging-migrate",
   "subnets": [
     "subnet-09e13ef8f9c71bcb6",

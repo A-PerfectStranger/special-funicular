@@ -15,7 +15,7 @@ Cada issue/PR enlaza RF/RFS y CA o AB afectados. Actualizar documentación junto
 - Monorepo en GitHub; ramas cortas, PR y checks requeridos antes de integrar a `main`.
 - `apps/backend/`: Python/Django modular, API `/v1`, OIDC/BFF, vistas web con Django templates y workers.
 - `apps/mobile/`: React Native con **Expo SDK 56**, flujos separados por rol padre/guardia. Android APK interno como distribución inicial.
-- `infra/`: infraestructura y configuración versionadas por entorno; AWS seleccionado (us-east-1); cuenta y recursos aún por configurar. Crédito total máximo: 150 USD.
+- `infra/`: infraestructura y configuración versionadas por entorno; AWS seleccionado (us-east-1); staging sintético aprovisionado y verificado, producción pendiente E5. Crédito total máximo: 150 USD.
 - `tests/contracts/`: contratos API y compatibilidad entre backend y móvil. Pruebas de dominio junto a cada aplicación.
 - `.github/workflows/`: CI, staging, promoción automática, build móvil y verificaciones programadas.
 - En la raíz: estos tres documentos, README de arranque y lockfiles/manifiestos correspondientes a cada herramienta.
