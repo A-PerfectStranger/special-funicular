@@ -1,116 +1,49 @@
-# E1 — alcance, aceptación y ejecución
+# E1 — identidad, aislamiento y evidencia
 
-Base revisada: `bbe48f4`, tras fetch de origin/main el 7 de noviembre de 2026
-(America/Bogota). Rama: `feat/e1-identity-evidence`. AGENTS, PLAN, PROGRESS y
-requisitos leídos antes de implementar. E0 aceptada; E2–E5 fuera de esta entrega.
+Estado: ensayo integrado aprobado; cierre pendiente del control privado y del CD
+con E1 habilitada. Fuente funcional: `0ca43742fd1a5ad77311a64ee522ef932682922d`,
+OCI `sha256:9faea8109c88f3cc94718868dfa9bbb05e100fb56b93832ed4c47b10b6c544a8`.
+Solo datos sintéticos; retiros y producción deshabilitados.
 
-## Criterios fijados antes de implementar
+## Matriz de aceptación
 
-| ID | Resultado exigido | Referencias / comprobación |
+| ID | Contrato y referencias | Evidencia verificada / pendiente |
 | --- | --- | --- |
-| E1-01 | Solo cuatro roles locales; OIDC Code/PKCE móvil y BFF web, MFA validada, callbacks correlacionados; tokens ≤5 min, inactividad 5/15 min, logout y baja online. Reautenticación ≤5 min. | AT04, RFS01/03/07/08/09/19, AB09/11/12. Firma/issuer/audience/nonce/tiempos, replay, recuperación sin asignación de hijos, backend: 5 fallos/15 min y bloqueo de 15 min; Cognito: bloqueo exponencial nativo autorizado. IdP real en staging. |
-| E1-02 | Escuelas/sedes, estudiantes, padres y vínculos con referencias por escuela y exactamente un principal activo por estudiante activo. Claims/inputs no asignan permisos ni hijos. | AT02, RF03/14, RFS02/03, AB02/10/24. Dos escuelas/dos familias; principal/secundario; restricciones PostgreSQL. Activación/bulk se completan en E2. |
-| E1-03 | RLS ENABLE/FORCE y contexto transaccional derivado del actor autenticado; identidades SQL separadas sin DDL/BYPASSRLS/propiedad; lector sistema sin menores. | AT02/05, RFS02/12/22, AB02/10/14. Roles reales, conexión reutilizada, accesos laterales y mutaciones denegados. |
-| E1-04 | Eventos canónicos append-only construidos por funciones estrechas; evento y outbox atómicos; worker idempotente, reintentos y diagnóstico observable. | AT05, RFS11/12/13/23, AB14/21/22/23. Sin INSERT libre, rollback, crash/reintento, ausencia de secretos/PII excesiva. |
-| E1-05 | S3 Object Lock COMPLIANCE/KMS de ensayo real; hash, versión y retención exactos verificados; manifiestos firmados/anclados fuera de BD; verificador independiente detecta huecos/divergencias. | AT05/06, RFS10/12/17/23, AB22/25. Denegación real de mutación/retención/clave; no sustituir por mocks. Retención sintética siete días autorizada; productiva sin definir. |
-| E1-06 | Login escolar protegido antes de abrir sesión, deduplicación por login, fallos cierran acceso; admin sistema solo consulta accesos paginados y lectura auditada. | RF16/17, CA-F16/17, RFS14/21/22, AB10/21. Tres logins/tres eventos, refresh/callback duplicado sin duplicación, archivo ausente/tardío bloquea portal. |
+| E1-01 | Cuatro roles; OIDC Code/PKCE móvil, BFF web, MFA reciente, sesiones de 5 min, idle por rol, refresh/replay, logout y baja online. AT04; RFS01/03/07/08/09/19; AB09/11/12. | Ensayo 42501830048: web ADMIN_SISTEMA/ADMIN_ESCUELA y protocolo compartido PADRE/GUARDIA con Cognito/TOTP real, reauth, refresh, logout y baja/restauración sin reactivar access vigente. Backend 5/15 medido realmente en 42456781366. Pendiente recuperación y bloqueo nativo Cognito privados. Límites temporales/replay/carreras cubiertos también con PostgreSQL real local. |
+| E1-02 | Escuelas/sedes, estudiantes, padres y vínculos, exactamente un principal activo; claims/inputs no asignan hijos. AT02; RF03/14; RFS02/03; AB02/10/24. | Restricciones y cruce de escuelas/familias en PostgreSQL real; roster AWS original de 13 identidades, dos escuelas/seis estudiantes. Pendiente contraste privado del conjunto cerrado y vínculos tras recuperación/bajas. Bulk e invitaciones corresponden a E2. |
+| E1-03 | RLS ENABLE/FORCE y contexto transaccional del actor; credenciales SQL separadas sin propiedad, DDL, BYPASSRLS ni rol escritor; lector sin menores. AT02/05; RFS02/12/22; AB02/10/14. | Roles reales locales, conexión reutilizada/rollback, mutaciones y SET ROLE denegados. API/archivo por digest con credenciales separadas; DTO real mínimo sin datos de menores. Pendiente inspección privada de grants/RLS/políticas efectivas de AWS. |
+| E1-04 | Eventos canónicos append-only mediante funciones estrechas; evento/outbox atómicos; archivo idempotente con leases y recuperación. AT05; RFS11/12/13/23; AB14/21/22/23. | PostgreSQL real: rollback, head sin huecos, crash/reclaim, lease antiguo rechazado, recibo único. Worker AWS real; drill 42501830048: archivo ausente deniega, worker recuperado y recibo tardío no reabre. Intento denegado 86 protegido, verificado externamente hasta 91. |
+| E1-05 | WORM COMPLIANCE/KMS de ensayo; bytes/hash/versión/retención exactos; manifiestos firmados fuera de SQL y detección externa. AT05/06; RFS10/12/17/23; AB22/25. | AWS real: siete días, versionado privado/cifrado, claves separadas activas, Sign/Put/delete de versión/reducción de retención denegados. Verificación externa hasta 91, digest e7ae0bde5be75547d0116fbe9a9b000bb12ff7e7e42309069b7e36a25b066804. Pendiente copia SQL original/reescrita y custodia/políticas efectivas privadas. |
+| E1-06 | Proteger login escolar antes de abrir sesión; deduplicación, cierre ante fallo, admin sistema solo lee accesos paginados con lectura auditada. RF16/17; CA-F16/17; RFS14/21/22; AB10/21. | Cognito real: tres logins/tres accesos OPENED; reauth/callback inválido no duplican ingreso; filtros/DTO/paginación y logout aprobados. Drill real: sin archivo, callback/portal 401 y registro DENIED; después del archivo tardío sigue DENIED, mientras un login nuevo protegido abre. |
 
-## Etapas verificables
+## Procedencia
 
-1. Persistencia: modelos, migraciones expand, roles SQL, funciones/RLS y pruebas
-   PostgreSQL reales; no exponer rutas mientras falten los controles.
-2. Identidad: adaptador OIDC, sesiones/reauth/revocación/límites y clientes web/móvil;
-   contrato API y pruebas negativas/temporales.
-3. Evidencia: archivo/recibos/manifiestos/verificador, consultas y login protegido;
-   pruebas de permisos, replay y fallos; configuración de servicios de ensayo.
-4. Integración: `make check`, seguridad y builds pertinentes, aceptación staging
-   real por SHA/digest, matriz criterio→evidencia, PLAN/PROGRESS/README/runbooks.
+- CI main 42501082447 aprobó calidad, PostgreSQL/RLS, Chromium, auditorías,
+  imagen y APK; 160 pruebas Python y nueve JS. Cuatro regresiones reales de
+  Chromium comprueban captura/rechazo de callbacks nativos HTTP/JavaScript.
+- CD 42501790742 aprobó publicación, preparación, migración y staging con E1
+  desactivada. Producción bloqueada por E5; esos probes técnicos no aceptan E1.
+- Ensayo [42501830048](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42501830048)
+  aprobó todos los jobs, incluidos browser, cloud, staging-apk y archive-drill.
+  Los JSON originales y SHA-256 de sus ZIP se conservan en docs/evidence.
+- El manifiesto APK identifica el binario/configuración/firma de desarrollo;
+  no se publicó el APK en el repositorio público. No acredita instalación ni
+  retorno Android físico, distribución privada o firma productiva (E5).
 
-## Dependencias y estado inicial
+## Integración y límites
 
-- No hay IdP humano ni WORM/KMS E1 configurados en el repositorio. El usuario
-  confirmó Cognito para ensayo y siete días COMPLIANCE para evidencia sintética.
-- La identidad AWS OIDC existente es CI/main; no es una credencial de operador
-  ni permite asumir que esta sesión puede aprovisionar recursos nuevos.
-- No se habilitan retiros, invitaciones, datos reales ni producción.
-- Ningún criterio E1 se considera aprobado hasta registrar su evidencia.
+El workflow compartido e1-checks.yml ejecuta browser/cloud/APK/archive-drill
+para el ensayo manual y para CD cuando e1_enabled=true. Un gate fallido bloquea
+promoción. La activación continua sigue pendiente hasta completar el control
+privado y verificar su ejecución real. Producción permanece bloqueada hasta E5.
 
-## Verificación del checkpoint local (sin aceptación AWS)
+Cognito exponencial y backend 5/15 son políticas distintas autorizadas por el
+usuario. COMPLIANCE siete días solo conserva evidencia sintética; la política
+institucional/productiva sigue pendiente. E2–E5, retiros, datos reales, avisos,
+restauración integral del dominio desde backup y pruebas físicas no se aceptan
+como parte de esta fase.
 
-| Criterio | Evidencia local | Falta para cierre |
-| --- | --- | --- |
-| E1-01 | test_oidc, test_e1_identity, test_e1_school_access y pruebas móvil: firmas, PKCE/binding/replay, roles/canales, reauth/idle, revocación/refresh, CSRF. | Cognito/MFA y recuperación reales; retorno nativo y destino integrado. |
-| E1-02 | test_e1_isolation: dos escuelas/familias, principal obligatorio/único, referencias compuestas. | Verificar migración/provisión del esquema en destino real. |
-| E1-03 | Credenciales reales locales; RLS, conexión reutilizada/rollback, mutaciones y SET ROLE denegados. Lector sistema sin SELECT de menores. | Mismos límites comprobados con credenciales AWS/SQL del destino. |
-| E1-04 | test_e1_outbox: rollback sesión/evento/outbox, head sin huecos, crash/reclaim, lease antiguo rechazado, recibo único; test_archive: escritura idempotente. | Worker desplegado, fallos/reintentos/latencias reales y observabilidad del destino. |
-| E1-05 | Canonical bytes, RSA-PSS, versiones/retención/hash y huecos/divergencia probados con adaptadores simulados; IaC cfn-lint aprobada. | WORM/KMS/denegaciones/manifiestos REALES, high-water externo y custodia de claves. |
-| E1-06 | Tres sesiones/tres eventos, callbacks únicos, archivo tardío sin reapertura; DTO/fechas/paginación auditados y navegador local. | Login escolar completo con Cognito y recibo AWS dentro del plazo. |
-
-Resultado: ninguna fila acredita por sí sola el cierre integral de E1. Las casillas
-E1 de PLAN permanecen pendientes. La base preparatoria se integró por autorización expresa en `6efb4ed`. Su CI y
-staging aprobaron con identidad E1 desactivada; producción sigue bloqueada E5.
-El operador confirmó la comisión de recursos/roles desde `ede76aa`. El discovery
-y formulario real Cognito responden, sin acreditar todavía un login/MFA completo.
-La continuación `feat/e1-staging-acceptance` añade Managed Login v2, fixtures
-privados, revocación de familia refresh y comparación con copia de BD. Sus checks
-y aceptación real se registran por separado; no heredan el resultado del SHA base.
-
-Decisión del usuario del 7 de noviembre de 2026: se acepta el bloqueo exponencial
-nativo de Cognito y se conserva el límite estricto 5/15 en los puntos de entrada
-del backend. RFS07 refleja esa decisión. CA-S07 exige comprobar ambas políticas;
-no se exige una configuración fija 5/15 que Cognito no admite.
-
-## Ensayo de archivo ausente y tardío (siguiente incremento)
-
-Detener únicamente los archivadores sintéticos del candidato y confirmar su
-parada antes del login escolar. El callback debe denegar el acceso al vencer su
-plazo original; el lector de sistema debe mostrar el intento DENIED. Reanudar
-el mismo archivador por definición/digest aprobados, comprobar que ese intento
-sigue DENIED y su navegador sigue sin acceso, mientras un login nuevo sí abre.
-El verificador externo debe abarcar al menos la secuencia del intento denegado.
-La restauración del worker se intenta siempre en finally; cualquier fallo de
-restauración bloquea la aceptación. No alterar S3, retención o claves para simular
-el fallo. Esta descripción no acredita que el ensayo se haya ejecutado.
-
-## Evidencia real del primer ensayo 26d7d47
-
-Workflow 42449912611 y copias de sus reportes en docs/evidence:
-
-| Criterio | Resultado acreditado | Sigue pendiente |
-| --- | --- | --- |
-| E1-01 | Cognito real/MFA web de ADMIN_SISTEMA y ADMIN_ESCUELA, reautenticación y logout web. | PADRE/GUARDIA: harness de retorno nativo falló; corrección pendiente de ensayo. Recuperación/revocación administrativa y límites reales. |
-| E1-02 | Migraciones aplicadas; operador confirmó roster sintético de dos escuelas/seis estudiantes/13 cuentas. | Terminar inspección y pruebas del destino en la matriz completa. |
-| E1-03 | API/worker desplegados con credenciales separadas; permisos locales SQL verificados. | Inspección de grants y políticas efectivas del destino, preparada en el exportador privado. |
-| E1-04 | Worker real produjo 19 eventos/manifiestos/checkpoints verificados independientemente. | Archivo ausente/tardío y recuperación real del worker. |
-| E1-05 | Configuración Cognito/WORM/KMS, versiones, retención siete días y denegaciones reales aprobadas; high-water externo 19 conservado. | Comparación con copia SQL reescrita y custodia/políticas efectivas. |
-| E1-06 | Tres logins/tres registros protegidos, reauth sin duplicación, lector mínimo/fechas/paginación y logout aprobados. | Drill real de ausencia y recibo tardío. |
-
-El APK de staging se compiló con endpoint/callback/package, contenido y firma
-verificados; no se distribuyó públicamente ni se acredita prueba física. Ninguna
-fila constituye por sí sola la aceptación completa de E1.
-
-## Continuación 5ac4f02 y controles de identidad
-
-El segundo ensayo 42454301027 volvió a aprobar web/escuela, cloud y APK, con
-high-water externo 37. El capturador móvil aún falló; archive-drill se omitió.
-Los informes originales se preservan en docs/evidence/*-5ac4f02.json. La ampliación
-posterior cubre redirección JavaScript y cuatro regresiones Chromium, sin afirmar
-que Cognito real ya haya pasado.
-
-E1-01 se amplía en el harness con baja/restauración privada de PADRE/GUARDIA,
-access no vencido denegado, refresh y nuevo MFA denegados durante la baja, y
-sesión vieja todavía denegada después de restaurar. La recuperación privada
-Cognito conserva el subject y exige MFA antes y después de cambiar la contraseña.
-La copia privada contrasta el roster original para E1-02; no asigna hijos durante
-recuperación. Evidence 0014 audita exclusivamente el comando técnico de estado.
-Todas estas comprobaciones siguen pendientes de ejecución AWS del nuevo candidato.
-El sondeo backend 42456781366 aprobó sobre 5ac4f02: cinco fallos, otro punto
-independiente disponible, denegación a 890,272 s y recuperación a 905,530 s.
-Reporte y ZIP verificado en docs/evidence/e1-backend-limits-5ac4f02.json.
-Cognito exponencial, baja real y recuperación continúan pendientes.
-
-La aceptación automatizada browser/cloud/APK/archive-drill se comparte entre el
-ensayo manual y el CD. Al habilitar E1 en la configuración revisada, esos jobs
-son obligatorios antes de promoción. El gate no se acredita por las sondas E0;
-la producción sigue bloqueada hasta E5. El candidato de conexión aún debe pasar
-CI y ejecutar el workflow real.
+Los fallos previos de 26d7d47/5ac4f02 y el origen anterior de 8bb56b8 se preservan
+sin reinterpretarlos como PASS. La retirada programada deja Express INACTIVE;
+la recreación requiere etiquetado acotado y puede cambiar la URL. El nuevo origen
+y el callback deben coincidir antes de introducir las credenciales de ensayo.

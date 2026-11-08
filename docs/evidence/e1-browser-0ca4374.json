@@ -1,0 +1,21 @@
+{
+  "sha": "0ca43742fd1a5ad77311a64ee522ef932682922d",
+  "scope": "Real synthetic Cognito/BFF and mobile protocol; native Android return, SQL isolation and WORM recovery are separate",
+  "checked_at": "2026-11-08T17:17:55.578Z",
+  "checks": [
+    {
+      "id": "school_three_protected_logins",
+      "passed": true
+    },
+    {
+      "id": "mobile_parent_mfa_pkce_reauth_refresh_logout",
+      "passed": true
+    },
+    {
+      "id": "mobile_guard_mfa_pkce_reauth_refresh_logout",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "e1_accepted": false
+}

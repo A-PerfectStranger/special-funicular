@@ -1,79 +1,46 @@
-# Estado de ejecución — E1 en implementación
+# Estado de ejecución — ensayo integrado E1 aprobado
 
-## Estado actual para continuar
+## Estado actual
 
-Reintento tras comisión IAM: 42497020512 aprobó despliegue real de 8bb56b8,
-OCI sha256:5093fa94e4df73725e1771a87ad59cb609928fcba7858de45a427840a8962da1,
-API/archivo y TLS/red. Express recreó el origen como
-https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws.
-Browser falló antes del login por la referencia anterior; no acredita MFA/móvil.
-Se actualiza la configuración versionada y se solicita al operador solo WebOrigin
-sobre la plantilla existente de E1. No reaprovisionar usuarios ni alterar WORM.
-La aceptación completa continúa pendiente.
+E1 sigue pendiente de cierre: resta el control privado Cognito/SQL y activar y
+verificar el gate continuo. No se marcan las casillas del plan por el ensayo solo.
 
-Continuación actual: PR #12 integrado en 8bb56b80238f863215801b80c8d0188a8cdbcb77,
-CI push/PR aprobadas y CI main 42496281982 aprobada (159 Python/nueve JS,
-Chromium, auditorías, imagen/APK y required). CD 42496983905 y ensayo 42497020512
-aprobaron publicación/preparación/migración, pero la recreación de Express falló
-con AccessDeniedException; suites E1 sin ejecutar. La política lifecycle prepara
-el permiso TagResource limitado a creación del servicio exacto y tags sintéticos.
-CloudTrail confirmó específicamente ecs:TagResource denegado para retiro-api en
-los dos intentos. El operador aplicó e328c43 a retiro-staging-lifecycle y confirmó
-UPDATE completo con ventana acotada. CI push 42497714972 y PR 42497740147 del
-candidato aprobadas (160 Python/nueve JS, Chromium, seguridad, imagen/APK y
-required). Repetición de 42497020512 en curso; todavía sin aceptación E1.
+- Main: `0ca43742fd1a5ad77311a64ee522ef932682922d`, PR #13 integrado después de
+  checks push 42500314751 y PR 42500319404 aprobados. PR #12 corrigió recreación
+  desde INACTIVE. PR #13 añadió etiquetado de creación acotado y alineó el origen.
+- CI main 42501082447 aprobada: 160 Python/nueve JS, PostgreSQL/RLS, Chromium,
+  lint/tipos/migraciones, auditorías, imagen/APK y required.
+- CD 42501790742: publish/prepare/migrate/staging aprobados; producción bloqueada
+  E5, gate E1 omitido por false. Reporte e1-base-staging-0ca4374.json.
+- Ensayo 42501830048: TODOS los jobs aprobados. API/archivador por OCI
+  `sha256:9faea8109c88f3cc94718868dfa9bbb05e100fb56b93832ed4c47b10b6c544a8`;
+  origen https://re-dc7939bf752047ff8947f600b81bc157.ecs.us-east-1.on.aws.
+- Cognito/TOTP real en los cuatro roles; BFF escolar protegido, lector mínimo,
+  protocolo móvil compartido PADRE/GUARDIA, reauth/refresh/logout y baja/restauración
+  con access no vencido denegado y sin reactivar la sesión vieja. APK de staging
+  compilado/configurado/firma de desarrollo; no prueba Android física ni distribución.
+- Archivo AWS ausente: callback/portal denegados. Intento 86 conservó DENIED tras
+  recuperar el worker y archivar tarde; login nuevo sí abrió. WORM/KMS y denegaciones
+  reales aprobados; high-water EXTERNO 91 / digest
+  e7ae0bde5be75547d0116fbe9a9b000bb12ff7e7e42309069b7e36a25b066804.
+- Reportes originales *-0ca4374.json conservados con SHA-256 de los ZIP verificados;
+  procedencia en docs/evidence/README.md. Matriz actual en docs/e1-acceptance.md.
+- El operador confirmó TagResource denegado en CloudTrail y aplicó lifecycle e328c43.
+  Express cambió la URL al recrearse; el origen anterior de 8bb56b8 falló antes de
+  login, conservado como FAIL. WebOrigin solicitado sobre plantilla existente:
+  CloudFormation respondió que no había diferencias; ensayo real posterior aprobado.
+- En curso con operador: prepare_e1_snapshot --synthetic-only --exercise-cognito-controls,
+  desde el SHA aceptado. Credenciales y copias SQL permanecen en AWS privado.
+  Se esperan únicamente report_key/report_version/report_sha256. Después ejecutar
+  e1-recovery con mínimo externo 91; ningún mínimo se obtiene de la BD investigada.
+- Luego: completar matriz, habilitar E1 en staging por PR/checks y verificar CD
+  con browser/cloud/APK/archive-drill obligatorios. Configuración continua aún false;
+  retiros false, datos solo sintéticos y producción bloqueada E5.
 
-**E1 sigue sin aceptación integral.** Main remoto verificado en
-`be8f1df5f5d19d86a38ba15a4b10bd01fa1c5155` (PR #11), integrado después de todos
-los checks push/PR de ccbc381 aprobados (42457544785 y 42457547776). CI main
-42458226675 aprobada. CD 42458832112: publish/prepare/migrate/staging aprobados,
-evidence 0014 aplicada; producción bloqueada E5 y gate E1 omitido por flag false.
-Reporte técnico conservado en docs/evidence/e1-base-staging-be8f1df.json. La
-instrucción actual del usuario reanuda el cierre después de la pausa documentada
-en origin/docs/e1-runtime-checkpoint. Ensayo 42494427376 sobre be8f1df: publicación,
-preparación y migración aprobadas; actualización de Express rechazada con
-InvalidParameterException, suites funcionales omitidas. El operador confirmó
-INACTIVE con la definición API:9 y el origen original. La regresión local
-reproduce ese rechazo al actualizar una descripción INACTIVE retenida; el
-adaptador ahora recrea ese estado y bloquea DRAINING/estados desconocidos.
-La corrección y su repetición AWS se verifican por separado.
-La configuración continua conserva E1 false,
-retiros y producción apagados.
-
-Corrección de reactivación: make check aprobado (158 Python/nueve JS) y cinco
-regresiones específicas aprobadas, incluida denegación de lectura sin recreación.
-CI/integración y repetición real de este cambio todavía pendientes.
-
-- El operador confirmó las 13 identidades sintéticas/TOTP y el roster desde
-  26d7d47. Contraseñas y semillas permanecen exclusivamente en Secrets Manager.
-- Segundo ensayo real [42454301027](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42454301027):
-  API/worker por digest verificado, acceso escolar protegido, Cognito/WORM/KMS y
-  APK aprobados; PADRE volvió a fallar al capturar el retorno nativo, GUARDIA no
-  se ejecutó y archive-drill quedó omitido. Reportes conservados sin alterar en
-  docs/evidence/*-5ac4f02.json. High-water externo 37; no acredita recuperación SQL.
-- PR #11 (`feat/e1-identity-checks`) integrado como base preparatoria: revocación administrativa privada y
-  restauración de dos cuentas fijas, prueba móvil con credenciales no vencidas,
-  migración evidence 0014 con auditoría estrecha. La restauración no reactiva
-  sesiones antiguas ni modifica identidad/rol/vínculos. Pendiente ensayo AWS.
-- Exportador privado comprueba el roster original completo y los límites reales
-  SQL/IAM/KMS antes de generar las copias. Opción de operador prepara recuperación
-  MFA de una contraseña sintética y medición nativa Cognito exponencial. No
-  ejecutados aún; no pedir ni publicar secretos.
-- Capturador de prueba ampliado a navegación nativa solicitada por JavaScript:
-  regresión reproducida fallida antes de corregir; cuatro pruebas Chromium reales
-  aprobadas. Esto no prueba todavía la causa del fallo Cognito ni su solución real.
-- Último make check: 154 Python/nueve JS aprobados; tipos, lint, migraciones y
-  configuración Expo aprobados. La aceptación real y CI del nuevo candidato se
-  registrarán por separado, sin heredar resultados de otro SHA.
-- Sondeo real backend 5/15 aprobado en workflow 42456781366 sobre 5ac4f02/digest
-  ef7b320f: cinco fallos, inicio válido denegado a 890,272 s, permitido a 905,530 s,
-  otro punto disponible. Sin AWS/secretos ni cambios de reloj; mismo despliegue
-  durante toda la medición. Copia y procedencia verificadas en docs/evidence.
-  No acredita el bloqueo nativo Cognito, todavía pendiente.
-- Faltan móvil real completo, baja/restauración online, archivo ausente/tardío,
-  copia SQL divergente y recuperación/lockout Cognito. E1 permanece sin marcar.
-- Decisión autorizada RFS07: Cognito exponencial; backend 5/15. COMPLIANCE siete
-  días solo sintéticos. No hay credenciales AWS de operador en esta sesión.
+Cognito exponencial y backend 5/15 son políticas autorizadas distintas. El sondeo
+real backend 42456781366 pasó sobre 5ac4f02 (denegado a 890,272 s; permitido a
+905,530 s); no se atribuye su medición al SHA nuevo. COMPLIANCE siete días solo
+sintéticos. No recrear usuarios para restaurar cuentas, ni borrar evidencia/claves.
 
 ## Historial del checkpoint inicial (7 de noviembre de 2026, America/Bogota)
 
