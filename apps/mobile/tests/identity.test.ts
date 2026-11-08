@@ -77,3 +77,29 @@ test('logout during browser return prevents persisting a late session', async ()
   await assert.rejects(login);
   assert.equal(saved(), null);
 });
+
+test('foreground validation cannot refresh another session during browser login', async () => {
+  let finish: (value: string) => void = () => {};
+  let opened: () => void = () => {};
+  const browserOpened = new Promise<void>(resolve => { opened = resolve; });
+  const { client, calls } = harness({ browser: () => {
+    opened(); return new Promise<string>(resolve => { finish = resolve; });
+  } });
+  const login = client.login();
+  await browserOpened;
+  await assert.rejects(client.check());
+  assert.equal(calls.length, 1);
+  finish(`retiro-seguro-staging://auth/callback?code=code&state=${state}`);
+  assert.equal(await login, 'PADRE');
+});
+
+test('a secure-store deletion failure cannot restore the session in memory', async () => {
+  let refuseDelete = false;
+  const { client } = harness({ clearRefresh: async () => {
+    if (refuseDelete) throw new Error('Device key store unavailable');
+  } });
+  await client.login();
+  refuseDelete = true;
+  await assert.rejects(client.logout());
+  await assert.rejects(client.check());
+});

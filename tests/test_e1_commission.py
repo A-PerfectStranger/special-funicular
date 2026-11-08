@@ -15,6 +15,9 @@ def test_e1_stack_has_mandatory_mfa_worm_and_distinct_keys() -> None:
     resources = template["Resources"]
     pool = resources["Pool"]["Properties"]
     assert pool["MfaConfiguration"] == "ON"
+    assert pool["UserPoolTier"] == "ESSENTIALS"
+    assert resources["Domain"]["Properties"]["ManagedLoginVersion"] == 2
+    assert resources["WebBranding"]["Properties"]["UseCognitoProvidedValues"] is True
     assert pool["EnabledMfas"] == ["SOFTWARE_TOKEN_MFA"]
     assert pool["AdminCreateUserConfig"]["AllowAdminCreateUserOnly"]
     for name in ["WebClient", "MobileClient"]:

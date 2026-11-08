@@ -2,7 +2,7 @@
 
 ## Checkpoint E1 (7 de noviembre de 2026, America/Bogota)
 
-**E1 no está terminada, integrada en main ni aceptada en AWS.** Base remota
+**E1 no está terminada ni aceptada en AWS.** Base remota
 `bbe48f4`, sincronizada por fast-forward tras fetch; rama `feat/e1-identity-evidence`.
 AGENTS, PLAN, PROGRESS y requisitos leídos antes del código; criterios previos
 registrados en `docs/e1-acceptance.md`. El usuario eligió Cognito de ensayo y
@@ -42,7 +42,8 @@ retiros, invitaciones, operaciones E2–E5 y producción sin habilitar.
 1. PR #8 abierto como borrador. CI de `2b1355e` aprobada (quality, imagen/smoke,
    APK y required): https://github.com/A-PerfectStranger/special-funicular/actions/runs/42439770486.
    La repetición de PR y los commits posteriores se verifican por separado.
-   No integrar main con criterios pendientes.
+   Histórico: la integración preparatoria fue autorizada expresamente y se realizó
+   después, con E1 desactivada (ver sección siguiente).
 2. Comisionar Cognito/WORM/KMS/roles SQL usando el runbook E1 y operador AWS acreditado.
    No hay credenciales de operador en esta sesión; CI/main no es ese login.
    No reutilizar el código OAuth antiguo ni pedir claves permanentes.
@@ -75,7 +76,21 @@ Los errores de comisión ahora muestran etapa y barrera/código AWS saneado.
 Preparadas y probadas las definiciones API/worker E1: mismo digest y credenciales
 por proceso, worker acotado a tres horas; falta conectarlas al despliegue real.
 Último `make check` con estas correcciones: 117 Python y siete JS aprobado.
-Comisión corregida aún pendiente de ejecución real.
+El resultado posterior de la comisión corregida se registra a continuación.
+
+### Comisión completada e integración preparatoria
+
+El operador ejecutó `ede76aa` en CloudShell y devolvió: identity/billing/
+CloudFormation/private database role bootstrap; RDS privada disponible;
+`E1 resources and SQL roles commissioned. E1 ACCEPTANCE PENDING.`
+Esto acredita la comisión informada por el operador, no las suites E1 reales.
+El usuario autorizó expresamente integrar la base con E1 desactivada para poder
+continuar con OIDC/main. PR #8 integrado en `6efb4edb28aacf6dd3f0e2e53087ec80c4169863`;
+los checks previos de `ede76aa` aprobaron en push y PR. CI main 42441266774 y CD 42441787035 publish/prepare/migrate/staging aprobados;
+producción bloqueada E5. Copia del reporte en docs/evidence/e1-base-staging-6efb4ed.json.
+Los probes son E0, no aceptación funcional E1. La continuación está en `feat/e1-staging-acceptance`.
+Pendiente: activación del destino, fixture sintético con MFA, worker real,
+verificador externo contra copia de BD, pruebas integradas y aceptación E1.
 
 ## E0 completada
 
@@ -150,3 +165,39 @@ Publicación inicial previa [42430973973](https://github.com/A-PerfectStranger/s
 y comisión CloudShell comprobaron SQL/red; sus ocho probes devolvieron 503 en la
 imagen anterior 9f988a1. La corrección de Host del ALB y el CD 42433511451
 constituyen la aceptación actual; no se atribuyen los artefactos de otro SHA.
+
+## Continuación E1: estado verificable y siguiente paso
+
+Rama `feat/e1-staging-acceptance`, base main `6efb4ed`. E1 continúa abierta.
+El usuario autorizó mantener Cognito con bloqueo exponencial nativo y backend
+5 fallos en 15 minutos/bloqueo de 15 minutos. RFS07 y aceptación actualizados.
+
+Cambios de continuación, aún sin aceptación AWS:
+
+- Managed Login v2/Essentials para soportar prompt=login; política comprobada
+  por backend. No ampliar el plan de AWS automáticamente si el nivel se rechaza.
+- Herramienta privada de 13 identidades sintéticas/TOTP, dos escuelas y familias;
+  contraseñas/semillas solo en Secrets Manager, mensajes suprimidos, transacción
+  importer auditada. No se ha ejecutado ni creado usuarios en este ensayo.
+- Regresión real local corregida: logout con refresh anterior a una rotación
+  revoca la familia actual. Historial de hashes protegido con RLS; replay revoca.
+  Móvil evita refresh oculto durante navegador y bloquea acceso local si falla
+  el borrado de SecureStore. No afirmar borrado del SO cuando falla.
+- Verificador externo puede comparar bytes/hash contra una copia SQL exportada,
+  detectando edición aunque se recalculen hashes locales; CLI sin Django/SQL.
+- Migraciones identity 0003 y evidence 0011/0012 todavía no aplicadas en AWS.
+
+Orden siguiente: terminar checks de esta rama; publicar candidato por PR;
+actualizar stack E1 revisado con operador; integrar migraciones y despliegue
+API/worker acotado por digest; ejecutar provisión sintética privada y aceptación
+real web/móvil/SQL/WORM/KMS, incluida copia divergente y recibo tardío. No marcar
+E1 terminada por comisión, formulario de Cognito, fixtures o tests simulados.
+Esta sesión no posee credenciales AWS de operador. No reutilizar códigos OAuth
+antiguos ni pedir contraseñas/semillas por chat. Los IDs públicos del proveedor
+fueron facilitados por el usuario; los secretos no.
+
+Checks de continuación antes del siguiente cambio de CD: `make check` aprobado,
+129 Python y nueve JS (siete móvil y dos vendor), PostgreSQL real, lint, tipos,
+CFN, migraciones y Expo. `make security` aprobado: pip-audit/npm sin vulnerabilidades,
+gitleaks de historial/árbol sin secretos. No equivale a CI del próximo commit ni
+al ensayo real AWS. Estos resultados incluyen la regresión de logout/refresh.

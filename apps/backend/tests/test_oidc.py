@@ -4,6 +4,7 @@ import json
 import time
 from dataclasses import replace
 from typing import Any
+from unittest.mock import patch
 
 import jwt
 import pytest
@@ -61,6 +62,8 @@ def test_valid_oidc_never_turns_claimed_roles_into_authorization(signed_identity
         {"nonce": "other-login"},
         {"amr": ["pwd"]},
         {"amr": []},
+        {"amr": "notmfa"},
+        {"amr": ["pwd", 1]},
         {"sub": ""},
         {"exp": 1},
         {"auth_time": 1},
@@ -100,3 +103,66 @@ def test_cognito_requires_id_token_and_mandatory_pool_check(signed_identity: Any
         provider.verify_token(token(key, claims), [jwk], "mobile", "bound-nonce")
     claims["token_use"] = "id"
     assert provider.verify_token(token(key, claims), [jwk], "mobile", "bound-nonce")
+
+
+@pytest.mark.parametrize(
+    "degradation", [None, "no_mfa", "classic_ui", "remembered_device", "extra_grant", "wrong_pool"]
+)
+def test_cognito_mfa_attestation_checks_real_policy_shapes(degradation: str | None) -> None:
+    provider = Provider(
+        "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_fixture",
+        "web",
+        "mobile",
+        "https://app.example/auth/callback",
+        "retiro-seguro-dev://auth/callback",
+        "cognito_required_totp",
+        "us-east-1_fixture",
+        "us-east-1",
+    )
+    pool: dict[str, Any] = {
+        "MfaConfiguration": "ON",
+        "UserPoolTier": "ESSENTIALS",
+        "AdminCreateUserConfig": {"AllowAdminCreateUserOnly": True},
+        "LambdaConfig": {},
+    }
+    domain = {"UserPoolId": provider.pool_id, "ManagedLoginVersion": 2}
+    client: dict[str, Any] = {
+        "SupportedIdentityProviders": ["COGNITO"],
+        "AllowedOAuthFlows": ["code"],
+        "AllowedOAuthFlowsUserPoolClient": True,
+        "ExplicitAuthFlows": ["ALLOW_REFRESH_TOKEN_AUTH"],
+        "CallbackURLs": [provider.mobile_redirect],
+        "IdTokenValidity": 5,
+        "TokenValidityUnits": {"IdToken": "minutes"},
+    }
+    if degradation == "no_mfa":
+        pool["MfaConfiguration"] = "OFF"
+    if degradation == "classic_ui":
+        domain["ManagedLoginVersion"] = 1
+    if degradation == "remembered_device":
+        pool["DeviceConfiguration"] = {"ChallengeRequiredOnNewDevice": False}
+    if degradation == "extra_grant":
+        client["ExplicitAuthFlows"].append("ALLOW_USER_PASSWORD_AUTH")
+    if degradation == "wrong_pool":
+        domain["UserPoolId"] = "us-east-1_other"
+    with patch("identity.oidc.boto3.client") as factory:
+        api = factory.return_value
+        api.describe_user_pool.return_value = {"UserPool": pool}
+        api.describe_user_pool_domain.return_value = {"DomainDescription": domain}
+        api.get_user_pool_mfa_config.return_value = {
+            "MfaConfiguration": "ON",
+            "SoftwareTokenMfaConfiguration": {"Enabled": True},
+        }
+        api.describe_user_pool_client.return_value = {"UserPoolClient": client}
+        if degradation:
+            with pytest.raises(IdentityRejected):
+                provider.verify_cognito_policy(
+                    "mobile", "https://fixture.auth.us-east-1.amazoncognito.com/oauth2/authorize"
+                )
+        else:
+            provider.verify_cognito_policy(
+                "mobile", "https://fixture.auth.us-east-1.amazoncognito.com/oauth2/authorize"
+            )
+            api.describe_user_pool_client.assert_called_once_with(
+                UserPoolId=provider.pool_id, ClientId="mobile"
+            )

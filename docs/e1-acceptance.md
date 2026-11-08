@@ -8,7 +8,7 @@ requisitos leídos antes de implementar. E0 aceptada; E2–E5 fuera de esta entr
 
 | ID | Resultado exigido | Referencias / comprobación |
 | --- | --- | --- |
-| E1-01 | Solo cuatro roles locales; OIDC Code/PKCE móvil y BFF web, MFA validada, callbacks correlacionados; tokens ≤5 min, inactividad 5/15 min, logout y baja online. Reautenticación ≤5 min. | AT04, RFS01/03/07/08/09/19, AB09/11/12. Firma/issuer/audience/nonce/tiempos, replay, recuperación sin asignación de hijos, límites 5 fallos/15 min. IdP real en staging. |
+| E1-01 | Solo cuatro roles locales; OIDC Code/PKCE móvil y BFF web, MFA validada, callbacks correlacionados; tokens ≤5 min, inactividad 5/15 min, logout y baja online. Reautenticación ≤5 min. | AT04, RFS01/03/07/08/09/19, AB09/11/12. Firma/issuer/audience/nonce/tiempos, replay, recuperación sin asignación de hijos, backend: 5 fallos/15 min y bloqueo de 15 min; Cognito: bloqueo exponencial nativo autorizado. IdP real en staging. |
 | E1-02 | Escuelas/sedes, estudiantes, padres y vínculos con referencias por escuela y exactamente un principal activo por estudiante activo. Claims/inputs no asignan permisos ni hijos. | AT02, RF03/14, RFS02/03, AB02/10/24. Dos escuelas/dos familias; principal/secundario; restricciones PostgreSQL. Activación/bulk se completan en E2. |
 | E1-03 | RLS ENABLE/FORCE y contexto transaccional derivado del actor autenticado; identidades SQL separadas sin DDL/BYPASSRLS/propiedad; lector sistema sin menores. | AT02/05, RFS02/12/22, AB02/10/14. Roles reales, conexión reutilizada, accesos laterales y mutaciones denegados. |
 | E1-04 | Eventos canónicos append-only construidos por funciones estrechas; evento y outbox atómicos; worker idempotente, reintentos y diagnóstico observable. | AT05, RFS11/12/13/23, AB14/21/22/23. Sin INSERT libre, rollback, crash/reintento, ausencia de secretos/PII excesiva. |
@@ -47,5 +47,15 @@ requisitos leídos antes de implementar. E0 aceptada; E2–E5 fuera de esta entr
 | E1-06 | Tres sesiones/tres eventos, callbacks únicos, archivo tardío sin reapertura; DTO/fechas/paginación auditados y navegador local. | Login escolar completo con Cognito y recibo AWS dentro del plazo. |
 
 Resultado: ninguna fila acredita por sí sola el cierre integral de E1. Las casillas
-E1 de PLAN permanecen pendientes. Evidencia global local: make check, 115 Python/7 JS;
-seguridad y bundle Android aprobados. CI/artefactos y aceptación real pendientes.
+E1 de PLAN permanecen pendientes. La base preparatoria se integró por autorización expresa en `6efb4ed`. Su CI y
+staging aprobaron con identidad E1 desactivada; producción sigue bloqueada E5.
+El operador confirmó la comisión de recursos/roles desde `ede76aa`. El discovery
+y formulario real Cognito responden, sin acreditar todavía un login/MFA completo.
+La continuación `feat/e1-staging-acceptance` añade Managed Login v2, fixtures
+privados, revocación de familia refresh y comparación con copia de BD. Sus checks
+y aceptación real se registran por separado; no heredan el resultado del SHA base.
+
+Decisión del usuario del 7 de noviembre de 2026: se acepta el bloqueo exponencial
+nativo de Cognito y se conserva el límite estricto 5/15 en los puntos de entrada
+del backend. RFS07 refleja esa decisión. CA-S07 exige comprobar ambas políticas;
+no se exige una configuración fija 5/15 que Cognito no admite.

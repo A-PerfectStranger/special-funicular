@@ -38,6 +38,6 @@ class Command(BaseCommand):
                         raise CommandError("Archive batch failed; retry remains durable")
                     return
                 if not result["claimed"]:
-                    time.sleep(0.05)
+                    time.sleep(0.2)
         except (ArchiveUnavailable, RuntimeError) as exc:
             raise CommandError("BLOCKED: archive configuration or integrity unavailable") from exc

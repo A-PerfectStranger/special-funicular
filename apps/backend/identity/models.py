@@ -81,3 +81,11 @@ class EntryLimit(models.Model):
     failures = models.PositiveIntegerField(default=0)
     window_started_at = models.DateTimeField()
     blocked_until = models.DateTimeField(null=True)
+
+
+class RetiredRefresh(models.Model):
+    """Revocation capability after rotation; never usable to authenticate again."""
+
+    token_hash = models.CharField(primary_key=True, max_length=64)
+    session = models.ForeignKey(Session, on_delete=models.PROTECT)
+    retired_at = models.DateTimeField()

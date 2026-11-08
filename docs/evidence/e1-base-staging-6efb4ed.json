@@ -1,0 +1,73 @@
+{
+  "sha": "6efb4edb28aacf6dd3f0e2e53087ec80c4169863",
+  "digest": "sha256:20ac037de038a3edf15e4b075cf304b942e8bd70f96af9643f8400f965683d8c",
+  "origin": "https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws",
+  "service": "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api",
+  "task_definition": "arn:aws:ecs:us-east-1:028364485203:task-definition/retiro-staging-api:4",
+  "runtime_digest_verified": true,
+  "network": {
+    "task_ingress_from_alb_only": true,
+    "dedicated_vpc": true
+  },
+  "expires_at": "2026-11-08T06:15:22.581974+00:00",
+  "probes": {
+    "scope": "E0 public data-plane only; IAM, budget and release provenance not verified",
+    "checked_at": "2026-11-08T03:24:10.718544+00:00",
+    "origin": "https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws",
+    "tls": "TLSv1.3 with certificate and hostname validation",
+    "https_proxy_configured": false,
+    "tls_scope": "client to TLS peer; an intercepting proxy prevents origin TLS attestation",
+    "passed": true,
+    "checks": [
+      {
+        "method": "GET",
+        "path": "/health/live",
+        "passed": true,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/health/ready",
+        "passed": true,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/v1/capabilities",
+        "passed": true,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/admin/",
+        "passed": true,
+        "status": 404
+      },
+      {
+        "method": "GET",
+        "path": "/v1/guard/confirm-pickup",
+        "passed": true,
+        "status": 404
+      },
+      {
+        "method": "GET",
+        "path": "/v1/me/students",
+        "passed": true,
+        "status": 404
+      },
+      {
+        "method": "POST",
+        "path": "/health/live",
+        "passed": true,
+        "status": 403
+      },
+      {
+        "method": "POST",
+        "path": "/v1/capabilities",
+        "passed": true,
+        "status": 403
+      }
+    ]
+  },
+  "passed": true
+}
