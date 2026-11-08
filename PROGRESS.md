@@ -33,6 +33,12 @@ verificar el gate continuo. No se marcan las casillas del plan por el ensayo sol
   de exportar SQL; no se emitieron metadatos ni se acredita ese control. El nuevo
   diagnóstico usa barreras y resultados/duración por intento con etiquetas
   fijas, sin mensajes del proveedor, contraseñas, TOTP, sesiones o tokens.
+- Diagnóstico de 41d73fe: cinco rechazos de contraseña (203–231 ms), primer
+  bloqueo explícito (146 ms), pero el sexto intento tras la espera fija siguió
+  bloqueado (150 ms). Se sustituye la suposición temporal por medición de límites
+  conservadores: vencimiento observado + sexto fallo ordinario + segunda ventana
+  con límite inferior superior al límite superior de la primera. Se conservan
+  rechazo de throttling/errores ajenos, MFA y fallo cerrado ante medición ambigua.
 - En curso con operador: prepare_e1_snapshot --synthetic-only --exercise-cognito-controls,
   desde el SHA aceptado. Credenciales y copias SQL permanecen en AWS privado.
   Se esperan únicamente report_key/report_version/report_sha256. Después ejecutar

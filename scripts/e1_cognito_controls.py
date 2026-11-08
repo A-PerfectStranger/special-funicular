@@ -4,6 +4,8 @@ import json
 import secrets
 import time
 import uuid
+from collections.abc import Callable
+from math import ceil, floor
 from typing import Any
 
 import pyotp
@@ -26,6 +28,9 @@ def failure_label(error: Exception) -> str:
         "Sixth password failure was not established": "native_sixth_failure_not_established",
         "Second native lockout was not observed": "native_second_lockout_not_observed",
         "The second native lockout did not exceed the first": "native_second_window_too_short",
+        "Five initial password failures were not established": "native_initial_failures_missing",
+        "Native first expiry was not observed": "native_first_expiry_timeout",
+        "Native second expiry was not observed": "native_second_expiry_timeout",
     }
     if type(error) is RuntimeError and len(error.args) == 1 and isinstance(error.args[0], str):
         return barriers.get(error.args[0], "unclassified_private_failure")
@@ -55,9 +60,99 @@ def locked(error: ClientError) -> bool:
     )
 
 
+def measure_native_lockout(
+    auth: Callable[[str, str], dict[str, Any]], username: str, password: str
+) -> dict[str, float]:
+    """Prove growth using conservative RPC bounds, never a presumed server expiry."""
+    print("E1 native step: five failed passwords", flush=True)
+    fifth_started = fifth_finished = 0.0
+    for _ in range(5):
+        fifth_started = time.monotonic()
+        try:
+            auth(username, secrets.token_urlsafe(32) + "wrongA1!")
+        except ClientError as error:
+            if error.response["Error"]["Code"] != "NotAuthorizedException":
+                raise
+            if locked(error):
+                raise RuntimeError("Five initial password failures were not established") from None
+        else:
+            raise RuntimeError("Incorrect password unexpectedly accepted")
+        fifth_finished = time.monotonic()
+
+    def prove_locked(message: str) -> None:
+        try:
+            auth(username, password)
+        except ClientError as error:
+            if not locked(error):
+                raise
+        else:
+            raise RuntimeError(message)
+
+    print("E1 native step: first lockout observation", flush=True)
+    prove_locked("First native lockout was not observed")
+    print("E1 native step: wait for first expiry and establish sixth failure", flush=True)
+    # Locked probes do not count as password failures. The first ordinary wrong-
+    # password rejection proves expiry AND establishes exactly one additional failure.
+    second_start: tuple[float, float] | None = None
+    deadline = fifth_finished + 20
+    while time.monotonic() < deadline:
+        time.sleep(0.2)
+        started = time.monotonic()
+        try:
+            auth(username, secrets.token_urlsafe(32) + "wrongA1!")
+        except ClientError as error:
+            if locked(error):
+                continue
+            if error.response["Error"]["Code"] != "NotAuthorizedException":
+                raise
+            second_start = started, time.monotonic()
+            break
+        else:
+            raise RuntimeError("Incorrect password unexpectedly accepted")
+    if second_start is None:
+        raise RuntimeError("Native first expiry was not observed")
+    sixth_started, sixth_finished = second_start
+    # The first server lock starts no earlier than the fifth request starts and
+    # expires no later than the ordinary sixth failure's response. This is an upper bound.
+    first_upper = ceil((sixth_finished - fifth_started) * 1000) / 1000
+    print(json.dumps({"native_first_lockout_upper_seconds": first_upper}), flush=True)
+    print("E1 native step: second lockout observation", flush=True)
+    prove_locked("Second native lockout was not observed")
+    delay = sixth_finished + first_upper + 0.1 - time.monotonic()
+    if delay > 0:
+        time.sleep(delay)
+    print("E1 native step: prove second window exceeds first upper bound", flush=True)
+    second_probe_started = time.monotonic()
+    # The second lock started before the sixth response ended and was still
+    # active after this probe began. Its lower bound must exceed the first upper bound.
+    second_lower = floor((second_probe_started - sixth_finished) * 1000) / 1000
+    print(json.dumps({"native_second_probe_lower_seconds": second_lower}), flush=True)
+    prove_locked("The second native lockout did not exceed the first")
+    if second_lower <= first_upper:
+        raise RuntimeError("The second native lockout did not exceed the first")
+    print("E1 native step: observe second expiry", flush=True)
+    deadline = sixth_finished + max(20, first_upper * 3)
+    while time.monotonic() < deadline:
+        time.sleep(0.2)
+        try:
+            result = auth(username, password)
+        except ClientError as error:
+            if locked(error):
+                continue
+            raise
+        if result.get("ChallengeName") != "SOFTWARE_TOKEN_MFA" or not result.get("Session"):
+            raise RuntimeError("TOTP challenge was not required")
+        return {
+            "first_lockout_upper_seconds": first_upper,
+            "second_lockout_lower_seconds": second_lower,
+            "second_expiry_upper_seconds": ceil((time.monotonic() - sixth_started) * 1000) / 1000,
+        }
+    raise RuntimeError("Native second expiry was not observed")
+
+
 def exercise(
     cognito: Any, vault: Any, config: dict[str, str], state: dict[str, Any]
-) -> dict[str, bool]:
+) -> dict[str, Any]:
     print("E1 private step: Cognito configuration", flush=True)
     pool = config["PoolId"]
     policy = cognito.get_user_pool_mfa_config(UserPoolId=pool)
@@ -198,50 +293,7 @@ def exercise(
             raise RuntimeError("Original lockout fixture required")
         print("E1 native step: baseline MFA", flush=True)
         mfa(username, record["password"])
-        print("E1 native step: five failed passwords", flush=True)
-        for _ in range(5):
-            try:
-                auth(username, secrets.token_urlsafe(32) + "wrongA1!")
-            except ClientError as error:
-                if error.response["Error"]["Code"] != "NotAuthorizedException":
-                    raise
-            else:
-                raise RuntimeError("Incorrect password unexpectedly accepted")
-        print("E1 native step: first lockout observation", flush=True)
-        try:
-            auth(username, record["password"])
-        except ClientError as error:
-            if not locked(error):
-                raise
-        else:
-            raise RuntimeError("First native lockout was not observed")
-        time.sleep(1.2)
-        print("E1 native step: sixth failed password", flush=True)
-        try:
-            auth(username, secrets.token_urlsafe(32) + "wrongA1!")
-        except ClientError as error:
-            if error.response["Error"]["Code"] != "NotAuthorizedException" or locked(error):
-                raise RuntimeError("Sixth password failure was not established") from None
-        else:
-            raise RuntimeError("Incorrect password unexpectedly accepted")
-        print("E1 native step: second lockout observation", flush=True)
-        try:
-            auth(username, record["password"])
-        except ClientError as error:
-            if not locked(error):
-                raise
-        else:
-            raise RuntimeError("Second native lockout was not observed")
-        time.sleep(1.2)
-        print("E1 native step: longer second window", flush=True)
-        try:
-            auth(username, record["password"])
-        except ClientError as error:
-            if not locked(error):
-                raise
-        else:
-            raise RuntimeError("The second native lockout did not exceed the first")
-        time.sleep(1.2)
+        measurement = measure_native_lockout(auth, username, record["password"])
         print("E1 native step: expiry and MFA", flush=True)
         mfa(username, record["password"])
         return {
@@ -251,6 +303,7 @@ def exercise(
             "native_first_lockout_observed": True,
             "native_second_lockout_longer_than_first": True,
             "native_expiry_mfa_verified": True,
+            "native_lockout_measurement": measurement,
         }
     finally:
         cognito.delete_user_pool_client(UserPoolId=pool, ClientId=client)

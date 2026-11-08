@@ -129,6 +129,63 @@ def test_native_trace_contains_only_fixed_outcome_and_timing(
     provider.delete_user_pool_client.assert_called_once()
 
 
+@pytest.mark.parametrize("second_window,passes", [(4.0, True), (2.0, False)])
+def test_native_backoff_is_measured_without_assuming_a_fixed_sleep(
+    second_window: float, passes: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.e1_cognito_controls import measure_native_lockout
+
+    now, until, failures = 0.0, 0.0, 0
+
+    def clock() -> float:
+        return now
+
+    def sleep(seconds: float) -> None:
+        nonlocal now
+        now += seconds
+
+    def auth(username: str, password: str) -> dict[str, Any]:
+        nonlocal now, until, failures
+        if now < until:
+            now += 0.15
+            raise ClientError(
+                {
+                    "Error": {
+                        "Code": "NotAuthorizedException",
+                        "Message": "Password attempts exceeded",
+                    }
+                },
+                "AdminInitiateAuth",
+            )
+        if password == "correct-synthetic":
+            now += 0.25
+            return {"ChallengeName": "SOFTWARE_TOKEN_MFA", "Session": "synthetic"}
+        failures += 1
+        now += 0.22
+        if failures >= 5:
+            until = now + (2.0 if failures == 5 else second_window)
+        raise ClientError(
+            {
+                "Error": {
+                    "Code": "NotAuthorizedException",
+                    "Message": "Incorrect username or password",
+                }
+            },
+            "AdminInitiateAuth",
+        )
+
+    monkeypatch.setattr("scripts.e1_cognito_controls.time.monotonic", clock)
+    monkeypatch.setattr("scripts.e1_cognito_controls.time.sleep", sleep)
+    if passes:
+        measured = measure_native_lockout(auth, "fixed-synthetic", "correct-synthetic")
+        assert failures == 6  # Probes rejected by the lockout never add a password failure.
+        assert measured["second_lockout_lower_seconds"] > measured["first_lockout_upper_seconds"]
+        assert measured["first_lockout_upper_seconds"] >= 2.0
+    else:
+        with pytest.raises(RuntimeError, match="did not exceed"):
+            measure_native_lockout(auth, "fixed-synthetic", "correct-synthetic")
+
+
 def test_interrupted_recovery_finishes_vault_checkpoint_without_replacing_active_password(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
