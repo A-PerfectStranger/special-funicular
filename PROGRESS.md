@@ -2,6 +2,15 @@
 
 ## Estado actual para continuar
 
+Continuación actual: PR #12 integrado en 8bb56b80238f863215801b80c8d0188a8cdbcb77,
+CI push/PR aprobadas y CI main 42496281982 aprobada (159 Python/nueve JS,
+Chromium, auditorías, imagen/APK y required). CD 42496983905 y ensayo 42497020512
+aprobaron publicación/preparación/migración, pero la recreación de Express falló
+con AccessDeniedException; suites E1 sin ejecutar. La política lifecycle prepara
+el permiso TagResource limitado a creación del servicio exacto y tags sintéticos.
+Diagnóstico CloudTrail y aplicación/verificación AWS todavía pendientes. Ninguno
+de estos resultados constituye aceptación E1.
+
 **E1 sigue sin aceptación integral.** Main remoto verificado en
 `be8f1df5f5d19d86a38ba15a4b10bd01fa1c5155` (PR #11), integrado después de todos
 los checks push/PR de ccbc381 aprobados (42457544785 y 42457547776). CI main

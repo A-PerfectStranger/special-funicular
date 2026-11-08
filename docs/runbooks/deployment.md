@@ -55,6 +55,14 @@ mediante guarda horaria fuera de ventanas, cubriendo reinicios automáticos sema
 Storage/backups/secretos conservan coste reservado. Comprobar coste y reserva antes
 de nuevas sesiones. El presupuesto de 150 USD genera alertas, no un corte rígido.
 
+Recrear Express con sus tags requiere también `ecs:TagResource`. La plantilla
+lifecycle limita ese permiso al ARN exacto de retiro-api, al contexto de creación
+y a Project=retiro-seguro/Environment=staging; no permite reetiquetado arbitrario.
+Aplicar cambios de esta plantilla con el operador y el comando de configuración
+documentado en infra/aws/staging-bootstrap.md. Validar después el despliegue real:
+una plantilla aprobada por cfn-lint no acredita permisos efectivos de AWS.
+Referencia: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/supported-iam-actions-tagging.html.
+
 ## Rollback y recuperación
 
 Rollback de código: volver a un digest compatible conocido sin bajar esquema ni

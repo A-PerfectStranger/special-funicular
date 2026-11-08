@@ -4,8 +4,32 @@ import subprocess
 from datetime import UTC, datetime
 
 import pytest
+from cfnlint.decode import decode
 
 from scripts import configure_staging_lifecycle as lifecycle
+
+
+def test_deploy_tag_permission_is_limited_to_creating_the_exact_synthetic_service() -> None:
+    template, errors = decode("infra/aws/staging-lifecycle.yaml")
+    assert not errors and template
+    policy = template["Resources"]["LifecyclePermissions"]["Properties"]
+    assert policy["Roles"] == ["retiro-staging-Deploy"]
+    statements = policy["PolicyDocument"]["Statement"]
+    tagging = [entry for entry in statements if entry["Action"] == "ecs:TagResource"]
+    assert len(tagging) == 1
+    entry = tagging[0]
+    assert entry["Resource"] == {
+        "Fn::Sub": "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/retiro-staging/retiro-api"
+    }
+    assert entry["Condition"]["StringEquals"] == {
+        "ecs:CreateAction": "CreateExpressGatewayService",
+        "aws:RequestTag/Project": "retiro-seguro",
+        "aws:RequestTag/Environment": "staging",
+    }
+    assert set(entry["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"]) == {
+        "Project",
+        "Environment",
+    }
 
 
 def test_scheduler_start_date_includes_required_utc_milliseconds() -> None:
