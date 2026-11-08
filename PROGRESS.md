@@ -13,6 +13,14 @@ instalado/autenticado; OIDC de CI no se presenta como ese login humano.
 
 ## Comisión actual: PostgreSQL privado y ventana limitada
 
+CloudShell completó la continuación `08ddcfa` sobre el artefacto `9f988a1`:
+SQL sin error, presupuesto real aprobado y red `task_ingress_from_alb_only=true`,
+`dedicated_vpc=true`. Probes de origen sin proxy (2026-11-08T00:57:52Z) dieron
+503 en las ocho rutas: `passed=false`. Esto confirma la red; no acepta el servicio.
+La configuración usa la SG de aplicación devuelta por CloudFormation; Express
+agrega su SG administrada, comprobada por el verificador en cada revisión.
+
+
 La configuración staging incorpora los identificadores reales devueltos por
 Express desde CloudShell (API :1, URL, subredes y security groups), roles ya
 creados y repositorio ECR verificado. Esto configura el destino de CD, no lo

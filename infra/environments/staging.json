@@ -11,12 +11,11 @@
   "task_definition": "arn:aws:ecs:us-east-1:028364485203:task-definition/retiro-staging-api:1",
   "migration_task_definition": "retiro-staging-migrate",
   "subnets": [
-    "subnet-06e503d053c50cbbe",
-    "subnet-09e13ef8f9c71bcb6"
+    "subnet-09e13ef8f9c71bcb6",
+    "subnet-06e503d053c50cbbe"
   ],
   "security_groups": [
-    "sg-0060eb52744a55f89",
-    "sg-024165ab408603623"
+    "sg-0060eb52744a55f89"
   ],
   "base_url": "https://re-ebedcb6688b94b228cd28424e44448c6.ecs.us-east-1.on.aws",
   "budget_verified": true,
