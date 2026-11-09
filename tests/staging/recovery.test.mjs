@@ -3,12 +3,13 @@ import test from 'node:test';
 import { withRecovery } from './recovery.mjs';
 
 test('recovery cannot overwrite the original failure phase', async () => {
-  let phase = 'revocation', captured;
+  let phase = 'revocation', captured, capturedError;
   const original = new Error('Controlled test failure');
   await assert.rejects(withRecovery(async () => { throw original; }, async () => {
     phase = 'restoration';
-  }, () => { captured ??= phase; }), error => error === original);
+  }, (stage, error) => { captured ??= phase; capturedError ??= error; }), error => error === original);
   assert.equal(captured, 'revocation');
+  assert.equal(capturedError, original);
   assert.equal(phase, 'restoration');
 });
 

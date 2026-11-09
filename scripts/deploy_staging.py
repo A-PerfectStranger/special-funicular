@@ -13,6 +13,7 @@ from scripts.aws_cli import aws
 from scripts.commission_staging import arm_expiry, register, runtime_digests, task_definition
 from scripts.e1_release import api_definition, archive_definition, start_archive
 from scripts.isolated_task import run_isolated_task
+from scripts.sync_staging_origin import require_web_origin
 from scripts.task_diagnostics import task_outcome
 from scripts.verify_staging import verify
 from scripts.verify_staging_network import verify_ingress
@@ -206,6 +207,7 @@ def main() -> int:
             ][0]["Outputs"]
         }
         # Validate both definitions before starting a process. Same image, isolated credentials.
+        require_web_origin(environment["base_url"], e1["WebRedirect"])
         api = api_definition(
             outputs, e1, image, args.sha, enable_family=e2_enabled, enable_pickup=e3_enabled
         )
@@ -248,7 +250,8 @@ def main() -> int:
         and all(c.get("imageDigest") in expected for c in t["containers"])
         for t in running
     )
-    passed = bool(report.get("passed") and correct)
+    origin_matches = not e1_enabled or origin == environment["base_url"]
+    passed = bool(report.get("passed") and correct and origin_matches)
     evidence = {
         "sha": args.sha,
         "digest": args.digest,
@@ -256,6 +259,7 @@ def main() -> int:
         "service": service,
         "task_definition": definition,
         "runtime_digest_verified": correct,
+        "reviewed_origin_matches": origin_matches,
         "network": network_evidence,
         "expires_at": expiry,
         "probes": report,
@@ -269,6 +273,11 @@ def main() -> int:
     }
     Path("work").mkdir(exist_ok=True)
     Path("work/staging-deployment.json").write_text(json.dumps(evidence, indent=2) + "\n")
+    if not origin_matches:
+        print(
+            "BLOCKED: STAGING_ORIGIN_DRIFT; "
+            "review actual origin and synchronize the existing callback"
+        )
     if not passed and previous_definition:
         # Compatible code only: no schema/evidence rollback.
         aws(

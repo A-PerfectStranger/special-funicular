@@ -6,11 +6,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { nativeCallback } from './native-callback.mjs';
+import { safeFailure } from './diagnostics.mjs';
 import { IdentityClient } from '../../apps/mobile/src/identity.ts';
 const fixture = JSON.parse(readFileSync(0, 'utf8'));
 const providerOrigin = 'https://retiro-e1-028364485203.auth.us-east-1.amazoncognito.com';
 const run = promisify(execFile), clients = [], checks = [];
 let browser, step = 'launch', minimumSequence = 0, passed = false;
+let failure = {};
 const assert = value => { if (!value) throw new Error('Trial assertion failed'); };
 const otpUsed = new Map();
 async function control(action) { await run('python3', ['-m', 'scripts.e2_fixture_control', action]); }
@@ -118,12 +120,12 @@ try {
   assert(await p.login() === 'PADRE');
   await mutate(p, '/v1/caregivers', body);
   passed = true;
-} catch { passed = false; }
+} catch (error) { passed = false; failure = safeFailure(error); }
 finally {
   for (const client of clients) await client.logout().catch(() => {});
   if (browser) await browser.close();
   writeFileSync('work/e2-browser-acceptance.json', JSON.stringify({ sha: process.env.E2_RELEASE_SHA ?? process.env.GITHUB_SHA, trial_id: fixture.trial_id,
-    passed, step, checks, minimum_sequence: minimumSequence, e2_accepted: false,
+    passed, step, checks, minimum_sequence: minimumSequence, e2_accepted: false, ...failure,
     scope: 'Real synthetic IdP and shared mobile protocol; requires independent WORM verification and the other E2 checks. No Android physical-device claim.' }, null, 2)+'\n');
 }
 if (!passed) { process.stderr.write('BLOCKED: E2 synthetic protocol trial failed at '+step+'\n'); process.exitCode = 2; }
