@@ -1,6 +1,6 @@
 // Bounded anonymous navigation diagnostic, never functional acceptance.
 import { chromium } from 'playwright';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { safeFailure, documentScope } from './diagnostics.mjs';
 
 const origin = JSON.parse(readFileSync('infra/environments/staging.json', 'utf8')).base_url;
@@ -28,6 +28,7 @@ try {
 } catch (error) { failure = safeFailure(error); }
 finally { if (browser) await browser.close(); }
 const report = { passed, phase, status, scope, ...failure, acceptance: false };
+mkdirSync('work', { recursive: true });
 writeFileSync('work/public-navigation.json', JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify(report));
 if (!passed) process.exitCode = 2;
