@@ -9,7 +9,7 @@ funciones ya disponibles. Contrato funcional:
 [requisitos](Requerimientos_retiro_seguro_estudiantes.md); reglas de desarrollo:
 [AGENTS.md](AGENTS.md); comandos: [README.md](README.md).
 
-E0 y E1 están aceptadas con datos sintéticos. E2–E5 siguen pendientes: no hay
+E0, E1 y E2 están aceptadas con datos sintéticos. E3–E5 siguen pendientes: no hay
 retiros, avisos ni uso con datos reales habilitados. La configuración de
 [staging](infra/environments/staging.json) habilita E1/E2 y exige sus gates en CD;
 [producción](infra/environments/production.json) permanece sin configurar.
@@ -115,11 +115,11 @@ Decisión del usuario: una familia pertenece a una sola escuela en este MVP.
 El importador debe rechazar la reutilización entre escuelas también cuando
 las promociones son concurrentes.
 
-- [ ] Crear importador privado: staging, esquema, hash, aprobación escolar, promoción atómica e idempotencia.
-- [ ] Crear provisioning/baja y cambios de principal auditados para el equipo técnico.
-- [ ] Implementar invitación 256 bits/24 h, contacto verificado y asociación OIDC `issuer`/`sub`.
-- [ ] Mostrar estudiantes propios y capacidades por vínculo en móvil.
-- [ ] Crear cuidador, autorizaciones, recurrencias, restricciones de horario y revocación.
+- [x] Crear importador privado: staging, esquema, hash, aprobación escolar, promoción atómica e idempotencia.
+- [x] Crear provisioning/baja y cambios de principal auditados para el equipo técnico.
+- [x] Implementar invitación 256 bits/24 h, contacto verificado y asociación OIDC `issuer`/`sub`.
+- [x] Mostrar estudiantes propios y capacidades por vínculo en móvil.
+- [x] Crear cuidador, autorizaciones, recurrencias, restricciones de horario y revocación.
 
 **Aceptación:** AT01 y casos relevantes AT02/AT04; ninguna asignación por datos declarados; lote incorrecto sin activación parcial; secundario sin capacidad de autorizar; cambios sensibles invalidan tokens.
 
@@ -152,43 +152,51 @@ serializa UUID de padres en orden global y rechaza reutilización entre escuelas
 El móvil conserva el formulario bajo máscara durante la galería, revalida online
 al volver y descarta la vista ante logout, rechazo o segundo plano ordinario.
 
-**Aceptación funcional del backend:**
-[ensayo 42529491296](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42529491296)
-aprobado completo sobre `74297b397b992287272fc63745d4ccb9127e2ea6`, incluido
-E1/APK y WORM independiente. Digest verificado:
-`sha256:7af058a44389aecf2851718d9f976ae96c374ff03006fc868c537f6afd892df2`.
-El protocolo requiere secuencia 489 y el lector externo verificó 490 eventos sin
-SQL. La corrección móvil y habilitación CD se integraron en `855fc2e` tras CI de
-PR aprobado (234 Python/20 JS, imagen/APK/firma). CI main 42534840490 aprobado completo. Falta comprobar su CD habitual antes
-del cierre completo E2; no heredar el resultado de 74297b3.
-El CD [42535508616](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42535508616)
-falló en identidad E1 del guardia y omitió E2. La restauración de fixtures aprobó;
-el operador confirmó TaskFailedToStart del comando revoke, sin ejecución del
-contenedor/SQL. La fase original quedó oculta por el finally del driver. PR #20
-conserva ese diagnóstico y añade un único reintento solo de arranque demostrado
-sin ejecución, sin reintentar SQL ni estados inciertos. Su CI main aprobó, pero
-el CD 42540357530 falló antes de ejecutar la migración: TaskFailedToStart y
-CannotPullContainerError, sin inicio ni exitCode, confirmado por operador. PR #21
-extiende el control conservador de arranque a tareas aisladas de migración y
-publica metadatos saneados; falta su CI/CD. E2 no se cierra ni se relajan aserciones.
+**Aceptación acreditada:** base funcional integrada
+`1a16b85fcc7f8ac25d268c308c1ccf9451c667b1`, con
+[CI 42543919847](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42543919847)
+y [CD 42544785382](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42544785382).
+Staging, migración aislada, E1/browser/archivo, APK y gate E2 aprobados. Digest
+verificado en ejecución para API/archivador:
+`sha256:3aa74250b1bfe778e2ed8d601e845124087d30ef603bf712e9004d5fafde44eb`.
+El protocolo familiar exige secuencia 614; el lector independiente verificó
+615 eventos sin SQL. Cohorte `52cb10c3-9494-5893-bd8a-ce52d8c11ba3`, distinta
+de la del [ensayo previo 42529491296](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42529491296)
+sobre 74297b3 (secuencias 489–490). CD usa el pool sin reiniciar canjes ni datos;
+CI no recibe provisioning Cognito ni escritura del vault.
 
-| Criterio | Verificación local/CI | Verificación AWS |
+CI del contenido aceptado: 245 pruebas Python con PostgreSQL/roles reales,
+20 JavaScript móvil/vendor y siete staging (cuatro Chromium y tres recuperación),
+tipos/contratos/migraciones, auditorías/secretos e imagen/APK/firma aprobados.
+El gate E2 compartido es obligatorio después de E1 cuando la bandera está activa.
+El job de producción de ese CD informa **BLOCKED/NOT_CONFIGURED** por E5; el
+resultado global no se presenta como un pipeline productivo aprobado.
+
+| Criterio | Verificación local/CI | Verificación AWS acreditada |
 | --- | --- | --- |
-| Lote/hash/aprobación/idempotencia/rollback | Importer real, lote inválido, conflicto tras staging y payload adulterado | Ensayo 74297b3: lote válido/incorrecto y dos escuelas concurrentes; solo una promueve |
-| Activación/contacto/issuer-sub/uso único | Firma RSA, PKCE, expiración y ocho canjes concurrentes | Cognito/MFA real, contacto ajeno rechazado, asociación exacta y replay denegado |
-| Roles/familias/principal/sesiones | Matriz negativa con dos escuelas/familias y comandos concurrentes | Hijos exactos, secundario solo consulta, principal anterior rechazado; baja corta sesiones existentes y nuevas |
-| Cuidadores/fotos/autorizaciones/horarios | Reencodificación/no-store, IANA/DST, MFA y ciclo de vida de galería | Cuidador/versiones/revocación; recurrencia semanal de dos fechas UTC, fuera de horario y bloqueo rechazados |
-| Evidencia/compatibilidad/distribución | Evento/outbox, migraciones, tipos/contrato y bundle; APK/firma de PR | Imagen/APK 74297b3 y WORM 489–490 aprobados; CI/CD habitual de 855fc2e pendiente |
+| Lote/hash/aprobación/idempotencia/rollback | Importer real, lote inválido, conflicto tras staging y payload adulterado | Lote correcto/incorrecto y dos escuelas concurrentes: solo una promueve, sin activación parcial |
+| Operaciones técnicas y capacidades | CLI privado, altas/bajas de personal, aprobación/motivo, matriz de roles/RLS y concurrencia | Hijos exactos, secundario solo consulta, principal anterior rechazado; cambios de principal/política y baja familiar invalidan sesiones existentes/nuevas |
+| Activación/contacto/issuer-sub/uso único | Firma RSA, PKCE, expiración/revocación y ocho canjes concurrentes | Cognito/MFA real, contacto ajeno rechazado, asociación exacta y replay denegado con cohortes nuevas |
+| Cuidadores/fotos/autorizaciones/horarios | Reencodificación/no-store, IANA/DST, frescura MFA y ciclo de vida de galería | Cuidador/versiones/revocación; recurrencia semanal de dos fechas UTC, fuera de horario y bloqueo rechazados |
+| Evidencia/compatibilidad/distribución | Evento/outbox, migraciones, tipos/contratos, bundle y APK/firma | Imagen/digest/API/archivador/APK por SHA y WORM independiente hasta 614–615; regresión E1/archivo aprobada |
 
-**Límite de cierre actual:** la configuración habilita E2 y su gate obligatorio
-compartido en CD con cohortes privadas nuevas de un pool acotado. Falta comprobar
-la ejecución habitual de `855fc2e` con otra cohorte antes de cerrar la matriz.
-Las casillas E2 permanecen pendientes hasta ese resultado. No se han ejecutado
-importaciones/invitaciones ni mensajes reales. QR y permiso de entrega pertenecen
-a E3; invalidar autorizaciones en E2 no acredita sus controles. Instalación/cámara
-Android física, firma/distribución productiva y producción siguen en E5.
-Operación/reposición del pool: [runbook E2](docs/runbooks/e2.md). Continuidad
-solicitada por el usuario: [PROGRESS.md](PROGRESS.md).
+**Operación y límites:** staging habilita E2 con datos sintéticos y exige el gate
+compartido E1 → E2 → WORM antes de considerar producción. Las cohortes son de un
+solo uso; agotamiento o un fallo de validación/infraestructura bloquea, sin reset
+ni omisión de pruebas. Un único reintento de tarea aislada se permite solo si
+ECS demuestra ausencia de ejecución; SQL fallido o estado incierto no reintentan.
+Los fallos previos de arranque de fixtures y migración quedaron clasificados por
+operador como TaskFailedToStart, sin inicio/exitCode; el CD aceptado ya pasó con
+el control conservador y diagnóstico saneado, sin relajar MFA/frescura/revocación.
+
+No se ejecutaron importaciones/invitaciones ni mensajes reales. QR y permiso de
+entrega pertenecen a E3; invalidar autorizaciones en E2 no acredita esos controles.
+Instalación/cámara/retorno OIDC en Android físico, firma/distribución productiva,
+retención institucional y producción siguen en E5. El APK es de desarrollo y no
+se publica como binario en este repositorio público. Operación/reposición del
+pool: [runbook E2](docs/runbooks/e2.md). Continuidad solicitada por el usuario:
+[PROGRESS.md](PROGRESS.md). Cada despliegue posterior se consulta por SHA en
+Actions; estos resultados no se heredan automáticamente a otra release.
 
 ### E3 — QR y retiro completo
 
