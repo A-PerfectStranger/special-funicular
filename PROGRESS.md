@@ -1,4 +1,4 @@
-# Continuidad E2
+# Continuidad E2 / E3
 
 **E2 aceptada en staging sintético.** Estado conservado por instrucción explícita
 del usuario; PLAN contiene criterios y fases. Evidencia por SHA en Actions y
@@ -48,7 +48,7 @@ no se relajaron. El CD acreditado completó migración y todas las aserciones.
 1. El cierre documental no añade comportamiento funcional. Para comprobar su
    integración, consultar el CI/CD de su SHA en Actions y exigir E1/E2/WORM con
    otra cohorte. No avanzar main durante migración/archive-drill. Tras ese gate,
-   la siguiente fase de implementación es E3 según PLAN.
+   E3 se desarrolla según el estado vigente al final de este archivo y PLAN.
 2. No crear un bucle de commits solo para registrar el último resultado: la base
    funcional aceptada y sus runs están arriba; releases posteriores se consultan
    por SHA en Actions. No atribuirles automáticamente esta aceptación.
@@ -64,3 +64,31 @@ no se relajaron. El CD acreditado completó migración y todas las aserciones.
 
 Scratch y reportes saneados en work/, ignorados. Git conserva fuentes/estado,
 Actions los checks y la custodia privada las anclas y versiones WORM.
+
+
+## Trabajo E3 vigente
+
+Rama de implementación `feat/e3-pickup`, basada en `2e16bef` tras `git fetch` y
+comparación con origin/main (sin divergencia). El CD de esa base
+[42550789405](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42550789405)
+aprobó staging/E1/E2; solo producción quedó NOT_CONFIGURED. Esa base consumió
+otra cohorte; consultar disponibilidad real antes de una repetición.
+
+Implementación nueva: módulo pickup, migraciones aditivas, funciones restringidas,
+episodio por estudiante/fecha local, QR/hash/versiones, decisión/outbox, estados
+serializados por recibo/sweep, reloj S3 con caducidad, reporte físico vinculado;
+API/OpenAPI; emisión/compartir/cámara/tres comprobaciones/recuperación por UUID
+en SDK 56. E3 permanece bloqueada en producción. Gate E2/E3 comparte cohorte de
+un solo uso y añade estudiantes sintéticos, con control de atraso acotado.
+
+Estado comprobado: `make check` completo (275 Python, 23 JS móvil/vendor),
+27 pruebas nuevas de dominio PostgreSQL, tipos/lint/migraciones/Expo, bundle
+Android, siete regresiones Chromium/recuperación, seguridad y migración limpia
+aprobados. Imagen/APK, PR/CI y ensayo AWS del candidato aún pendientes; E3 NO está aceptada. PLAN conserva los seis
+criterios que deben verificarse. No marcar casillas por existencia de código.
+
+Siguiente paso: publicar PR y exigir CI/imagen/APK; integrar y observar
+E1/E2/E3/WORM por SHA. Si falta pool, usar preparación privada de E2, sin resetear
+cohortes ni solicitar secretos en chat. Solo después registrar aceptación real y
+sus límites. Scratch/resultados locales saneados en work/, ignorados; no publicar
+QR, credenciales, fotos ni copias privadas de WORM.

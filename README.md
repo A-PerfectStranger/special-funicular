@@ -14,6 +14,7 @@ Cada documento tiene un propósito único:
 | Este README | Instalación, comandos y superficie disponible para desarrollo. |
 | [Despliegue](docs/runbooks/deployment.md) | Publicación, diagnóstico y rollback. |
 | [Importación y familia](docs/runbooks/e2.md) | Comandos privados, esquema, activación y ensayo E2. |
+| [QR y puerta sintética](docs/runbooks/e3.md) | Emisión, escaneo, decisión, archivo, reporte y gate E3. |
 | [Identidad y evidencia](docs/runbooks/e1.md) | Comisión, ensayos y recuperación sintética de E1. |
 | [AWS](infra/aws/README.md) | Infraestructura, presupuesto y bootstrap. |
 
@@ -103,7 +104,7 @@ y manifiesto público, sin binario interno público. OTA permanece deshabilitado
 | `/v1/capabilities` | `pickup_enabled: false`, contrato público mínimo. |
 
 OpenAPI: `tests/contracts/openapi.yaml`. Respuestas `no-store`, sin PII.
-Readiness técnico **no autoriza retiros**. `/admin/` y rutas de retiro no existen.
+Readiness técnico **no autoriza retiros**. `/admin/` no existe; las rutas E3 requieren su bandera sintética explícita.
 Sin seleccionar un handler, `python apps/backend/manage.py runworker --check` muestra cero
 handlers activos. E1 añade `runworker --archive` con configuración y credencial
 SQL propias; las notificaciones siguen pendientes de E4. La ejecución cloud
@@ -151,3 +152,19 @@ con CD: al habilitar `e2_enabled` exige E1, E2 y WORM independiente. La configur
 revisada de staging habilita ese gate; las cohortes privadas de un solo uso
 se preparan como pool acotado mediante CloudShell. Código y mocks no acreditan
 aceptación AWS.
+
+
+Con `E3_PICKUP_ENABLED=true`, E1/E2 configuradas y entorno sintético, se añaden
+emisión/renovación/reprogramación QR y las rutas de guardia de OpenAPI. El móvil
+consulta `/v1/pickup/capabilities`; las capacidades antiguas conservan
+`pickup_enabled=false` para APK previos y uso real deshabilitado. E3 no arranca en
+producción. Episodio único por estudiante/fecha local; decisión/outbox/consumo
+atómicos, recibo WORM <=5 s, permiso 30 s y reporte físico idempotente, con
+incidencias durables. QR solo en cuerpo/memoria o imagen compartida temporal;
+SecureStore conserva únicamente el UUID para recuperar una operación ambigua.
+
+El archivador observa hora autenticada de S3 y avanza vencimientos sin depender
+de un teléfono conectado. `runworker --archive --check` incluye métricas de puerta.
+CD exige el protocolo sintético E3 y verificación externa cuando `e3_enabled=true`.
+Comandos, recuperación por ID, inyección de archivo tardío y límites: [E3](docs/runbooks/e3.md).
+Avisos/consulta escolar son E4; pruebas físicas Android y activación real son E5.

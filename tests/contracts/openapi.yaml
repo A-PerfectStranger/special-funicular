@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
-  title: Retiro seguro - identidad y autorización familiar
-  version: 0.3.0
-  description: E1 requires E1_IDENTITY_ENABLED; E2 requires E2_FAMILY_ENABLED as well. Pickups remain
-    disabled. IdP credentials never leave the BFF; family commands accept only mobile Bearer sessions.
+  title: Retiro seguro - identidad, familia y retiro sintético
+  version: 0.4.0
+  description: E1/E2 keep their compatible capabilities. E3 requires E3_PICKUP_ENABLED and is synthetic-only;
+    /v1/pickup/capabilities discovers it. Production commissioning remains blocked. No response or receipt
+    authorizes offline handover.
 paths:
   /health/live:
     get:
@@ -395,7 +396,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      security:
+      security: &id003
       - MobileBearer: []
   /v1/students/{student_id}/family:
     get:
@@ -666,6 +667,495 @@ paths:
                     const: false
         '404':
           description: E2 disabled
+  /v1/authorizations/{authorization_id}/issue-qr:
+    post:
+      operationId: issuePickupQR
+      security: *id003
+      description: Principal with MFA <=5 min. 32 random bytes, SHA-256 only at rest. Max 24 h advance.
+        Renewal preserves original expiry. Issuance replay returns issued=false, qr=null; explicitly renew
+        with a new key after response loss.
+      responses:
+        '200':
+          description: Online result; only a current HABILITADA response with may_handover=true permits
+            a handover.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedQR'
+        '400':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '409':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '429':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '503':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: authorization_id
+        in: path
+        required: true
+        schema: &id004
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueQR'
+  /v1/authorizations/{authorization_id}/reschedule:
+    post:
+      operationId: reschedulePickupQR
+      security: *id003
+      description: Principal; explicitly replaces the source episode tokens, validates the new occurrence
+        and preserves closed episode identity.
+      responses:
+        '200':
+          description: Online result; only a current HABILITADA response with may_handover=true permits
+            a handover.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedQR'
+        '400':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '409':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '429':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '503':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: authorization_id
+        in: path
+        required: true
+        schema: *id004
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RescheduleQR'
+  /v1/guard/resolve-qr:
+    post:
+      operationId: resolvePickupQR
+      security: *id003
+      description: Guard at the current site, before expiry and after valid_from. Does not consume. Token
+        only in body, never URL. Token bucket capacity 10 and refill 30/min by guard/origin.
+      responses:
+        '200':
+          description: Online result; only a current HABILITADA response with may_handover=true permits
+            a handover.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolvedQR'
+        '400':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '409':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '429':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '503':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickupToken'
+  /v1/guard/caregiver-photo:
+    post:
+      operationId: pickupCaregiverPhoto
+      security: *id003
+      description: Guard; same online time/version/scope checks as QR resolution; authenticated JPEG no-store.
+      responses:
+        '200':
+          description: Online result; only a current HABILITADA response with may_handover=true permits
+            a handover.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '409':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '429':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '503':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickupToken'
+  /v1/guard/confirm-pickup:
+    post:
+      operationId: confirmPickup
+      security: *id003
+      description: 'Guard; all three booleans required. False yields durable rejection/incidence, never
+        a permission. UUID key is also operation ID: save it before sending. Decision/outbox/consumption
+        commit together. Recovery uses the same ID; actor/body mismatch is 409.'
+      responses:
+        '200':
+          description: Online result; only a current HABILITADA response with may_handover=true permits
+            a handover.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickupOperation'
+        '400':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '409':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '429':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '503':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickupChecks'
+  /v1/guard/operations/{operation_id}:
+    get:
+      operationId: pickupOperation
+      security: *id003
+      description: Only the original guard and site. Serializes timeout, timely receipt, revocation and
+        30 s expiry. Late archive never reenables. No-store; technical readiness never grants permission.
+      responses:
+        '200':
+          description: Online result; only a current HABILITADA response with may_handover=true permits
+            a handover.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickupOperation'
+        '400':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '409':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '429':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '503':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: operation_id
+        in: path
+        required: true
+        schema: *id004
+  /v1/guard/operations/{operation_id}/report-handover:
+    post:
+      operationId: reportHandover
+      security: *id003
+      description: Original guard reports an observed fact, not a request for permission. One immutable
+        report per episode; same key/body replays, another report conflicts. Late/outside-permission report
+        keeps incidence. Physical fact survives archive failure; E4 owns notification dispatch.
+      responses:
+        '200':
+          description: Online result; only a current HABILITADA response with may_handover=true permits
+            a handover.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoverResult'
+        '400':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '409':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '429':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PickupError'
+                - $ref: '#/components/schemas/Error'
+        '503':
+          description: No handover permission. Do not log request bodies or provider errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: operation_id
+        in: path
+        required: true
+        schema: *id004
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverReport'
+  /v1/pickup/capabilities:
+    get:
+      operationId: syntheticPickupCapabilities
+      responses:
+        '200':
+          description: Route exists only with E3 flag; does not authorize handover.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - pickup_enabled
+                - synthetic_only
+                properties:
+                  pickup_enabled:
+                    const: true
+                  synthetic_only:
+                    const: true
 components:
   schemas:
     Error:
@@ -733,7 +1223,7 @@ components:
       properties:
         access_token: *id001
         refresh_token: *id001
-        expires_in: &id003
+        expires_in: &id005
           const: 300
     MobileLogin:
       type: object
@@ -746,7 +1236,7 @@ components:
       properties:
         access_token: *id001
         refresh_token: *id001
-        expires_in: *id003
+        expires_in: *id005
         role:
           enum:
           - PADRE
@@ -907,7 +1397,7 @@ components:
       - blocked
       properties:
         id: *id002
-        name: &id004
+        name: &id006
           type: string
           minLength: 1
           maxLength: 160
@@ -947,7 +1437,7 @@ components:
       - version
       properties:
         id: *id002
-        name: *id004
+        name: *id006
         document:
           type: string
           minLength: 1
@@ -965,12 +1455,12 @@ components:
       - photo
       properties:
         student_id: *id002
-        name: *id004
-        document: &id005
+        name: *id006
+        document: &id007
           type: string
           minLength: 1
           maxLength: 40
-        photo: &id006
+        photo: &id008
           type: string
           contentEncoding: base64
           maxLength: 400000
@@ -987,9 +1477,9 @@ components:
       - version
       properties:
         student_id: *id002
-        name: *id004
-        document: *id005
-        photo: *id006
+        name: *id006
+        document: *id007
+        photo: *id008
         version:
           type: integer
           minimum: 1
@@ -1078,10 +1568,10 @@ components:
       - code_verifier
       - invitation
       properties:
-        state: &id007
+        state: &id009
           type: string
           pattern: ^[A-Za-z0-9_-]{43}$
-        exchange_key: *id007
+        exchange_key: *id009
         code:
           type: string
           minLength: 1
@@ -1089,7 +1579,7 @@ components:
         code_verifier:
           type: string
           pattern: ^[A-Za-z0-9._~-]{43,128}$
-        invitation: *id007
+        invitation: *id009
     Activated:
       type: object
       additionalProperties: false
@@ -1105,6 +1595,190 @@ components:
       - student_id
       properties:
         student_id: *id002
+    PickupToken:
+      type: object
+      additionalProperties: false
+      required:
+      - token
+      properties:
+        token:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+    IssueQR:
+      type: object
+      additionalProperties: false
+      required:
+      - valid_from
+      properties:
+        valid_from: &id010
+          type: string
+          format: date-time
+    RescheduleQR:
+      type: object
+      additionalProperties: false
+      required:
+      - valid_from
+      - episode_id
+      properties:
+        valid_from: *id010
+        episode_id: *id004
+    IssuedQR:
+      type: object
+      additionalProperties: false
+      required:
+      - qr
+      - episode_id
+      - valid_from
+      - expires_at
+      - issued
+      - event_sequence
+      properties:
+        qr:
+          type:
+          - string
+          - 'null'
+          pattern: ^[A-Za-z0-9_-]{43}$
+        episode_id: *id004
+        valid_from: *id010
+        expires_at: *id010
+        issued: &id011
+          type: boolean
+        event_sequence:
+          type: integer
+          minimum: 1
+    ResolvedQR:
+      type: object
+      additionalProperties: false
+      required:
+      - episode_id
+      - student_name
+      - caregiver
+      - valid_from
+      - expires_at
+      - server_now
+      properties:
+        episode_id: *id004
+        student_name:
+          type: string
+        caregiver:
+          type: object
+          additionalProperties: false
+          required:
+          - name
+          - document
+          properties:
+            name:
+              type: string
+            document:
+              type: string
+        valid_from: *id010
+        expires_at: *id010
+        server_now:
+          type: string
+          format: date-time
+    PickupChecks:
+      type: object
+      additionalProperties: false
+      required:
+      - token
+      - checks
+      properties:
+        token:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+        checks:
+          type: object
+          additionalProperties: false
+          required:
+          - student
+          - caregiver
+          - document
+          properties:
+            student: *id011
+            caregiver: *id011
+            document: *id011
+    PickupOperation:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_id
+      - state
+      - server_now
+      - protection_deadline
+      - permission_expires_at
+      - may_handover
+      - incident_reason
+      - report_result
+      - report_protected
+      - event_sequence
+      properties:
+        operation_id: *id004
+        state:
+          enum:
+          - PENDIENTE_ARCHIVO
+          - HABILITADA
+          - INCIDENCIA
+          - ENTREGA_REPORTADA
+        server_now: *id010
+        protection_deadline: *id010
+        permission_expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        may_handover: *id011
+        incident_reason:
+          type: string
+        report_result:
+          enum:
+          - ''
+          - DELIVERED
+          - NOT_DELIVERED
+        report_protected: *id011
+        event_sequence:
+          type: integer
+          minimum: 1
+    HandoverReport:
+      type: object
+      additionalProperties: false
+      required:
+      - delivered
+      - witnessed_at
+      - reason
+      properties:
+        delivered: *id011
+        witnessed_at: *id010
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    HandoverResult:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_id
+      - report_event_id
+      - event_sequence
+      properties:
+        operation_id: *id004
+        report_event_id: *id004
+        event_sequence:
+          type: integer
+          minimum: 1
+    PickupError:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          enum:
+          - CONFLICT
+          - RATE_LIMITED
+          - DENIED
+          - CLOSED
+          - RESCHEDULE_REQUIRED
+          - INVALID_WINDOW
   securitySchemes:
     MobileBearer:
       type: http

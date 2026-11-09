@@ -8,6 +8,9 @@ on:
       release_digest:
         required: true
         type: string
+      enable_pickup:
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -29,16 +32,24 @@ jobs:
           E2_RELEASE_SHA: ${{ inputs.release_sha }}
           E2_RELEASE_DIGEST: ${{ inputs.release_digest }}
         run: python3 scripts/aws_oidc.py --role E1Acceptance -- python3 -m scripts.run_e2_browser
-      - name: Verify every preceding E2 event with the independent WORM reader
+      - name: Real synthetic E3 door protocol with timely and late WORM
+        if: inputs.enable_pickup
+        env:
+          PYTHONPATH: work/e1-sdk
+          E2_RELEASE_SHA: ${{ inputs.release_sha }}
+          E2_RELEASE_DIGEST: ${{ inputs.release_digest }}
+        run: python3 scripts/aws_oidc.py --role E1Acceptance -- python3 -m scripts.run_e3_browser
+      - name: Verify every preceding E2/E3 event with the independent WORM reader
         env: {PYTHONPATH: 'apps/backend:work/e1-sdk'}
         run: |
-          sequence=$(python3 -c 'import json; print(json.load(open("work/e2-browser-acceptance.json"))["minimum_sequence"])')
+          sequence=$(python3 -c 'import json,pathlib; paths=[pathlib.Path("work/e2-browser-acceptance.json"),pathlib.Path("work/e3-browser-acceptance.json")]; print(max(json.loads(p.read_text())["minimum_sequence"] for p in paths if p.exists()))')
           python3 scripts/aws_oidc.py --role E1Verifier -- python3 -m scripts.verify_e1_staging --minimum-sequence "$sequence"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: e2-family-acceptance-${{ inputs.release_sha }}
           path: |
+            work/e3-browser-acceptance.json
             work/e2-browser-acceptance.json
             work/e1-cloud-acceptance.json
           if-no-files-found: warn

@@ -6,8 +6,10 @@ import base64
 import hashlib
 import json
 import os
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, Any
 
 import boto3
@@ -79,6 +81,16 @@ class WormArchive:
             boto3.client("s3", region_name=config.region, config=timeout),
             boto3.client("kms", region_name=config.region, config=timeout),
         )
+
+    def clock_sample(self) -> tuple[datetime, int]:
+        """Authenticated AWS response time, bounded by monotonic network duration."""
+        started = time.monotonic()
+        response = self.s3.head_bucket(Bucket=self.config.bucket)
+        elapsed = int((time.monotonic() - started) * 1000)
+        stamp = parsedate_to_datetime(response["ResponseMetadata"]["HTTPHeaders"]["date"])
+        if stamp.tzinfo is None:
+            raise IntegrityFailure()
+        return stamp, elapsed
 
     def inspect(self, key: str, version: str, expected: bytes) -> ProtectedObject:
         if not version or version == "null":

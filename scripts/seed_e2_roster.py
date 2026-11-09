@@ -67,6 +67,39 @@ def seed(db: psycopg.Connection[Any], data: dict[str, Any]) -> None:
                         uuid.uuid4(),
                     ),
                 )
+        elif data["action"].startswith("e3-"):
+            batch = data["e3_batch"]
+            if data["action"] == "e3-seed":
+                if db.execute(
+                    "SELECT count(*) FROM school_roster_student WHERE id=%s",
+                    (batch["students"][0]["id"],),
+                ).fetchone() != (0,):
+                    raise CohortUsed()
+                raw = json.dumps(batch, sort_keys=True)
+                hashed = hashlib.sha256(raw.encode()).hexdigest()
+                for op in ["STAGE", "APPROVE", "PROMOTE"]:
+                    db.execute(
+                        "SELECT e2_import(%s,%s,%s,%s,"
+                        "'E3_SYNTHETIC_OPERATOR','E3_SYNTHETIC_APPROVAL')",
+                        (op, batch["id"], raw if op == "STAGE" else "", hashed),
+                    )
+            elif data["action"] == "e3-hold":
+                child = next(s for s in batch["students"] if s["name"] == "E3 synthetic timeout")
+                db.execute("SELECT e3_trial_hold(%s)", (child["id"],))
+            elif data["action"] == "e3-revoke":
+                child = next(s for s in batch["students"] if s["name"] == "E3 synthetic revoke")
+                db.execute(
+                    "SELECT e2_technical('SET_POLICY',%s,%s,%s,%s::jsonb,"
+                    "'E3_SYNTHETIC_OPERATOR','E3_SYNTHETIC_APPROVAL','Synthetic revocation race')",
+                    (
+                        uuid.uuid4(),
+                        batch["school_id"],
+                        child["id"],
+                        json.dumps({"windows": child["windows"], "blocked": True}),
+                    ),
+                )
+            else:
+                raise ValueError()
         else:
             for expected in data["expected_accounts"]:
                 actual = db.execute(

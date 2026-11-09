@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { File, Paths } from 'expo-file-system';
 import { isTemporaryPhoto } from './pickerCache';
 import type { IdentityClient } from './identity';
+import { IssueQR } from './IssueQR';
 
 type Student = { id: string; name: string; timezone: string; principal: boolean; can_authorize: boolean;
   windows: { weekday: number; from: string; until: string; start_date: string; end_date: string }[] };
@@ -13,8 +14,8 @@ type Authorization = { id: string; caregiver_id: string; revoked: boolean;
   schedule: { from: string; until: string }[] };
 type Records = { caregivers: Caregiver[]; authorizations: Authorization[] };
 
-export function Family({ identity, photoActivity }: {
-  identity: IdentityClient; photoActivity: (select: () => Promise<void>) => Promise<void>;
+export function Family({ identity, photoActivity, pickupEnabled = false }: {
+  pickupEnabled?: boolean; identity: IdentityClient; photoActivity: (select: () => Promise<void>) => Promise<void>;
 }) {
   const [students, setStudents] = useState<Student[]>([]);
   const [selected, setSelected] = useState<Student | null>(null);
@@ -133,6 +134,7 @@ export function Family({ identity, photoActivity }: {
       {records.authorizations.map(a => <View key={a.id}>
         <Text>{records.caregivers.find(c => c.id === a.caregiver_id)?.name} · {a.revoked ? 'Revocada' : 'Registrada'} · {a.schedule.length} fecha(s)</Text>
         {a.schedule.map((s, i) => <Text key={i}>{new Date(s.from).toLocaleString('es-CO', { timeZone: selected.timezone })} — {new Date(s.until).toLocaleString('es-CO', { timeZone: selected.timezone })}</Text>)}
+        {pickupEnabled && selected.principal && !a.revoked && <IssueQR identity={identity} authorization={a.id} schedule={a.schedule} timezone={selected.timezone} />}
         {selected.principal && !a.revoked && <Button title="Revocar autorización" disabled={busy}
           onPress={() => mutate(`/v1/authorizations/${a.id}/revoke`, { student_id: selected.id })} />}
       </View>)}

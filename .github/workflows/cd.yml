@@ -69,6 +69,7 @@ jobs:
     outputs:
       e1_enabled: ${{ steps.e1.outputs.enabled }}
       e2_enabled: ${{ steps.e1.outputs.family }}
+      e3_enabled: ${{ steps.e1.outputs.pickup }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -82,9 +83,13 @@ jobs:
           configuration = json.load(open('infra/environments/staging.json'))
           enabled = configuration.get('e1_enabled') is True
           family = configuration.get('e2_enabled') is True
+          pickup = configuration.get('e3_enabled') is True
+          if pickup and not family:
+              raise SystemExit('BLOCKED: E3 requires E2')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write('enabled=' + str(enabled).lower() + '\n')
               stream.write('family=' + str(family).lower() + '\n')
+              stream.write('pickup=' + str(pickup).lower() + '\n')
           PYCODE
       - name: Deploy, verify running digest and TLS probes
         env:
@@ -112,6 +117,7 @@ jobs:
     permissions: {contents: read, id-token: write}
     uses: ./.github/workflows/e2-checks.yml
     with:
+      enable_pickup: ${{ needs.staging.outputs.e3_enabled == 'true' }}
       release_sha: ${{ needs.publish.outputs.sha }}
       release_digest: ${{ needs.publish.outputs.digest }}
   production:
