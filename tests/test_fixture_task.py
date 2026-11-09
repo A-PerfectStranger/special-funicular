@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from scripts.fixture_task import run_fixture_task
+from scripts.isolated_task import run_isolated_task
 
 
 def invocation(outcomes: list[dict[str, Any]]) -> tuple[Any, list[tuple[str, ...]]]:
@@ -29,7 +29,7 @@ def not_started() -> dict[str, Any]:
 def test_known_nonexecution_retries_the_same_fixed_command_once() -> None:
     passed = {"containers": [{"exitCode": 0}]}
     call, calls = invocation([not_started(), passed])
-    assert run_fixture_task(call, "synthetic-cluster", "fixed-definition", {}) is passed
+    assert run_isolated_task(call, "synthetic-cluster", "fixed-definition", {}) is passed
     starts = [c for c in calls if c[1] == "run-task"]
     assert len(starts) == 2 and starts[0] == starts[1]
 
@@ -49,13 +49,13 @@ def test_sql_rejection_consumed_cohort_or_uncertain_execution_never_retries(
     state: dict[str, Any],
 ) -> None:
     call, calls = invocation([state])
-    assert run_fixture_task(call, "synthetic", "fixed", {}) is state
+    assert run_isolated_task(call, "synthetic", "fixed", {}) is state
     assert len([c for c in calls if c[1] == "run-task"]) == 1
 
 
 def test_repeated_startup_failure_is_bounded_to_two_attempts() -> None:
     call, calls = invocation([not_started(), not_started()])
-    assert run_fixture_task(call, "synthetic", "fixed", {})["stopCode"] == "TaskFailedToStart"
+    assert run_isolated_task(call, "synthetic", "fixed", {})["stopCode"] == "TaskFailedToStart"
     assert len([c for c in calls if c[1] == "run-task"]) == 2
 
 
@@ -67,5 +67,5 @@ def test_unknown_creation_failure_is_not_retried() -> None:
         return {"failures": [{"reason": "synthetic-failure"}], "tasks": []}
 
     with pytest.raises(RuntimeError, match="not created"):
-        run_fixture_task(failed, "synthetic", "fixed", {})
+        run_isolated_task(failed, "synthetic", "fixed", {})
     assert len(calls) == 1

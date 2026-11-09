@@ -12,6 +12,7 @@ from typing import Any
 from scripts.aws_cli import aws
 from scripts.commission_staging import arm_expiry, register, runtime_digests, task_definition
 from scripts.e1_release import api_definition, archive_definition, start_archive
+from scripts.isolated_task import run_isolated_task
 from scripts.task_diagnostics import task_outcome
 from scripts.verify_staging import verify
 from scripts.verify_staging_network import verify_ingress
@@ -181,37 +182,7 @@ def main() -> int:
                 "assignPublicIp": "ENABLED",
             }
         }
-        run = aws(
-            "ecs",
-            "run-task",
-            "--cluster",
-            outputs["Cluster"],
-            "--task-definition",
-            task,
-            "--launch-type",
-            "FARGATE",
-            "--network-configuration",
-            json.dumps(network),
-        )
-        if run.get("failures") or len(run.get("tasks", [])) != 1:
-            raise RuntimeError("Migration did not start")
-        arn = run["tasks"][0]["taskArn"]
-        subprocess.run(
-            [
-                "aws",
-                "ecs",
-                "wait",
-                "tasks-stopped",
-                "--cluster",
-                outputs["Cluster"],
-                "--tasks",
-                arn,
-            ],
-            check=True,
-        )
-        result = aws("ecs", "describe-tasks", "--cluster", outputs["Cluster"], "--tasks", arn)[
-            "tasks"
-        ][0]
+        result = run_isolated_task(aws, outputs["Cluster"], task, network)
         print("Migration task outcome: " + json.dumps(task_outcome(result)))
         if not result.get("containers") or any(
             c.get("exitCode") != 0 for c in result["containers"]
