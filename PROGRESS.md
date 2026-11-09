@@ -1,124 +1,82 @@
 # Continuidad E2
 
-E2 sigue pendiente de aceptación final. Este archivo conserva el relevo solicitado
-explícitamente por el usuario; PLAN.md contiene los criterios y el estado de fases,
-README/runbooks los comandos y Actions los reportes por commit. No guardar secretos
-ni copias de evidencia histórica en Git.
+**E2 sigue pendiente de cierre.** Este archivo conserva el relevo solicitado por
+el usuario; PLAN contiene criterios/fases y Actions los reportes por SHA. No
+copiar reportes ni secretos al repositorio.
 
-## Estado verificable
+## Base y evidencia acreditadas
 
-- Main remoto: `74297b397b992287272fc63745d4ccb9127e2ea6`, PR #16/#17/#18 integradas.
-  CI del merge 42528545599 aprobado completo, imagen/APK/firma incluidos.
-- CI main 42523200830 aprobado completo, imagen y APK incluidos.
-- Ensayo real E2 [42524078114](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42524078114)
-  aprobado: publicación/digest, preparación RDS, migración, despliegue, gate E1
-  browser/cloud/archive-drill/APK y familia con Cognito/MFA y WORM independiente.
-  Protocolo familiar exige secuencia 347; verificador externo aprobó 349 eventos
-  sin usar SQL. Acredita 3085e36 y su alcance; no las correcciones posteriores.
-- El operador confirmó commission_e1 (scope email) y las dos identidades sintéticas
-  de ese ensayo. No se compartieron secretos ni se enviaron mensajes reales.
-- Decisión explícita: cada familia pertenece a una sola escuela en este MVP.
-- E2 continúa apagada en CD habitual; el ensayo habilitó temporalmente staging
-  sintético. `pickup_enabled=false`; E3–E5 y producción no están aceptadas.
+- Main: `855fc2ec774d6204306370f103eb133d459f2c72`, PR #19 integrada.
+  CI main 42534840490 aprobado completo, 234 Python/20 JS, imagen y APK/firma.
+- Backend E2: ensayo [42529491296](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42529491296)
+  aprobado completo sobre 74297b3: migración, digest, E1/APK, carrera bulk entre
+  escuelas, contacto/activación/replay Cognito/MFA, capacidades, cuidadores,
+  idempotencia/versiones/revocación, recurrencia/horarios, principal y baja online.
+  Secuencia requerida 489; WORM independiente verificó 490 eventos sin SQL.
+- Una familia pertenece a una sola escuela, decisión explícita del usuario.
+  Migración 0005 serializa UUID de padres y revalida escuela/contacto/hash bajo
+  lock. 0002–0005 ya están aplicadas: no editar ni recrear funciones antiguas.
+- Pool de cuatro cohortes MFA preparado y confirmado por operador. Solo se usó
+  `85885f69-3c08-581f-adb0-a297198314e2`; quedan tres nuevas. No repetir comisión,
+  no pedir códigos/semillas/contraseñas ni resetear subjects, canjes o evidencia.
+- Staging configura E1/E2=true, synthetic_only=true, pickup_enabled=false.
+  Producción sigue NOT_CONFIGURED por E5; no hay mensajes ni uso con datos reales.
 
-## Incremento en PR #18
+## Fallo del CD habitual, causa ya clasificada
 
-PR integrado desde `feat/e2-live-acceptance`:
-https://github.com/A-PerfectStranger/special-funicular/pull/18
+CD [42535508616](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42535508616)
+de 855fc2e aprobó publicación, preparación, migración, staging/APK y WORM E1,
+pero falló el browser E1 del guardia. E2, archive-drill y producción se omitieron.
+Digest runtime verificado:
+`sha256:9b1cc768975aab2e903f392533c6dc9306b805ce409149f0cf4fbf8a6b66223c`.
 
-La migración hacia delante 0005 serializa por UUID de padres en orden global,
-revalida escuela/contacto bajo lock y contrasta los bytes almacenados contra el
-hash aprobado. Dos escuelas con padres invertidos y promociones concurrentes:
-exactamente una prospera; no hay vínculos entre escuelas ni activación parcial.
-No modificar migraciones 0002–0004 ya aplicadas.
+El operador entregó metadatos ECS saneados: revoke de e1-b-guard terminó con
+TaskFailedToStart, sin startedAt ni exitCode y 72 s desde creación. No se ejecutó
+el contenedor/SQL. Restore del guardia y restore-all finalizaron con código 0;
+identidades y roster se conservaron. No atribuirlo a fallo de revocación de la
+aplicación ni inventar causa interna AWS (red/capacidad/etc.).
 
-Gate compartido `e2-checks.yml` para ensayo/CD, requerido después de E1 cuando
-`e2_enabled=true`, con WORM independiente antes de considerar producción. Sigue
-false hasta validar el candidato real. Cohortes privadas nuevas en pool acotado
-1..8, preparado solo por operador; CI selecciona mediante importación atómica,
-salta solo cohortes consumidas y bloquea fallos de infraestructura/validación o
-agotamiento. No puede crear identidades Cognito ni escribir el vault. No se
-reinician invitaciones, subjects, sesiones ni evidencia. Secretos solo vault/memoria/
-stdin; correlación local contiene SHA/trial, tareas ECS solo hashes de invitaciones.
+El driver además sobrescribía la fase original al restaurar en finally. Se
+corrige para conservar la primera fase/error, registrar recuperación fallida
+separadamente y medir access_age_ms. Se mantienen todas las aserciones, access
+fresco <240000ms, MFA, revocación y restauración obligatoria.
 
-El ensayo ampliado ejecuta carrera bulk privada, replay real de invitación,
-recurrencia semanal con dos fechas/UTC y rechazo fuera de horario, baja online y
-validación de issuer/sub antes de cambios técnicos. Cambio de principal posterior
-es un comando nuevo auditado, no un reset de historia. La última mutación ancla
-los eventos anteriores para el verificador externo.
+## Corrección candidata en PR #20
 
-Validación local: make check aprobado con 234 Python/14 JS, roles PostgreSQL reales,
-tipos/contrato/migraciones y dependencias Expo; auditorías Python/npm y gitleaks,
-actionlint y sintaxis Node aprobados. La regresión del drill usa snapshots nuevos
-de pg_stat_activity para observar los locks dentro de su transacción. Se corrigió
-el fixture E1 simulado para completar su proyección outbox junto con el recibo;
-la prueba de archivo reclama su propio evento. No se cambió archivo productivo.
-CI final de 82aa779: push 42527802992 y PR 42527805628 aprobados completos,
-imagen/APK/firma incluidos. Merge 74297b3 integrado y CI main 42528545599 aprobado; falta AWS propio.
-Continuación local en `feat/e2-acceptance-close`; no avanzar main durante el ensayo.
+Rama `feat/e2-final-state`, https://github.com/A-PerfectStranger/special-funicular/pull/20
 
-## Siguientes pasos obligatorios
+`fixture_task.py` permite un único reintento (máximo dos tareas) SOLO si ECS
+reporta TaskFailedToStart, sin startedAt, sin exitCode y sin contenedor RUNNING.
+Reutiliza definición, red e inputs fijos; no añade permisos ni secretos. No
+reintenta ejecución incierta, errores SQL, cohortes usadas (42), errores de
+creación ni validación. La segunda falla sigue bloqueando. E1 y E2 usan el mismo
+control de arranque. Nada de esto altera lógica de negocio o datos históricos.
 
-1. PR #18 integrada con checks completos. No avanzar main durante un
-   archive-drill activo cuyo guard exija latest main.
-2. CI del merge aprobado y operador confirmó pool nuevo de cuatro cohortes MFA
-   para 74297b3 (`E2 synthetic MFA fixtures prepared`), sin secretos compartidos.
-   No repetir comisión ya confirmada salvo evidencia de cambio.
-3. Ensayo E2 42529491296 lanzado en main 74297b3 con ci_run_id 42528545599
-   y latest main confirmado. Está en cola serializada detrás del CD 42529252429,
-   que ya migró 0005 y está desplegando. No cancelar migraciones ni avanzar main. Verificar carrera bulk,
-   protocolo ampliado, imagen/APK y WORM hasta la última secuencia. Si falla,
-   investigar y corregir; nunca saltar controles ni resetear cohortes usadas.
-4. Solo tras aprobar, habilitar e2_enabled en staging mediante PR/checks y comprobar
-   el CD habitual completo con la siguiente cohorte. Mantener pickup apagado.
-5. Contrastar cada criterio de PLAN y registrar SHA/runs exactos antes de marcar E2.
-   Instalación/cámara Android física, QR/retiro y producción siguen en E3/E5.
+La corrección de galería ya integrada en 855fc2e conserva formulario solo en
+memoria y bajo máscara durante picker; exige check online al volver. Segundo
+plano ordinario, logout/rechazo descartan la vista y checks tardíos no la restauran.
+Seis regresiones móviles aprobadas en PR #19. Prueba física Android queda en E5.
 
-Incidencias ya delimitadas: CloudShell inicial falló por cwd fuera de Git; usar
-checkout temporal. Aviso pip SAM/boto no detuvo --target. CD a435750 falló su guard
-de latest main antes de pausar worker al avanzar a 3085e36; no fue un fallo de
-comisión ni acredita archivo. CD 3085 en cola fue cancelado antes de migrar al
-lanzar el ensayo que sí aprobó. Resultados y scratch locales en work/, ignorados.
+## Validación y próximos pasos
 
-Handoff actual: bloque CloudShell revisado fija
-74297b397b992287272fc63745d4ccb9127e2ea6 en checkout temporal nuevo, instala
-SDK --require-hashes en work/e1-sdk y ejecuta provision_e2_fixtures con UUID
-nuevo, --pool-size 4 y --synthetic-only. Operador confirmó éxito; ensayo final
-42529491296 pendiente. No pedir códigos, contraseñas ni semillas ni repetir commission_e1.
-La rama de cierre contiene solo esta actualización de documentación: no está
-desplegada y no sustituye la aceptación pendiente del candidato main.
+El head anterior bba998c solo corregía diagnóstico y tuvo CI de push aprobado;
+no atribuirlo al reintento añadido después. make check local final aprobado:
+243 Python/20 JS, tipos/contrato/migraciones y dependencias Expo. Falta CI final
+del nuevo head. Siete pruebas staging (4 Chromium + 3 de
+recuperación), sintaxis y actionlint aprobados; pruebas de arranque cubren
+reintento seguro, límite de dos y no retry de SQL/42/ejecución incierta.
 
-Revisión móvil durante la cola AWS: AppState desmontaba Family al abrir la
-galería, con riesgo de perder toda selección. Corrección local en App.tsx,
-Family.tsx y sessionVisibility.ts: máscara sin interacción/accesibilidad mientras
-la galería conserva el formulario en memoria; vuelta exige check online vigente.
-Segundo plano ordinario, logout o rechazo descartan la vista; generaciones
-impiden restaurar datos desde checks tardíos o competir con OIDC interactivo.
-Seis regresiones nuevas pasan (20 JS totales); 234 Python previas sin cambio de
-backend. Bundle Android/Hermes final aprobado. CI push 42530120001 y PR 42530145520
-de 2383f0e aprobados completos, imagen y APK/firma incluidos. PR #19 en draft,
-sin integrar mientras main 74297b3 tenga ensayos activos. No atribuir esta corrección
-al APK de 74297b3 ni declarar prueba física Android. Integrar solo después del
-ensayo 742 y de sus propios checks; podrá acompañar habilitación de E2 en CD.
+1. make check aprobado; terminar CI final de PR #20 y actualizar descripción con el
+   SHA real y resultados. CD anterior terminó, restore-all PASS, sin drill activo.
+2. Integrar corrección con checks aprobados; esperar CI main y CD automático.
+   No avanzar main durante migraciones/archive-drill ni cancelar migraciones.
+3. Exigir staging, E1/APK y e2-acceptance/family aprobados con otra cohorte.
+   Contrastar SHA/digest, trial distinto, minimum_sequence/high-water externo.
+   Si falla, diagnosticar; no relajar controles ni resetear historia.
+4. Solo entonces completar casillas/matriz E2 y cierre documental por PR/checks.
+   El cierre documental dispara CD; quedan cohortes para verificarlo, sin crear
+   bucle de commits solo para actualizar el último resultado. Aceptación por SHA.
+5. E3–E5 pendientes: QR/retiro, avisos, Android físico y producción deshabilitados.
 
-CD 74297b3: staging aprobado; artefacto 13636941738 confirma digest
-sha256:7af058a44389aecf2851718d9f976ae96c374ff03006fc868c537f6afd892df2,
-runtime_digest_verified=true, E1=true y E2=false. APK de staging firmado aprobado;
-browser E1 aún en curso. Ensayo E2 42529491296 continúa en cola. Probes públicos
-locales aprobados, sin atribuirles procedencia de release ni aceptación funcional.
-
-CD 42529252429 finalizado: staging y todos los jobs E1/APK aprobados, incluido
-archive-drill; solo producción falla por NOT_CONFIGURED E5 esperado. E2 se omitió
-porque bandera=false. Ensayo final E2 42529491296 ya comenzó: publicación y
-preparación aprobadas, migración/despliegue en curso. No avanzar main mientras
-su archive-drill necesite el guard de latest main.
-
-Propuesta preparada en PR #19 mientras corre el ensayo, aún sin integrar:
-e2_enabled=true en staging y documentación de gate obligatorio. La condición
-de integración sigue siendo ensayo AWS 42529491296 aprobado más CI final del
-PR; no interpretar la bandera de esta rama como despliegue ni aceptación.
-Mantener main congelado hasta terminar archive-drill y familia/WORM.
-
-Checks locales de la propuesta con e2_enabled=true: make check aprobado,
-234 Python/20 JS, tipos/contrato/migraciones y dependencias Expo. Es una
-propuesta de configuración aún sin integrar; CI final propio pendiente.
+Scratch y reportes locales bajo work/, ignorados; evidencias/anclas privadas
+fuera de Git. No ejecutar scripts antiguos de refresh de funciones en work/.

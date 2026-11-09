@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { nativeCallback } from './native-callback.mjs';
+import { withRecovery } from './recovery.mjs';
 import { IdentityClient } from '../../apps/mobile/src/identity.ts';
 
 const fixture = JSON.parse(readFileSync(0, 'utf8'));
@@ -18,6 +19,14 @@ let step = 'browser_start';
 let phase = 'launch';
 let lastHttpStatus = null;
 let providerReturn = null;
+let firstFailure = null;
+let recoveryFailed = false;
+let accessAgeMs = null;
+function captureFailure(stage) {
+  if (stage === 'recovery') recoveryFailed = true;
+  firstFailure ??= { failure_phase: phase, last_http_status: lastHttpStatus,
+    provider_return: providerReturn, access_age_ms: accessAgeMs };
+}
 const assert = (condition) => { if (!condition) throw new Error('Acceptance assertion failed'); };
 const secret = () => randomBytes(32).toString('base64url');
 const lastOtp = new Map();
@@ -72,6 +81,7 @@ async function jsonResponse(context, path, status = 200) {
   return response.json();
 }
 async function mobile(username, role) {
+  accessAgeMs = null;
   let stored = null;
   let accessIssuedAt = 0;
   let lastBearer = null;
@@ -130,9 +140,11 @@ async function mobile(username, role) {
   assert(await client.check() === role);
   const activeBearer = lastBearer;
   const activeRefresh = stored;
-  try {
+  await withRecovery(async () => {
     await fixtureStatus('revoke', username);
-    assert(Date.now() - accessIssuedAt < 240000);
+    phase = 'mobile_fresh_access_after_revoke';
+    accessAgeMs = Date.now() - accessIssuedAt;
+    assert(accessAgeMs < 240000);
     const revoked = await dependencies.request(origin + '/v1/me', {
       headers: { Authorization: activeBearer }, cache: 'no-store', redirect: 'error',
     });
@@ -141,6 +153,8 @@ async function mobile(username, role) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: activeRefresh }), signal: AbortSignal.timeout(10000),
     });
+    phase = 'mobile_revoked_refresh';
+    lastHttpStatus = refresh.status;
     assert(refresh.status === 401);
     let temporaryRefresh = null;
     const disabled = new IdentityClient({ ...dependencies,
@@ -152,9 +166,12 @@ async function mobile(username, role) {
     let rejected = false;
     try { await disabled.login(); } catch { rejected = true; }
     finally { await disabled.logout().catch(() => {}); }
+    phase = 'mobile_disabled_login_assertion';
     assert(rejected && lastExchangeStatus === 401);
-  } finally { await fixtureStatus('restore', username); }
-  assert(Date.now() - accessIssuedAt < 240000);
+  }, () => fixtureStatus('restore', username), captureFailure);
+  phase = 'mobile_fresh_access_after_restore';
+  accessAgeMs = Date.now() - accessIssuedAt;
+  assert(accessAgeMs < 240000);
   assert((await dependencies.request(origin + '/v1/me', {
     headers: { Authorization: activeBearer }, cache: 'no-store', redirect: 'error',
   })).status === 401);
@@ -276,6 +293,7 @@ try {
   checks.push({ id: step, passed: true });
   }
 } catch {
+  captureFailure('operation');
   checks.push({ id: step, passed: false });
 } finally {
   if (browser) await browser.close();
@@ -284,7 +302,7 @@ const passed = checks.length === (fixture.scenario === 'archive-drill' ? 1 : 3) 
 writeFileSync(fixture.scenario === 'archive-drill' ? 'work/e1-archive-drill.json' : 'work/e1-browser-acceptance.json', JSON.stringify({
   sha: process.env.GITHUB_SHA, scope: 'Real synthetic Cognito/BFF and mobile protocol; native Android return, SQL isolation and WORM recovery are separate',
   checked_at: new Date().toISOString(), checks, passed, e1_accepted: false,
-  ...(!passed ? { failure_phase: phase, last_http_status: lastHttpStatus, provider_return: providerReturn } : {}),
+  ...(!passed ? { ...firstFailure, recovery_failed: recoveryFailed } : {}),
   ...(deniedEventSequence ? { denied_event_sequence: deniedEventSequence } : {}),
 }, null, 2) + '\n');
 console.log('E1 browser/protocol checks: ' + (passed ? 'PASS' : 'FAIL (' + step + ')'));

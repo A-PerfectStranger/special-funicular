@@ -16,6 +16,7 @@ from scripts.aws_cli import aws
 from scripts.commission_e1 import outputs
 from scripts.commission_staging import register
 from scripts.e1_fixture_data import identifier
+from scripts.fixture_task import run_fixture_task
 
 SELECTION = Path("work/e2-selected-trial.json")
 
@@ -204,25 +205,7 @@ def execute(action: str) -> None:
             "assignPublicIp": "ENABLED",
         }
     }
-    run = aws(
-        "ecs",
-        "run-task",
-        "--cluster",
-        environment["cluster"],
-        "--task-definition",
-        task,
-        "--launch-type",
-        "FARGATE",
-        "--network-configuration",
-        json.dumps(network),
-    )
-    if run.get("failures") or len(run.get("tasks", [])) != 1:
-        raise RuntimeError("Private task absent")
-    arn = run["tasks"][0]["taskArn"]
-    aws("ecs", "wait", "tasks-stopped", "--cluster", environment["cluster"], "--tasks", arn)
-    ended = aws("ecs", "describe-tasks", "--cluster", environment["cluster"], "--tasks", arn)[
-        "tasks"
-    ][0]
+    ended = run_fixture_task(aws, environment["cluster"], task, network)
     codes = [c.get("exitCode") for c in ended.get("containers", [])]
     if action == "seed" and codes == [42]:
         raise CohortUsed()
