@@ -81,9 +81,14 @@ jobs:
           with open(os.environ['GITHUB_ENV'],'a') as stream:
               stream.write('EXPO_PUBLIC_API_URL=' + json.load(open('infra/environments/staging.json'))['base_url'] + '\n')
           PY
+      - name: Prepare the exact pinned Gradle from its official release API
+        id: gradle
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: python3 scripts/gradle_archive.py download
       - name: Build configured internal staging APK with development signing
         env:
           GIT_SHA: ${{ inputs.release_sha }}
+          RETIRO_GRADLE_ARCHIVE: ${{ steps.gradle.outputs.archive }}
           APP_ENV: staging
           ANDROID_PACKAGE_ID: org.retiroseguro.staging
           MOBILE_OIDC_SCHEME: retiro-seguro-staging

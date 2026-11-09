@@ -17,6 +17,9 @@ case "$APP_ENV" in
   *) echo 'BLOCKED: debug signing is limited to development/staging' >&2; exit 2 ;;
 esac
 npm run prebuild --workspace apps/mobile
+if [ -n "${RETIRO_GRADLE_ARCHIVE:-}" ]; then
+  python3 scripts/gradle_archive.py use "$RETIRO_GRADLE_ARCHIVE"
+fi
 # Expo's transform cache can otherwise retain a previous environment's public values.
 npm run mobile:export
 mkdir -p work/artifacts

@@ -89,7 +89,13 @@ el APK compilado con aapt2: exige cámara para QR y ausencia de micrófono.
 Salida: `work/artifacts/mobile-development-<SHA>.apk` y manifiesto SHA-256.
 `make apk` y `make image` exigen un árbol limpio para identificar el código real
 por su commit. La configuración fija Gradle 8.14.3 con checksum oficial para
-evitar la incompatibilidad de Foojay/RN 0.85 con Gradle 9.
+evitar la incompatibilidad de Foojay/RN 0.85 con Gradle 9. CI obtiene el ZIP
+exacto por la API oficial de gradle/gradle-distributions y verifica el mismo
+checksum antes de usarlo localmente en el wrapper generado. El token GitHub
+solo está presente en el paso de descarga. Para un entorno local afectado por
+fallo del redirect de Gradle, `python3 scripts/gradle_archive.py download` y
+`RETIRO_GRADLE_ARCHIVE="$PWD/work/native-tools/gradle-8.14.3-bin.zip" make apk`
+usan esa misma ruta verificada; requieren GitHub CLI autenticado.
 `eas.json` define los perfiles futuros; cuenta Expo, firma estable y package IDs cloud
 productivos siguen sin configurar. El ensayo E1 fija package ID
 `org.retiroseguro.staging`, endpoint y callback; su APK mantiene firma de desarrollo

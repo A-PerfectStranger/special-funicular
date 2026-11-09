@@ -136,9 +136,14 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
+      - name: Prepare the exact pinned Gradle from its official release API
+        id: gradle
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: python3 scripts/gradle_archive.py download
       - name: Compile standalone arm64 development APK with SDK 56 and debug signing
         env:
           GIT_SHA: ${{ github.sha }}
+          RETIRO_GRADLE_ARCHIVE: ${{ steps.gradle.outputs.archive }}
         run: bash scripts/build-apk.sh
       - name: Verify APK signature
         run: '"$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose work/artifacts/*.apk'
