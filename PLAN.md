@@ -163,8 +163,11 @@ PR aprobado (234 Python/20 JS, imagen/APK/firma). CI main 42534840490 aprobado c
 del cierre completo E2; no heredar el resultado de 74297b3.
 El CD [42535508616](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42535508616)
 falló en identidad E1 del guardia y omitió E2. La restauración de fixtures aprobó;
-la fase original quedó oculta por el finally del driver y se investiga con
-diagnóstico saneado. No se cierra E2 ni se relajan las aserciones de seguridad.
+el operador confirmó TaskFailedToStart del comando revoke, sin ejecución del
+contenedor/SQL. La fase original quedó oculta por el finally del driver. PR #20
+conserva ese diagnóstico y añade un único reintento solo de arranque demostrado
+sin ejecución, sin reintentar SQL ni estados inciertos. Falta CI/CD de esa
+corrección; no se cierra E2 ni se relajan aserciones de seguridad.
 
 | Criterio | Verificación local/CI | Verificación AWS |
 | --- | --- | --- |

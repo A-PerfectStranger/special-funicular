@@ -13,6 +13,7 @@ from scripts.aws_cli import aws
 from scripts.commission_e1 import outputs
 from scripts.commission_staging import register
 from scripts.e1_fixture_data import identifier
+from scripts.fixture_task import run_fixture_task
 
 USERS = ["e1-a-p1", "e1-b-guard"]
 
@@ -99,25 +100,7 @@ def main() -> int:
             "assignPublicIp": "ENABLED",
         }
     }
-    result = aws(
-        "ecs",
-        "run-task",
-        "--cluster",
-        environment["cluster"],
-        "--task-definition",
-        task_definition,
-        "--launch-type",
-        "FARGATE",
-        "--network-configuration",
-        json.dumps(network),
-    )
-    if result.get("failures") or len(result.get("tasks", [])) != 1:
-        raise RuntimeError("Private status task did not start")
-    task = result["tasks"][0]["taskArn"]
-    aws("ecs", "wait", "tasks-stopped", "--cluster", environment["cluster"], "--tasks", task)
-    ended = aws("ecs", "describe-tasks", "--cluster", environment["cluster"], "--tasks", task)[
-        "tasks"
-    ][0]
+    ended = run_fixture_task(aws, environment["cluster"], task_definition, network)
     if not ended.get("containers") or any(
         item.get("exitCode") != 0 for item in ended["containers"]
     ):
