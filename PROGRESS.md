@@ -103,6 +103,9 @@ Causa aislada por sonda anónima
 `ERR_NAME_NOT_RESOLVED` al abrir el host configurado retirado. Express recreado
 usa `https://re-0435045dc91e4e8692308f4ec6cd0cd8.ecs.us-east-1.on.aws`; la
 configuración/callback anterior usaban `re-dc7939bf752047ff8947f600b81bc157`.
+La sonda anónima con origen corregido
+[42582862978](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42582862978)
+llegó al formulario Cognito sin credenciales; no prueba el callback ni un login.
 Digest b423949 contrastado:
 `sha256:f87cdcfb6e6ff6e180abb47382bb30ec8c88e032978850b58b68befca5a736f2`.
 

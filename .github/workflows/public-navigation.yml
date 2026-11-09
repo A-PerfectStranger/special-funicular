@@ -1,8 +1,6 @@
 name: Anonymous staging navigation diagnostic
 on:
   workflow_dispatch:
-  push:
-    branches: [feat/e3-browser-diagnostics]
 permissions:
   contents: read
 jobs:
