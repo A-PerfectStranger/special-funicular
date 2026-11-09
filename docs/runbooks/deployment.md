@@ -27,7 +27,9 @@ archivo: [E1](e1.md). No se requieren claves AWS permanentes para CD.
 6. Si `e1_enabled=true`, ejecutar browser/cloud/staging-apk/archive-drill mediante
    `e1-checks.yml`. Todos deben aprobar; un fallo bloquea promoción. Consultar
    resultados y artefactos del commit en Actions, sin copiar reportes al repositorio.
-7. Producción solo se habilita tras configuración/aceptación E5. No añadir una
+7. Si E2 está habilitada, exigir su activación/permisos familiares; con E3, exigir
+   también retiro sintético y WORM independiente hasta la secuencia final.
+8. Producción solo se habilita tras configuración/aceptación E5. No añadir una
    aprobación humana rutinaria de promoción. cancel-in-progress=false en CD.
 
 ```bash
@@ -55,6 +57,43 @@ configuración inválida, 2. No sigue redirecciones ni registra cuerpos/cookies 
 excepciones remotas. El reporte no acredita SHA/digest, IAM, presupuesto ni E1.
 Un proxy TLS interceptante impide usar ese cliente como atestación TLS del origen;
 los probes de aceptación se ejecutan desde runner sin ese proxy.
+
+## Origen Express y callback existente
+
+La retirada programada puede recrear Express con otro hostname. CD exige que el
+origen observado, `staging.json:base_url` y `WebRedirect` coincidan; una diferencia
+bloquea con `STAGING_ORIGIN_DRIFT`, aunque salud/digest/TLS aprueben. No seguir
+probando identidad en el host retirado ni reejecutar `commission_e1`.
+
+Revisar el origen del reporte de despliegue/AWS y actualizar `base_url` mediante
+PR/checks. Con el SHA main aprobado, un operador de la cuenta del proyecto puede
+sincronizar únicamente el callback existente desde CloudShell:
+
+```bash
+(
+  set -euo pipefail
+  origin_checkout=$(mktemp -d /tmp/retiro-origin.XXXXXX)
+  git clone https://github.com/A-PerfectStranger/special-funicular.git "$origin_checkout"
+  cd "$origin_checkout"
+  git switch --detach SHA_MAIN_APROBADO
+  python3 -m scripts.sync_staging_origin --sha "$(git rev-parse HEAD)"
+)
+```
+
+El comando rechaza CI/runtime como operador. Contrasta el hostname activo con el
+revisado y reutiliza la plantilla/otros parámetros existentes. Solo ejecuta un
+change set que modifica `WebClient.CallbackURLs` sin reemplazo; cualquier otro
+recurso/propiedad bloquea antes de ejecutar. Después comprueba que los outputs
+persistentes y el callback real de Cognito coincidan. No crea usuarios, accede al
+vault, migra SQL ni cambia claves/retención/IAM. Si ya coincide, solo verifica.
+Conservar el change set y eventos CloudFormation como evidencia; no borrarlos para
+repetir. El comando no acredita aceptación. Repetir staging para inyectar el callback
+actualizado y exigir E1/E2/E3/WORM completos del mismo candidato.
+
+El workflow manual `Anonymous staging navigation diagnostic` prueba solo página
+de ingreso → formulario IdP, sin credenciales. Crea un inicio anónimo acotado,
+no una sesión ni una aceptación funcional. Sus reportes conservan fases, estados
+HTTP y categorías de red fijas; nunca URLs con códigos ni texto del proveedor.
 
 ## Infraestructura y diagnóstico
 

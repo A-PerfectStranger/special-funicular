@@ -58,7 +58,7 @@ detiene la base sin borrar su volumen; no usar `down -v` sobre datos que se deba
 | `make lint` | Ruff, formato y ESLint. |
 | `make typecheck` | mypy estricto y TypeScript. |
 | `make test` | Unitarias, contratos, PostgreSQL/RLS, móvil y regresión vendor. |
-| `node --test tests/staging/native-callback.test.mjs` | Regresión real de Chromium para retorno nativo; requiere navegador Playwright o E1_CHROMIUM_PATH. |
+| `node --test tests/staging/native-callback.test.mjs tests/staging/recovery.test.mjs tests/staging/diagnostics.test.mjs` | Regresión real de Chromium para retorno nativo; requiere navegador Playwright o E1_CHROMIUM_PATH. |
 | `make check` | Lint, tipos, migraciones, `make test`, checks Django y compatibilidad Expo. |
 | `make security` | pip-audit, npm audit y gitleaks 8.30.1 (instalar binario oficial en PATH). |
 | `npm run mobile:export` | Compila el bundle Android/Hermes; no es un APK. |

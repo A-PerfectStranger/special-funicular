@@ -89,15 +89,34 @@ sin micrófono y firma de desarrollo v2. Migración desde base vacía y ocho cas
 de sesión vencida durante locks aprobados. No usar refresh SQL antiguos de work/.
 
 [CD 42574527123](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42574527123)
-aprobó publish/prepare/migrate y contrastó digest runtime/red/TLS, pero staging
-falló: la sonda E0 exigía 404 en la ruta E3 habilitada, que responde correctamente
-405 a GET. E1/E2/E3 no se ejecutaron; no se consumió cohorte familiar en ese run.
-E3 NO está aceptada. La corrección exige selección explícita de probes E3,
-capacidad sintética exacta y negativas para 200/404/flag incoherente; después
-requiere nuevo CI/PR y todos los gates AWS. No omitir ni ensayar a mano el gate.
+bloqueó la sonda 404 antigua; la corrección quedó integrada por PR #24 en
+`b423949bcf992fe873ccae837bc2f6bbd0da54b8` con
+[CI 42577523107](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42577523107)
+aprobado: 295 Python, 26 JS, siete navegador/recuperación, imagen/APK/firma.
+[CD 42578747692](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42578747692)
+aprobó staging/digest/nueve probes, WORM cloud independiente y APK de staging.
+E1 browser falló dos veces antes del proveedor; E2/E3 y archive-drill no corrieron.
+Ninguna cohorte familiar fue consumida por estos dos CD. E3 NO está aceptada.
 
-Siguiente paso: integrar la corrección verificada y observar E1/E2/E3/WORM por
-SHA. Si falta pool, usar preparación privada de E2, sin resetear cohortes ni
-solicitar secretos en chat. Solo después registrar aceptación real y sus límites.
-Scratch/resultados saneados en work/, ignorados; no publicar QR, credenciales,
-fotos ni copias privadas de WORM.
+Causa aislada por sonda anónima
+[42581925936](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42581925936):
+`ERR_NAME_NOT_RESOLVED` al abrir el host configurado retirado. Express recreado
+usa `https://re-0435045dc91e4e8692308f4ec6cd0cd8.ecs.us-east-1.on.aws`; la
+configuración/callback anterior usaban `re-dc7939bf752047ff8947f600b81bc157`.
+Digest b423949 contrastado:
+`sha256:f87cdcfb6e6ff6e180abb47382bb30ec8c88e032978850b58b68befca5a736f2`.
+
+Corrección en rama `feat/e3-browser-diagnostics`: origen revisado, bloqueo de
+deriva explícito en CD, diagnóstico saneado por fase/categoría y comando operador
+`sync_staging_origin` limitado a un change set de WebClient.CallbackURLs.
+Pruebas locales: diez navegador/recuperación/diagnóstico y 36 Python pertinentes,
+lint/tipos aprobados; aún requiere PR/CI e integración. El operador debe sincronizar
+el callback existente según runbook deployment; no repetir comisión E1 ni pedir
+contraseñas/TOTP/códigos. Esta sesión no tiene identidad AWS de operador y el
+escritorio devolvió error de inicialización; no se ejecutó la actualización AWS.
+
+Siguiente paso: exigir CI/PR, integrar y actualizar únicamente el callback mediante
+el comando revisado desde main aprobado. Repetir staging y E1/E2/E3/WORM por SHA.
+Solo después registrar aceptación real y sus límites. Si falta pool, preparar otro
+privadamente, sin resetear cohortes ni solicitar secretos. Scratch saneado en
+work/, ignorado; no publicar QR, credenciales, fotos ni copias privadas de WORM.

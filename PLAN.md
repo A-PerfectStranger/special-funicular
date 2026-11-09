@@ -231,12 +231,18 @@ reales, incluida concurrencia de dos guardias, revocación ordenada, 10 000 toke
 inválidos y ocho rechazos de sesión vencida mientras espera locks. Migración desde
 base vacía aprobada.
 
-[CD 42574527123](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42574527123)
-aprobó migraciones/digest/red pero bloqueó staging por una sonda antigua: esperaba
-404 en confirmación E3; la ruta habilitada rechaza GET con 405. Corrección de probes
-con selección explícita y seis regresiones TLS verificada localmente (28 pruebas
-pertinentes aprobadas). Falta integrar esa corrección y aprobar todos los gates
-E1/E2/E3/WORM por el nuevo SHA. Ninguna casilla se cierra por existencia de código.
+La sonda de ruta se corrigió por PR #24 (`b423949`), con
+[CI 42577523107](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42577523107)
+aprobado: 295 Python/26 JS/siete navegador, imagen/APK/firma. El
+[CD 42578747692](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42578747692)
+aprobó staging/digest/TLS, WORM cloud y APK. E1 browser falló en un hostname
+retirado; la sonda anónima aisló `ERR_NAME_NOT_RESOLVED`. E2/E3 no se ejecutaron.
+La recreación Express cambió el origen y requiere sincronizar el callback existente.
+La corrección de deriva/diagnóstico tiene diez pruebas de navegador y 36 Python
+pertinentes locales aprobadas; faltan PR/CI, actualización de callback por operador
+y todos los gates E1/E2/E3/WORM del candidato integrado. Procedimiento acotado en
+[runbook deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
+Ninguna casilla se cierra por existencia de código o solo por salud del despliegue.
 
 ### E4 — Avisos y consulta escolar
 
