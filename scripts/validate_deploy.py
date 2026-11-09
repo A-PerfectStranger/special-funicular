@@ -52,6 +52,12 @@ def validate(config: dict[str, Any]) -> list[str]:
         errors.append("verify actual spend/remaining credits and the 150 USD ceiling")
     if config.get("pickup_enabled") is not False or config.get("synthetic_only") is not True:
         errors.append("E0 permits synthetic data only, with pickups disabled")
+    if config.get("e3_enabled") is True and (
+        config.get("environment") != "staging"
+        or config.get("e1_enabled") is not True
+        or config.get("e2_enabled") is not True
+    ):
+        errors.append("E3 requires synthetic staging and E1/E2 gates")
     return errors
 
 

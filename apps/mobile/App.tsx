@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { AppState, Button, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Family } from './src/Family';
+import { Guard } from './src/Guard';
 import { readCapabilities } from './src/capabilities';
 import type { IdentityClient, MobileRole } from './src/identity';
 import { createIdentityClient } from './src/identityRuntime';
 import { SessionVisibility } from './src/sessionVisibility';
+import { clearQrShares } from './src/qrShareRuntime';
 
 export default function App() {
   const [status, setStatus] = useState('Sin comprobar conexión. Retiros deshabilitados.');
   const [familyEnabled, setFamilyEnabled] = useState(false);
+  const [pickupEnabled, setPickupEnabled] = useState(false);
   const [invitation, setInvitation] = useState('');
   const [pending, setPending] = useState(false);
   const [role, setRole] = useState<MobileRole | null>(null);
@@ -38,6 +41,13 @@ export default function App() {
     }).then(async response => response.ok ? response.json() : null).then(value => {
       if (active) setFamilyEnabled(value?.family_enabled === true && value?.pickup_enabled === false);
     }).catch(() => { if (active) setFamilyEnabled(false); });
+    if (endpoint) fetch(`${endpoint}/v1/pickup/capabilities`, {
+      cache: 'no-store', credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(5000),
+    }).then(async response => response.ok ? response.json() : null).then(value => {
+      if (!active) return;
+      clearQrShares();
+      setPickupEnabled(value?.pickup_enabled === true && value?.synthetic_only === true);
+    }).catch(() => { if (active) setPickupEnabled(false); });
     visibility.start(AppState.currentState);
     const subscription = AppState.addEventListener('change', state => visibility.changed(state));
     return () => { active = false; subscription.remove(); visibility.dispose(); };
@@ -49,7 +59,7 @@ export default function App() {
     try {
       if (!identity) throw new Error('Identity unavailable');
       visibility.finishInteractive(await identity.login(reauthenticate));
-      setStatus('Identidad validada en línea. Retiros deshabilitados.');
+      setStatus(pickupEnabled ? 'Identidad validada. Ensayo de retiro solo con datos sintéticos.' : 'Identidad validada en línea. Retiros deshabilitados.');
     } catch { visibility.finishInteractive(null); setStatus('No fue posible validar la identidad. Vuelve a ingresar con MFA.'); }
     finally { setPending(false); }
   }
@@ -86,7 +96,7 @@ export default function App() {
         cache: 'no-store', signal: AbortSignal.timeout(5000),
       });
       if (!response.ok || !readCapabilities(await response.json())) throw new Error('Unavailable');
-      setStatus('Conexión técnica disponible. Retiros deshabilitados.');
+      setStatus(pickupEnabled ? 'Conexión técnica disponible. Cada entrega sintética exige permiso en línea.' : 'Conexión técnica disponible. Retiros deshabilitados.');
     } catch {
       setStatus('Servicio no disponible. No se autoriza ningún retiro.');
     } finally {
@@ -98,7 +108,7 @@ export default function App() {
     <SafeAreaView style={styles.container}><ScrollView>
       <View style={styles.card}>
         <Text style={styles.title}>Retiro seguro · Desarrollo</Text>
-        <Text>Ensayo con datos sintéticos. Retiros deshabilitados.</Text>
+        <Text>{pickupEnabled ? 'Ensayo sintético de puerta. No usar con estudiantes reales.' : 'Ensayo con datos sintéticos. Retiros deshabilitados.'}</Text>
         <Text accessibilityLiveRegion="polite">{status}</Text>
         <Button title="Comprobar conexión" disabled={pending} onPress={checkConnection} />
         {configured && familyEnabled && !role && <>
@@ -116,8 +126,9 @@ export default function App() {
           <Button title="Reautenticar con MFA" disabled={pending} onPress={() => signIn(true)} />
           <Button title="Cerrar sesión" disabled={pending} onPress={signOut} />
         </>}
-        {familyEnabled && role === 'PADRE' && identity && <Family identity={identity}
+        {familyEnabled && role === 'PADRE' && identity && <Family identity={identity} pickupEnabled={pickupEnabled}
           photoActivity={select => visibility.photoActivity(select)} />}
+        {pickupEnabled && role === 'GUARDIA' && identity && <Guard identity={identity} />}
         </View>
       </View>
     </ScrollView></SafeAreaView>

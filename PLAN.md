@@ -200,13 +200,34 @@ Actions; estos resultados no se heredan automáticamente a otra release.
 
 ### E3 — QR y retiro completo
 
-- [ ] Implementar emisión/renovación/reprogramación y fórmula temporal del QR.
-- [ ] Implementar escáner y resolución mínima del guardia; tres verificaciones explícitas.
-- [ ] Implementar locks, confirmación única, idempotencia, consumo/evento/outbox atómicos y consulta por ID.
-- [ ] Conectar recibo WORM oportuno, timeout 5 s, habilitación 30 s y estados de incidencia durables.
-- [ ] Reportar entrega/no entrega por evento nuevo y reconciliar respuesta perdida/reporte tardío.
+**Estado:** implementación en verificación; E3 no está aceptada todavía. Retiros
+reales deshabilitados; el candidato habilita solo ensayo sintético y exige su gate.
 
-**Aceptación:** AT03, AT05 y AT07; 50 confirmaciones concurrentes producen una decisión; revocación ordenada; QR viejo o fuera de vigencia rechazado; archivo tardío no habilita; sin modo offline ni éxito visual falso.
+- [ ] Acreditar QR CSPRNG de 256 bits, anticipación <=24 h, vigencia UTC/IANA, renovación sin extender fin y reprogramación atómica.
+- [ ] Acreditar escaneo por guardia de sede, foto autenticada y las tres comprobaciones físicas en móvil SDK 56.
+- [ ] Acreditar episodio estudiante/fecha local, consumo/decisión únicos, idempotencia, revocación y 50 confirmaciones concurrentes.
+- [ ] Acreditar recibo WORM oportuno <=5 s, habilitación 30 s, reloj confiable e incidencias durables sin reactivación tardía.
+- [ ] Acreditar reporte físico mediante evento nuevo, no entrega, respuesta perdida/reporte tardío y archivo del hecho pendiente sin borrado.
+- [ ] Completar CI, artefactos, ensayo E1/E2/E3/WORM real por SHA y documentación del resultado observado.
+
+**Criterios verificables:** RF07–10/15/19; CA-F07–10/F15/F19 y
+CA-S04–06/S08/S11–16/S22; AT03/05/07 y regresiones AB01/03–08/11/15/17/23/24.
+Cada fila anterior requiere verificación local y, cuando corresponde, staging
+real. Los mocks no acreditan servicios AWS ni prueba Android física.
+
+**Ejecución:** (1) modelo/SQL y migraciones aditivas con RLS/roles existentes;
+(2) API/contrato y reloj/archivo; (3) QR/cámara/reporte/recuperación móvil;
+(4) regresiones PostgreSQL, tipos, seguridad y builds; (5) PR/checks y aceptación
+sintética integrada, verificador independiente, cierre documental. El control
+privado de fallo es acotado y exclusivo de fixtures E3; no borra evidencia.
+Operación y límites en [runbook E3](docs/runbooks/e3.md).
+
+**Verificado localmente hasta ahora:** suite completa `make check`: 275 Python, 23 JavaScript móvil/vendor,
+tipos/lint/migraciones/Expo aprobados; 27 pruebas nuevas de dominio aprobadas con PostgreSQL/roles reales, incluida
+concurrencia de dos guardias, revocación ordenada y 10 000 tokens inválidos.
+Bundle Android, siete regresiones de navegador, auditorías de dependencias/secretos
+y migración desde base vacía aprobados. CI/imagen/APK y AWS por SHA siguen
+pendientes; no atribuirles aceptación hasta sus resultados en Actions.
 
 ### E4 — Avisos y consulta escolar
 

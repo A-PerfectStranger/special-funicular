@@ -1,6 +1,7 @@
 """Leased outbox; no SQL transaction spans WORM/KMS network calls."""
 
 import os
+import time
 import uuid
 from typing import Any
 
@@ -20,7 +21,25 @@ def connection() -> psycopg.Connection[Any]:
     return db
 
 
+_next_clock_sample = 0.0
+
+
+def advance_pickups(archive: WormArchive) -> None:
+    global _next_clock_sample
+    if time.monotonic() >= _next_clock_sample:
+        try:
+            stamp, elapsed = archive.clock_sample()
+        except Exception:
+            stamp, elapsed = None, 0
+        with connection() as db:
+            db.execute("SELECT public.e3_clock_sample(%s,%s)", (stamp, elapsed))
+        _next_clock_sample = time.monotonic() + 5
+    with connection() as db:
+        db.execute("SELECT public.e3_sweep()")
+
+
 def process_batch(archive: WormArchive, batch: int = 1) -> dict[str, int]:
+    advance_pickups(archive)
     lease = uuid.uuid4()
     with connection() as db:
         jobs = db.execute("SELECT * FROM public.e1_claim_archive(%s,%s)", (batch, lease)).fetchall()
@@ -62,4 +81,6 @@ def status() -> dict[str, Any]:
         row = db.execute("SELECT public.e1_archive_status()").fetchone()
     if not row:
         raise RuntimeError("Archive status unavailable")
-    return dict(row[0])
+    with connection() as db:
+        pickup = db.execute("SELECT public.e3_sweep()").fetchone()
+    return {**dict(row[0]), "pickup": dict(pickup[0]) if pickup else {}}

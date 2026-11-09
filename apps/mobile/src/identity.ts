@@ -15,6 +15,11 @@ type Credentials = { access_token: string; refresh_token: string; expires_in: nu
 const validSecret = (value: unknown): value is string =>
   typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
 
+export class PickupRequestError extends Error {
+  readonly status: number;
+  constructor(status: number) { super('Online pickup request failed'); this.status = status; }
+}
+
 export class IdentityClient {
   private access: string | null = null;
   private generation = 0;
@@ -151,6 +156,39 @@ export class IdentityClient {
     const result = await response.json();
     if (generation !== this.generation) throw new Error('Session changed');
     return result as T;
+  }
+
+  async pickupRequest<T>(path: string, payload?: object, key?: string): Promise<T> {
+    if (!/^\/v1\/(guard\/(resolve-qr|confirm-pickup|operations\/[0-9a-f-]+(?:\/report-handover)?)|authorizations\/[0-9a-f-]+\/(issue-qr|reschedule))$/.test(path)) throw new Error('Invalid route');
+    await this.check();
+    const generation = this.generation;
+    const response = await this.dependencies.request(`${this.dependencies.apiUrl}${path}`, {
+      method: payload ? 'POST' : 'GET', cache: 'no-store', credentials: 'omit', redirect: 'error',
+      headers: { Authorization: `Bearer ${this.access}`, ...(payload
+        ? { 'Content-Type': 'application/json', 'Idempotency-Key': key ?? '' } : {}) },
+      ...(payload ? { body: JSON.stringify(payload) } : {}), signal: AbortSignal.timeout(7000),
+    });
+    if (!response.ok) throw new PickupRequestError(response.status);
+    if (generation !== this.generation) throw new Error('Session changed');
+    const result = await response.json();
+    if (generation !== this.generation) throw new Error('Session changed');
+    return result as T;
+  }
+
+  async pickupPhoto(token: string): Promise<string> {
+    await this.check();
+    const generation = this.generation;
+    const response = await this.dependencies.request(`${this.dependencies.apiUrl}/v1/guard/caregiver-photo`, {
+      method: 'POST', cache: 'no-store', credentials: 'omit', redirect: 'error',
+      headers: { Authorization: `Bearer ${this.access}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }), signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok || generation !== this.generation) throw new Error('Photo unavailable');
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length > 300000 || generation !== this.generation) throw new Error('Photo unavailable');
+    let raw = '';
+    for (const byte of bytes) raw += String.fromCharCode(byte);
+    return `data:image/jpeg;base64,${btoa(raw)}`;
   }
 
   async activate(invitation: string): Promise<void> {

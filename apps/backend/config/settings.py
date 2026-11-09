@@ -1,4 +1,4 @@
-"""Environment configuration; E1/E2 are gated independently and pickups remain disabled."""
+"""Environment configuration; E1/E2/E3 are explicit gates; production pickups remain disabled."""
 
 import os
 from pathlib import Path
@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "school_roster",
     "evidence",
     "authorization",
+    "pickup",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -116,3 +117,7 @@ LOGGING = {
 E2_FAMILY_ENABLED = os.environ.get("E2_FAMILY_ENABLED", "false") == "true"
 if E2_FAMILY_ENABLED and not E1_IDENTITY_ENABLED:
     raise ImproperlyConfigured("E2 requires E1 identity")
+
+E3_PICKUP_ENABLED = os.environ.get("E3_PICKUP_ENABLED", "false") == "true"
+if E3_PICKUP_ENABLED and (not E2_FAMILY_ENABLED or APP_ENV == "production"):
+    raise ImproperlyConfigured("E3 requires E2 and synthetic commissioning")

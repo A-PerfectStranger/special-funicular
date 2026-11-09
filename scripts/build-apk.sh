@@ -17,6 +17,9 @@ case "$APP_ENV" in
   *) echo 'BLOCKED: debug signing is limited to development/staging' >&2; exit 2 ;;
 esac
 npm run prebuild --workspace apps/mobile
+if [ -n "${RETIRO_GRADLE_ARCHIVE:-}" ]; then
+  python3 scripts/gradle_archive.py use "$RETIRO_GRADLE_ARCHIVE"
+fi
 # Expo's transform cache can otherwise retain a previous environment's public values.
 npm run mobile:export
 mkdir -p work/artifacts
@@ -26,6 +29,7 @@ mkdir -p work/artifacts
   ./gradlew --no-daemon --rerun-tasks --max-workers=2 :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
 )
 cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
+uv run python scripts/verify_mobile_permissions.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
 if [ "$APP_ENV" = staging ]; then
   uv run python scripts/verify_staging_apk.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
 fi

@@ -18,3 +18,8 @@ if settings.E2_FAMILY_ENABLED:
     from django.urls import include
 
     urlpatterns += [path("v1/", include("authorization.urls"))]
+
+if settings.E3_PICKUP_ENABLED:
+    from django.urls import include
+
+    urlpatterns += [path("v1/", include("pickup.urls"))]

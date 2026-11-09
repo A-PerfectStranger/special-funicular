@@ -148,6 +148,12 @@ def execute(action: str) -> None:
         command.update(
             batch=batch, other_school_id=identifier("school-b"), other_site_id=identifier("site-b")
         )
+    elif action.startswith("e3-"):
+        from scripts.e3_fixture_data import fixture_batch
+
+        if values.get("E3_PICKUP_ENABLED") != "true":
+            raise RuntimeError("E3 synthetic candidate required")
+        command.update(e3_batch=fixture_batch(e2))
     else:
         command.update(school_id=batch["school_id"], target=batch["students"][0]["id"])
         command.update(
@@ -218,7 +224,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "action",
-        choices=["seed", "principal", "original-principal", "block", "deactivate", "bulk-drill"],
+        choices=[
+            "seed",
+            "principal",
+            "original-principal",
+            "block",
+            "deactivate",
+            "bulk-drill",
+            "e3-seed",
+            "e3-hold",
+            "e3-revoke",
+        ],
     )
     args = parser.parse_args()
     try:

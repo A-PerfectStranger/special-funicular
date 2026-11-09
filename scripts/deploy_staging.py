@@ -140,6 +140,9 @@ def main() -> int:
     parser.add_argument(
         "--e2-trial", action="store_true", help="Bounded synthetic E2 trial; not acceptance"
     )
+    parser.add_argument(
+        "--e3-trial", action="store_true", help="Bounded synthetic E3 trial; not acceptance"
+    )
     args = parser.parse_args()
     if not re.fullmatch("[0-9a-f]{40}", args.sha) or not re.fullmatch(
         "sha256:[0-9a-f]{64}", args.digest
@@ -162,8 +165,11 @@ def main() -> int:
         or environment.get("pickup_enabled") is not False
     ):
         raise SystemExit("BLOCKED: synthetic-only staging with pickups disabled required")
-    e1_enabled = args.e1_trial or args.e2_trial or environment.get("e1_enabled") is True
-    e2_enabled = args.e2_trial or environment.get("e2_enabled") is True
+    e1_enabled = (
+        args.e1_trial or args.e2_trial or args.e3_trial or environment.get("e1_enabled") is True
+    )
+    e2_enabled = args.e2_trial or args.e3_trial or environment.get("e2_enabled") is True
+    e3_enabled = args.e3_trial or environment.get("e3_enabled") is True
     if e2_enabled and not e1_enabled:
         raise RuntimeError("BLOCKED: E2 requires the E1 identity and archive gate")
     outputs = {
@@ -200,7 +206,9 @@ def main() -> int:
             ][0]["Outputs"]
         }
         # Validate both definitions before starting a process. Same image, isolated credentials.
-        api = api_definition(outputs, e1, image, args.sha, enable_family=e2_enabled)
+        api = api_definition(
+            outputs, e1, image, args.sha, enable_family=e2_enabled, enable_pickup=e3_enabled
+        )
         archive = register(archive_definition(outputs, e1, image, args.sha))
         archive_task = start_archive(outputs, archive, expected)
     else:
@@ -254,6 +262,7 @@ def main() -> int:
         "passed": passed,
         "e1_identity_enabled": e1_enabled,
         "e2_family_enabled": e2_enabled,
+        "e3_pickup_enabled": e3_enabled,
         "archive_task": archive_task,
         "e1_accepted": False,
         "scope": "Deployment and technical probes only; functional E1 acceptance is separate",

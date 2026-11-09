@@ -46,8 +46,11 @@ def api_definition(
     image: str,
     sha: str,
     enable_family: bool = False,
+    enable_pickup: bool = False,
 ) -> dict[str, Any]:
     require_configuration(config)
+    if enable_pickup and not enable_family:
+        raise RuntimeError("BLOCKED: E3 requires E2")
     definition = copy.deepcopy(task_definition(base, image, sha, False))
     definition["taskRoleArn"] = config["ApiTaskArn"]
     container = definition["containerDefinitions"][0]
@@ -56,6 +59,7 @@ def api_definition(
         {
             "E1_IDENTITY_ENABLED": "true",
             "E2_FAMILY_ENABLED": "true" if enable_family else "false",
+            "E3_PICKUP_ENABLED": "true" if enable_pickup else "false",
             "AWS_REGION": "us-east-1",
             "OIDC_ISSUER": config["Issuer"],
             "OIDC_COGNITO_POOL_ID": config["PoolId"],

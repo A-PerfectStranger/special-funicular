@@ -25,6 +25,25 @@ concurrency:
   group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'regular' }}
   cancel-in-progress: true
 jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {fetch-depth: 0, persist-credentials: false}
+      - id: scope
+        env:
+          SCOPE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          SCOPE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          SCOPE_EVENT: ${{ github.event_name }}
+        run: python3 scripts/release_scope.py ci --base "$SCOPE_BASE" --head "$SCOPE_HEAD" --event "$SCOPE_EVENT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-scope-${{ github.event.pull_request.head.sha || github.sha }}
+          path: work/release-scope.json
+          retention-days: 7
+          if-no-files-found: error
   quality:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -53,17 +72,16 @@ jobs:
           uv run pip-audit --no-deps --disable-pip -r work/requirements-audit.txt
           npm audit --audit-level=low
       - name: Install verified gitleaks and scan history and working tree
+        env: {GH_TOKEN: '${{ github.token }}'}
         run: |
-          curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o work/gitleaks_8.30.1_linux_x64.tar.gz
-          curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt -o work/checksums.txt
-          awk '$2 == "gitleaks_8.30.1_linux_x64.tar.gz" {print $1 "  work/" $2}' work/checksums.txt | sha256sum -c -
-          tar -xzf work/gitleaks_8.30.1_linux_x64.tar.gz -C work gitleaks
+          bash scripts/install_gitleaks.sh
           work/gitleaks git --redact --config .gitleaks.toml
           work/gitleaks dir --redact --config .gitleaks.toml
       - run: docker compose down
         if: always()
   backend-image:
-    needs: quality
+    needs: [scope, quality]
+    if: needs.scope.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -99,7 +117,8 @@ jobs:
           retention-days: 7
           if-no-files-found: error
   development-apk:
-    needs: quality
+    needs: [scope, quality]
+    if: needs.scope.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -117,9 +136,14 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
+      - name: Prepare the exact pinned Gradle from its official release API
+        id: gradle
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: python3 scripts/gradle_archive.py download
       - name: Compile standalone arm64 development APK with SDK 56 and debug signing
         env:
           GIT_SHA: ${{ github.sha }}
+          RETIRO_GRADLE_ARCHIVE: ${{ steps.gradle.outputs.archive }}
         run: bash scripts/build-apk.sh
       - name: Verify APK signature
         run: '"$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose work/artifacts/*.apk'
@@ -139,16 +163,20 @@ jobs:
           if-no-files-found: error
   required:
     if: always()
-    needs: [quality, backend-image, development-apk]
+    needs: [scope, quality, backend-image, development-apk]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every E0 check and artifact build
         env:
           RESULTS: ${{ toJSON(needs) }}
+          DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
         run: |
           python3 - <<'PY'
           import json, os
-          assert all(job['result'] == 'success' for job in json.loads(os.environ['RESULTS']).values())
+          results = json.loads(os.environ['RESULTS'])
+          assert results['scope']['result'] == results['quality']['result'] == 'success'
+          expected = 'skipped' if os.environ['DOCS_ONLY'] == 'true' else 'success'
+          assert results['backend-image']['result'] == results['development-apk']['result'] == expected
           PY
 
   public-limits:
