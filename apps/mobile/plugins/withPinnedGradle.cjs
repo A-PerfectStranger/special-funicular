@@ -10,6 +10,7 @@ module.exports = function withPinnedGradle(config) {
     let source = fs.readFileSync(file, 'utf8');
     source = source.replace(/^distributionUrl=.*$/m,
       'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.3-bin.zip');
+    source = source.replace(/^networkTimeout=.*$/m, 'networkTimeout=60000');
     source = source.replace(/^distributionSha256Sum=.*\n?/m, '');
     source += '\ndistributionSha256Sum=bd71102213493060956ec229d946beee57158dbd89d0e62b91bca0fa2c5f3531\n';
     fs.writeFileSync(file, source);
