@@ -29,6 +29,24 @@ PROBES: tuple[tuple[str, str, tuple[int, ...], dict[str, Any] | None], ...] = (
 )
 
 
+def probes(
+    e3_enabled: bool = False,
+) -> tuple[tuple[str, str, tuple[int, ...], dict[str, Any] | None], ...]:
+    if not e3_enabled:
+        return PROBES
+    return tuple(
+        (method, path, (405,) if path == "/v1/guard/confirm-pickup" else statuses, body)
+        for method, path, statuses, body in PROBES
+    ) + (
+        (
+            "GET",
+            "/v1/pickup/capabilities",
+            (200,),
+            {"pickup_enabled": True, "synthetic_only": True},
+        ),
+    )
+
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args: Any, **kwargs: Any) -> None:
         return None
@@ -53,14 +71,16 @@ def validate_origin(base_url: str) -> str:
     return base_url.rstrip("/")
 
 
-def verify(base_url: str, *, ca_file: str | None = None) -> dict[str, Any]:
+def verify(
+    base_url: str, *, ca_file: str | None = None, e3_enabled: bool = False
+) -> dict[str, Any]:
     origin = validate_origin(base_url)
     context = ssl.create_default_context(cafile=ca_file)
     context.minimum_version = ssl.TLSVersion.TLSv1_3
     context.maximum_version = ssl.TLSVersion.TLSv1_3
     opener = build_opener(HTTPSHandler(context=context), NoRedirect())
     checks: list[dict[str, Any]] = []
-    for method, path, expected_statuses, expected_json in PROBES:
+    for method, path, expected_statuses, expected_json in probes(e3_enabled):
         result: dict[str, Any] = {"method": method, "path": path, "passed": False}
         response = None
         try:
@@ -112,9 +132,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("base_url")
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument(
+        "--e3-trial",
+        action="store_true",
+        help="Require the synthetic E3 gate and POST-only confirmation route",
+    )
     args = parser.parse_args()
     try:
-        report = verify(args.base_url)
+        report = verify(args.base_url, e3_enabled=args.e3_trial)
     except (OSError, ValueError):
         print("BLOCKED/NOT_CONFIGURED: valid HTTPS origin and CA trust required", file=sys.stderr)
         return 2

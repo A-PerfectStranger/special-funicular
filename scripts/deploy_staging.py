@@ -231,7 +231,7 @@ def main() -> int:
     report: dict[str, Any] = {}
     if origin:
         for _ in range(12):
-            report = verify(origin)
+            report = verify(origin, e3_enabled=e3_enabled)
             if report["passed"]:
                 break
             time.sleep(10)

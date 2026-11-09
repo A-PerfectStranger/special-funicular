@@ -222,12 +222,21 @@ sintética integrada, verificador independiente, cierre documental. El control
 privado de fallo es acotado y exclusivo de fixtures E3; no borra evidencia.
 Operación y límites en [runbook E3](docs/runbooks/e3.md).
 
-**Verificado localmente hasta ahora:** suite completa `make check`: 275 Python, 23 JavaScript móvil/vendor,
-tipos/lint/migraciones/Expo aprobados; 27 pruebas nuevas de dominio aprobadas con PostgreSQL/roles reales, incluida
-concurrencia de dos guardias, revocación ordenada y 10 000 tokens inválidos.
-Bundle Android, siete regresiones de navegador, auditorías de dependencias/secretos
-y migración desde base vacía aprobados. CI/imagen/APK y AWS por SHA siguen
-pendientes; no atribuirles aceptación hasta sus resultados en Actions.
+**Verificación del candidato integrado `ab2d8fb`:**
+[CI 42573282125](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42573282125)
+aprobado: 289 Python, 24 móvil + 2 vendor JavaScript, siete navegador/recuperación,
+tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
+firma de desarrollo v2). Las 35 pruebas nuevas de dominio usan PostgreSQL/roles
+reales, incluida concurrencia de dos guardias, revocación ordenada, 10 000 tokens
+inválidos y ocho rechazos de sesión vencida mientras espera locks. Migración desde
+base vacía aprobada.
+
+[CD 42574527123](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42574527123)
+aprobó migraciones/digest/red pero bloqueó staging por una sonda antigua: esperaba
+404 en confirmación E3; la ruta habilitada rechaza GET con 405. Corrección de probes
+con selección explícita y seis regresiones TLS verificada localmente (28 pruebas
+pertinentes aprobadas). Falta integrar esa corrección y aprobar todos los gates
+E1/E2/E3/WORM por el nuevo SHA. Ninguna casilla se cierra por existencia de código.
 
 ### E4 — Avisos y consulta escolar
 
