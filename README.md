@@ -84,7 +84,8 @@ Para APK, instalar SDK `platforms;android-36`, `build-tools;36.0.0`,
 `expo-template-bare-minimum@56.0.38`. Se compila la variante release con bundle
 incluido, **firmada solo con la clave debug/de desarrollo** de la plantilla.
 No requiere Metro; sin endpoint configurado muestra servicio no disponible.
-**No es una release productiva ni acredita prueba en teléfono**.
+**No es una release productiva ni acredita prueba en teléfono**. El build inspecciona
+el APK compilado con aapt2: exige cámara para QR y ausencia de micrófono.
 Salida: `work/artifacts/mobile-development-<SHA>.apk` y manifiesto SHA-256.
 `make apk` y `make image` exigen un árbol limpio para identificar el código real
 por su commit. La configuración fija Gradle 8.14.3 con checksum oficial para

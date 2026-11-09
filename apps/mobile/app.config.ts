@@ -28,7 +28,7 @@ const config: ExpoConfig = {
   updates: { enabled: false },
   plugins: ['./plugins/withPinnedGradle.cjs', 'expo-web-browser', 'expo-secure-store', 'expo-sharing',
     ['expo-camera', { cameraPermission: 'Escanea el QR de retiro para la verificación presencial.', recordAudioAndroid: false }],
-    ['expo-image-picker', { photosPermission: 'Selecciona la foto del cuidador para autorizar su identificación.', cameraPermission: false, microphonePermission: false }]],
+    ['expo-image-picker', { photosPermission: 'Selecciona la foto del cuidador para autorizar su identificación.', cameraPermission: 'Escanea el QR de retiro para la verificación presencial.', microphonePermission: false }]],
   android: {
     package: process.env.ANDROID_PACKAGE_ID ?? 'org.example.retiro.development',
     versionCode: 1,

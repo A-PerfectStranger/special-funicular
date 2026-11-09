@@ -26,6 +26,7 @@ mkdir -p work/artifacts
   ./gradlew --no-daemon --rerun-tasks --max-workers=2 :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
 )
 cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
+uv run python scripts/verify_mobile_permissions.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
 if [ "$APP_ENV" = staging ]; then
   uv run python scripts/verify_staging_apk.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
 fi
