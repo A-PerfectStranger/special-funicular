@@ -6,11 +6,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { nativeCallback } from './native-callback.mjs';
+import { safeFailure } from './diagnostics.mjs';
 import { IdentityClient, PickupRequestError } from '../../apps/mobile/src/identity.ts';
 const fixture = JSON.parse(readFileSync(0, 'utf8'));
 const providerOrigin = 'https://retiro-e1-028364485203.auth.us-east-1.amazoncognito.com';
 const run = promisify(execFile), clients = [], checks = [];
 let browser, step = 'launch', minimumSequence = 0, passed = false, httpStatus = null;
+let failure = {};
 const assert = value => { if (!value) throw new Error('Trial assertion failed'); };
 let dropResponse = false;
 async function network(url, options) {
@@ -194,12 +196,12 @@ try {
   await physical(g, expiry, false, expired.server_now);
   checks.push('expired_screen_cannot_authorize_another_handover');
   passed = true;
-} catch (error) { passed = false; if (error instanceof PickupRequestError) httpStatus = error.status; }
+} catch (error) { passed = false; failure = safeFailure(error); if (error instanceof PickupRequestError) httpStatus = error.status; }
 finally {
   for (const client of clients) await client.logout().catch(() => {});
   if (browser) await browser.close();
   writeFileSync('work/e3-browser-acceptance.json', JSON.stringify({ sha: process.env.E2_RELEASE_SHA ?? process.env.GITHUB_SHA,
-    trial_id: fixture.trial_id, passed, step, http_status: httpStatus, checks, minimum_sequence: minimumSequence, e3_accepted: false,
+    trial_id: fixture.trial_id, passed, step, http_status: httpStatus, checks, minimum_sequence: minimumSequence, e3_accepted: false, ...failure,
     scope: 'Real synthetic IdP/mobile protocol/KMS/WORM; acceptance additionally requires independent WORM verification and CI. No physical Android or real student claim.' }, null, 2)+'\n');
 }
 if (!passed) { process.stderr.write('BLOCKED: E3 synthetic protocol trial failed at '+step+'\n'); process.exitCode = 2; }

@@ -7,6 +7,7 @@ import { execFile } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { nativeCallback } from './native-callback.mjs';
 import { withRecovery } from './recovery.mjs';
+import { safeFailure, documentScope } from './diagnostics.mjs';
 import { IdentityClient } from '../../apps/mobile/src/identity.ts';
 
 const fixture = JSON.parse(readFileSync(0, 'utf8'));
@@ -22,10 +23,29 @@ let providerReturn = null;
 let firstFailure = null;
 let recoveryFailed = false;
 let accessAgeMs = null;
-function captureFailure(stage) {
+let lastDocumentScope = null;
+let lastNetworkError = null;
+function captureFailure(stage, error) {
   if (stage === 'recovery') recoveryFailed = true;
   firstFailure ??= { failure_phase: phase, last_http_status: lastHttpStatus,
-    provider_return: providerReturn, access_age_ms: accessAgeMs };
+    provider_return: providerReturn, access_age_ms: accessAgeMs,
+    ...safeFailure(error), last_network_error: lastNetworkError,
+    document_scope: lastDocumentScope };
+}
+function observePage(page) {
+  page.on('response', response => {
+    if (response.request().isNavigationRequest() && response.request().frame() === page.mainFrame()) {
+      lastDocumentScope = documentScope(response.url(), origin, providerOrigin);
+      lastHttpStatus = response.status();
+      lastNetworkError = null;
+    }
+  });
+  page.on('requestfailed', request => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      lastDocumentScope = documentScope(request.url(), origin, providerOrigin);
+      lastNetworkError = safeFailure(new Error(request.failure()?.errorText ?? '')).network_error;
+    }
+  });
 }
 const assert = (condition) => { if (!condition) throw new Error('Acceptance assertion failed'); };
 const secret = () => randomBytes(32).toString('base64url');
@@ -41,6 +61,7 @@ async function submit(page) {
   await page.locator('button[type="submit"]:visible,input[type="submit"]:visible').first().click({ noWaitAfter: true });
 }
 async function providerLogin(page, username) {
+  phase = 'idp_origin';
   await page.waitForURL(url => url.origin === providerOrigin);
   phase = 'idp_username';
   const user = fixture.users[username];
@@ -68,7 +89,12 @@ async function providerLogin(page, username) {
 async function webLogin(username) {
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(origin + '/auth/login');
+  observePage(page);
+  phase = 'web_login_get';
+  const response = await page.goto(origin + '/auth/login');
+  phase = 'web_login_response';
+  assert(response?.status() === 200);
+  phase = 'web_login_submit';
   await page.getByRole('button', { name: 'Ingresar con MFA' }).click();
   await providerLogin(page, username);
   await page.waitForURL(origin + '/portal/');
@@ -110,6 +136,7 @@ async function mobile(username, role) {
       const context = await browser.newContext();
       try {
         const page = await context.newPage();
+        observePage(page);
         const capture = await nativeCallback(page, redirect);
         try {
           await page.goto(url);
@@ -199,6 +226,7 @@ async function archiveDrill() {
     const before = await jsonResponse(system.context, '/v1/system/school-access-records?limit=100');
     const previous = new Set(before.records.map(record => record.sequence));
     const page = await original.newPage();
+    observePage(page);
     await page.goto(origin + '/auth/login');
     await page.getByRole('button', { name: 'Ingresar con MFA' }).click();
     const callback = page.waitForResponse(response => {
@@ -292,8 +320,8 @@ try {
   await mobile('e1-b-guard', 'GUARDIA');
   checks.push({ id: step, passed: true });
   }
-} catch {
-  captureFailure('operation');
+} catch (error) {
+  captureFailure('operation', error);
   checks.push({ id: step, passed: false });
 } finally {
   if (browser) await browser.close();

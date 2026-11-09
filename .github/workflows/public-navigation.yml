@@ -1,0 +1,25 @@
+name: Anonymous staging navigation diagnostic
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/e3-browser-diagnostics]
+permissions:
+  contents: read
+jobs:
+  navigation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version-file: .node-version}
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/staging/public-navigation.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: anonymous-navigation-${{ github.sha }}
+          path: work/public-navigation.json
+          retention-days: 7
