@@ -5,6 +5,7 @@ import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import QRCode from 'react-native-qrcode-svg';
 import type { IdentityClient } from './identity';
+import { finishQrShare } from './qrShareRuntime';
 
 type Issued = { qr: string | null; episode_id: string; valid_from: string; expires_at: string };
 export function IssueQR({ identity, authorization, schedule, timezone }: {
@@ -28,6 +29,7 @@ export function IssueQR({ identity, authorization, schedule, timezone }: {
   async function share() {
     setBusy(true);
     const file = new File(Paths.cache, `pickup-share-${Crypto.randomUUID()}.png`);
+    let handedOff = false;
     try {
       if (!await Sharing.isAvailableAsync()) throw new Error('Sharing unavailable');
       const data = await new Promise<string>((resolve, reject) => {
@@ -36,9 +38,10 @@ export function IssueQR({ identity, authorization, schedule, timezone }: {
       });
       file.write(data, { encoding: 'base64' });
       await Sharing.shareAsync(file.uri, { mimeType: 'image/png', dialogTitle: 'Compartir QR con el cuidador' });
+      handedOff = true;
     } catch { if (live.current) setMessage('No fue posible compartir el QR.'); }
     finally {
-      try { if (file.exists) file.delete(); }
+      try { finishQrShare(file, handedOff); }
       catch { if (live.current) { setValue(null); setMessage('No se pudo borrar el archivo temporal. QR oculto; renueva antes de compartir de nuevo.'); } }
       if (live.current) setBusy(false);
     }

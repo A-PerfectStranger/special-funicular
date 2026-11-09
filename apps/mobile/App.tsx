@@ -6,6 +6,7 @@ import { readCapabilities } from './src/capabilities';
 import type { IdentityClient, MobileRole } from './src/identity';
 import { createIdentityClient } from './src/identityRuntime';
 import { SessionVisibility } from './src/sessionVisibility';
+import { clearQrShares } from './src/qrShareRuntime';
 
 export default function App() {
   const [status, setStatus] = useState('Sin comprobar conexión. Retiros deshabilitados.');
@@ -43,7 +44,9 @@ export default function App() {
     if (endpoint) fetch(`${endpoint}/v1/pickup/capabilities`, {
       cache: 'no-store', credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(5000),
     }).then(async response => response.ok ? response.json() : null).then(value => {
-      if (active) setPickupEnabled(value?.pickup_enabled === true && value?.synthetic_only === true);
+      if (!active) return;
+      clearQrShares();
+      setPickupEnabled(value?.pickup_enabled === true && value?.synthetic_only === true);
     }).catch(() => { if (active) setPickupEnabled(false); });
     visibility.start(AppState.currentState);
     const subscription = AppState.addEventListener('change', state => visibility.changed(state));
