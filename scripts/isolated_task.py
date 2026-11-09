@@ -1,11 +1,13 @@
-"""Bounded retry for a synthetic fixture container proven never to have started."""
+"""Bounded retry for an isolated staging container proven never to have started."""
 
 import json
 from collections.abc import Callable
 from typing import Any
 
+from scripts.task_diagnostics import task_outcome
 
-def run_fixture_task(
+
+def run_isolated_task(
     call: Callable[..., dict[str, Any]],
     cluster: str,
     definition: str,
@@ -25,15 +27,18 @@ def run_fixture_task(
             json.dumps(network),
         )
         if result.get("failures") or len(result.get("tasks", [])) != 1:
-            raise RuntimeError("Private fixture task not created")
+            raise RuntimeError("Isolated task not created")
         arn = result["tasks"][0]["taskArn"]
         call("ecs", "wait", "tasks-stopped", "--cluster", cluster, "--tasks", arn)
         ended: list[dict[str, Any]] = call(
             "ecs", "describe-tasks", "--cluster", cluster, "--tasks", arn
         )["tasks"]
         if len(ended) != 1:
-            raise RuntimeError("Private fixture task status missing")
+            raise RuntimeError("Isolated task status missing")
         task = ended[0]
+        print(
+            "Isolated task outcome: " + json.dumps({"attempt": attempt + 1, **task_outcome(task)})
+        )
         never_started = (
             task.get("stopCode") == "TaskFailedToStart"
             and not task.get("startedAt")
@@ -43,7 +48,7 @@ def run_fixture_task(
             )
         )
         if attempt == 0 and never_started:
-            print("Synthetic fixture startup failed before execution; one bounded retry.")
+            print("Isolated task startup failed before execution; one bounded retry.")
             continue
         return task
-    raise RuntimeError("Private fixture startup exhausted")
+    raise RuntimeError("Isolated startup exhausted")

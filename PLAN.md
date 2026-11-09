@@ -166,8 +166,11 @@ falló en identidad E1 del guardia y omitió E2. La restauración de fixtures ap
 el operador confirmó TaskFailedToStart del comando revoke, sin ejecución del
 contenedor/SQL. La fase original quedó oculta por el finally del driver. PR #20
 conserva ese diagnóstico y añade un único reintento solo de arranque demostrado
-sin ejecución, sin reintentar SQL ni estados inciertos. Falta CI/CD de esa
-corrección; no se cierra E2 ni se relajan aserciones de seguridad.
+sin ejecución, sin reintentar SQL ni estados inciertos. Su CI main aprobó, pero
+el CD 42540357530 falló antes de ejecutar la migración: TaskFailedToStart y
+CannotPullContainerError, sin inicio ni exitCode, confirmado por operador. PR #21
+extiende el control conservador de arranque a tareas aisladas de migración y
+publica metadatos saneados; falta su CI/CD. E2 no se cierra ni se relajan aserciones.
 
 | Criterio | Verificación local/CI | Verificación AWS |
 | --- | --- | --- |

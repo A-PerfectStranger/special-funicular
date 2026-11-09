@@ -16,7 +16,7 @@ from scripts.aws_cli import aws
 from scripts.commission_e1 import outputs
 from scripts.commission_staging import register
 from scripts.e1_fixture_data import identifier
-from scripts.fixture_task import run_fixture_task
+from scripts.isolated_task import run_isolated_task
 
 SELECTION = Path("work/e2-selected-trial.json")
 
@@ -205,7 +205,7 @@ def execute(action: str) -> None:
             "assignPublicIp": "ENABLED",
         }
     }
-    ended = run_fixture_task(aws, environment["cluster"], task, network)
+    ended = run_isolated_task(aws, environment["cluster"], task, network)
     codes = [c.get("exitCode") for c in ended.get("containers", [])]
     if action == "seed" and codes == [42]:
         raise CohortUsed()
