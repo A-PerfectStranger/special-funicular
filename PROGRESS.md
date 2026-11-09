@@ -81,14 +81,23 @@ API/OpenAPI; emisión/compartir/cámara/tres comprobaciones/recuperación por UU
 en SDK 56. E3 permanece bloqueada en producción. Gate E2/E3 comparte cohorte de
 un solo uso y añade estudiantes sintéticos, con control de atraso acotado.
 
-Estado comprobado: `make check` completo (275 Python, 23 JS móvil/vendor),
-27 pruebas nuevas de dominio PostgreSQL, tipos/lint/migraciones/Expo, bundle
-Android, siete regresiones Chromium/recuperación, seguridad y migración limpia
-aprobados. Imagen/APK, PR/CI y ensayo AWS del candidato aún pendientes; E3 NO está aceptada. PLAN conserva los seis
-criterios que deben verificarse. No marcar casillas por existencia de código.
+Estado comprobado del candidato integrado `ab2d8fb` (PR #23):
+[CI 42573282125](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42573282125)
+aprobado, 289 Python, 24 móvil + 2 vendor JS, siete navegador/recuperación,
+tipos/lint/migraciones/Expo, bundle Android, seguridad, imagen y APK con cámara
+sin micrófono y firma de desarrollo v2. Migración desde base vacía y ocho casos
+de sesión vencida durante locks aprobados. No usar refresh SQL antiguos de work/.
 
-Siguiente paso: publicar PR y exigir CI/imagen/APK; integrar y observar
-E1/E2/E3/WORM por SHA. Si falta pool, usar preparación privada de E2, sin resetear
-cohortes ni solicitar secretos en chat. Solo después registrar aceptación real y
-sus límites. Scratch/resultados locales saneados en work/, ignorados; no publicar
-QR, credenciales, fotos ni copias privadas de WORM.
+[CD 42574527123](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42574527123)
+aprobó publish/prepare/migrate y contrastó digest runtime/red/TLS, pero staging
+falló: la sonda E0 exigía 404 en la ruta E3 habilitada, que responde correctamente
+405 a GET. E1/E2/E3 no se ejecutaron; no se consumió cohorte familiar en ese run.
+E3 NO está aceptada. La corrección exige selección explícita de probes E3,
+capacidad sintética exacta y negativas para 200/404/flag incoherente; después
+requiere nuevo CI/PR y todos los gates AWS. No omitir ni ensayar a mano el gate.
+
+Siguiente paso: integrar la corrección verificada y observar E1/E2/E3/WORM por
+SHA. Si falta pool, usar preparación privada de E2, sin resetear cohortes ni
+solicitar secretos en chat. Solo después registrar aceptación real y sus límites.
+Scratch/resultados saneados en work/, ignorados; no publicar QR, credenciales,
+fotos ni copias privadas de WORM.

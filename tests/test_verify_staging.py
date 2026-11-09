@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from scripts.verify_staging import PROBES, validate_origin, verify
+from scripts.verify_staging import PROBES, probes, validate_origin, verify
 
 
 @pytest.fixture(scope="module")
@@ -48,10 +48,23 @@ def certificate(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
 def endpoint(certificate: tuple[Path, Path], mode: str = "safe") -> Iterator[str]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
-            match = next(p for p in PROBES if p[0] == self.command and p[1] == self.path)
+            match = next(
+                (
+                    p
+                    for p in probes(mode.startswith("e3"))
+                    if p[0] == self.command and p[1] == self.path
+                ),
+                (self.command, self.path, (404,), None),
+            )
             status, body = match[2][0], match[3]
             headers: dict[str, str] = {}
-            if mode == "redirect":
+            if self.path == "/v1/guard/confirm-pickup" and mode == "e3_get_allowed":
+                status = 200
+            elif self.path == "/v1/guard/confirm-pickup" and mode == "e3_hidden":
+                status = 404
+            elif self.path == "/v1/pickup/capabilities" and mode == "e3_wrong_gate":
+                body = {"pickup_enabled": False, "synthetic_only": True}
+            elif mode == "redirect":
                 status, headers = 302, {"Location": "https://must-not-be-followed.invalid/"}
             elif self.path == "/health/ready" and mode == "db_down":
                 status, body = 503, {"status": "unavailable"}
@@ -137,3 +150,26 @@ def test_untrusted_certificate_is_rejected(certificate: tuple[Path, Path]) -> No
 def test_invalid_origins_are_rejected_before_network_access(origin: str) -> None:
     with pytest.raises(ValueError):
         validate_origin(origin)
+
+
+@pytest.mark.parametrize(
+    ("mode", "enabled", "passed"),
+    [
+        ("e3", True, True),
+        ("e3", False, False),
+        ("safe", True, False),
+        ("e3_get_allowed", True, False),
+        ("e3_hidden", True, False),
+        ("e3_wrong_gate", True, False),
+    ],
+)
+def test_explicit_e3_gate_requires_exact_routes_and_capabilities(
+    certificate: tuple[Path, Path], mode: str, enabled: bool, passed: bool
+) -> None:
+    with endpoint(certificate, mode) as origin:
+        report = verify(origin, ca_file=str(certificate[0]), e3_enabled=enabled)
+    assert report["passed"] is passed
+    if passed:
+        assert len(report["checks"]) == len(PROBES) + 1
+        confirmation = next(c for c in report["checks"] if c["path"] == "/v1/guard/confirm-pickup")
+        assert confirmation["status"] == 405

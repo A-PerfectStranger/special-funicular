@@ -17,7 +17,7 @@ archivo: [E1](e1.md). No se requieren claves AWS permanentes para CD.
 4. Migrate ejecuta una tarea Fargate con su secreto SQL separado y migrate_locked;
    el advisory lock PostgreSQL serializa incluso si un runner deja de esperar.
 5. Deploy actualiza Express con el mismo digest; espera todas las tareas nuevas,
-   verifica índice OCI/manifest amd64, red ALB→tarea y ocho probes TLS. Evidencia:
+   verifica índice OCI/manifest amd64, red ALB→tarea y probes TLS según la configuración E3 explícita. Evidencia:
    artefacto staging-deployment del workflow. No importar familias ni enviar avisos.
    Si la retirada programada dejó una descripción INACTIVE, recrea el servicio
    sintético con el digest aprobado y rearma su expiración. DRAINING o un estado
@@ -43,8 +43,14 @@ público, usar el origen verificado de staging:
 python3 scripts/verify_staging.py https://ORIGEN_STAGING_VERIFICADO --report work/staging-probes.json
 ```
 
-Exige TLS 1.3/certificado/hostname, live/ready/capabilities, rutas de negocio/admin
-ausentes, escrituras rechazadas y cabeceras seguras. Un fallo devuelve 1 y una
+Con E3 sintética habilitada añadir `--e3-trial`; CD lo deriva de su configuración
+revisada, nunca de la respuesta del servidor. Sin E3, la ruta de confirmación debe
+estar ausente (404); con E3 debe rechazar GET (405) y su capacidad debe ser
+exactamente `pickup_enabled=true, synthetic_only=true`. La capacidad antigua
+continúa en false para clientes anteriores.
+
+Exige TLS 1.3/certificado/hostname, live/ready/capabilities, admin ausente,
+escrituras rechazadas y cabeceras seguras. Un fallo devuelve 1 y una
 configuración inválida, 2. No sigue redirecciones ni registra cuerpos/cookies o
 excepciones remotas. El reporte no acredita SHA/digest, IAM, presupuesto ni E1.
 Un proxy TLS interceptante impide usar ese cliente como atestación TLS del origen;
