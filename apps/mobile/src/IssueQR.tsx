@@ -51,7 +51,7 @@ export function IssueQR({ identity, authorization, schedule, timezone }: {
     {schedule.map((s, i) => <Button key={i} disabled={busy} title={`Emitir / renovar · ${new Date(s.from).toLocaleString('es-CO', { timeZone: timezone })}`}
       onPress={() => issue(s.from)} />)}
     {value?.qr && <>
-      <QRCode value={value.qr} size={220} getRef={(ref: { toDataURL: (callback: (data: string) => void) => void }) => { qr.current = ref; }} />
+      <QRCode value={value.qr} size={160} quietZone={24} getRef={(ref: { toDataURL: (callback: (data: string) => void) => void }) => { qr.current = ref; }} />
       <Text>Vence: {new Date(value.expires_at).toLocaleString('es-CO', { timeZone: timezone })}. Renovar conserva este vencimiento.</Text>
       <Button title="Compartir imagen QR" disabled={busy} onPress={share} />
       {schedule.map((s, i) => <Button key={i} title={`Reprogramar · ${new Date(s.from).toLocaleString('es-CO', { timeZone: timezone })}`}
