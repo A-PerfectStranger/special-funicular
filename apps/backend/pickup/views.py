@@ -10,6 +10,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Any
 
+from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError, transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -26,6 +27,8 @@ def endpoint(function: Callable[..., HttpResponse]) -> Callable[..., HttpRespons
             return function(request, **kwargs)
         except IdentityRejected:
             return error(401)
+        except PermissionDenied:
+            return error(403)
         except (ValueError, TypeError, KeyError, OverflowError):
             return error(400)
         except DatabaseError as exc:
@@ -66,7 +69,7 @@ def command(request: HttpRequest, role: str, sql: str, params: tuple[Any, ...]) 
             with transaction.atomic():
                 principal = identity.authenticate(bearer(request))
                 if principal.role != role or principal.channel != "mobile":
-                    raise IdentityRejected()
+                    raise PermissionDenied()
                 result: dict[str, Any] = identity.scalar(sql, params)
             return result
         except DatabaseError as exc:

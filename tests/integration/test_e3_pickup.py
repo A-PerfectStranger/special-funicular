@@ -460,7 +460,7 @@ def test_transport_auth_validation_no_store_and_ambiguous_operation_recovery(
             client.get(
                 f"/v1/guard/operations/{key}", HTTP_AUTHORIZATION=f"Bearer {p['parent_access']}"
             ).status_code
-            == 401
+            == 403
         )
         assert views.instant("2026-11-08T13:00:00-05:00").utcoffset() == timedelta(hours=-5)
 

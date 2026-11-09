@@ -10,9 +10,28 @@ concurrency:
   group: aws-staging-production
   cancel-in-progress: false
 jobs:
-  publish:
-    permissions: {contents: read, actions: read, id-token: write}
+  scope:
+    permissions: {contents: read, actions: read}
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: {ref: '${{ github.event.workflow_run.head_sha }}', fetch-depth: 0, persist-credentials: false}
+      - name: Read the successful candidate's immutable scope artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: gh run download "$SOURCE_RUN" --name "release-scope-$SOURCE_SHA" --dir work
+      - id: scope
+        env: {SOURCE_SHA: '${{ github.event.workflow_run.head_sha }}'}
+        run: python3 scripts/release_scope.py cd --head "$SOURCE_SHA"
+  publish:
+    needs: scope
+    permissions: {contents: read, actions: read, id-token: write}
+    if: needs.scope.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
