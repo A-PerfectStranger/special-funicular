@@ -12,6 +12,7 @@ from typing import Any
 from scripts.aws_cli import aws
 from scripts.commission_staging import arm_expiry, register, runtime_digests, task_definition
 from scripts.e1_release import api_definition, archive_definition, start_archive
+from scripts.task_diagnostics import task_outcome
 from scripts.verify_staging import verify
 from scripts.verify_staging_network import verify_ingress
 
@@ -211,6 +212,7 @@ def main() -> int:
         result = aws("ecs", "describe-tasks", "--cluster", outputs["Cluster"], "--tasks", arn)[
             "tasks"
         ][0]
+        print("Migration task outcome: " + json.dumps(task_outcome(result)))
         if not result.get("containers") or any(
             c.get("exitCode") != 0 for c in result["containers"]
         ):

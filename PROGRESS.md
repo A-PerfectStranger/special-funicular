@@ -6,8 +6,11 @@ copiar reportes ni secretos al repositorio.
 
 ## Base y evidencia acreditadas
 
-- Main: `855fc2ec774d6204306370f103eb133d459f2c72`, PR #19 integrada.
-  CI main 42534840490 aprobado completo, 234 Python/20 JS, imagen y APK/firma.
+- Main: `5817ef793948209a53dece79d67d15481adc359c`, PR #20 integrada.
+  CI main 42539650941 aprobado completo. CD automático 42540357530 falló en migrate; no desplegó este SHA.
+  Head e6ca30d: CI push 42538829097 y PR
+  42538833463 aprobados completos, 243 Python/20 JS + siete staging, imagen/APK/firma.
+  Base 855fc2e/PR #19 tuvo CI main 42534840490 aprobado completo.
 - Backend E2: ensayo [42529491296](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42529491296)
   aprobado completo sobre 74297b3: migración, digest, E1/APK, carrera bulk entre
   escuelas, contacto/activación/replay Cognito/MFA, capacidades, cuidadores,
@@ -41,9 +44,10 @@ corrige para conservar la primera fase/error, registrar recuperación fallida
 separadamente y medir access_age_ms. Se mantienen todas las aserciones, access
 fresco <240000ms, MFA, revocación y restauración obligatoria.
 
-## Corrección candidata en PR #20
+## Corrección integrada en PR #20
 
-Rama `feat/e2-final-state`, https://github.com/A-PerfectStranger/special-funicular/pull/20
+https://github.com/A-PerfectStranger/special-funicular/pull/20
+Continuación local actual: `feat/e2-migration-diagnostics`.
 
 `fixture_task.py` permite un único reintento (máximo dos tareas) SOLO si ECS
 reporta TaskFailedToStart, sin startedAt, sin exitCode y sin contenedor RUNNING.
@@ -59,24 +63,39 @@ Seis regresiones móviles aprobadas en PR #19. Prueba física Android queda en E
 
 ## Validación y próximos pasos
 
-El head anterior bba998c solo corregía diagnóstico y tuvo CI de push aprobado;
-no atribuirlo al reintento añadido después. make check local final aprobado:
-243 Python/20 JS, tipos/contrato/migraciones y dependencias Expo. Falta CI final
-del nuevo head. Siete pruebas staging (4 Chromium + 3 de
-recuperación), sintaxis y actionlint aprobados; pruebas de arranque cubren
-reintento seguro, límite de dos y no retry de SQL/42/ejecución incierta.
+Head e6ca30d y validación local aprobados: 243 Python/20 JS, tipos/contrato/
+migraciones y Expo, más siete staging (4 Chromium + 3 recuperación). Las nueve
+regresiones nuevas verifican retry seguro, límite de dos y no retry de SQL/42/
+ejecución incierta. Falta CI/CD del merge 5817ef7; no heredar los checks del PR.
 
-1. make check aprobado; terminar CI final de PR #20 y actualizar descripción con el
-   SHA real y resultados. CD anterior terminó, restore-all PASS, sin drill activo.
-2. Integrar corrección con checks aprobados; esperar CI main y CD automático.
+1. CI main 42539650941 aprobado; CD automático 42540357530 falló en migrate.
+   Antes de reintentar, confirmar metadatos ECS solicitados al operador.
    No avanzar main durante migraciones/archive-drill ni cancelar migraciones.
-3. Exigir staging, E1/APK y e2-acceptance/family aprobados con otra cohorte.
+2. Exigir staging, E1/APK y e2-acceptance/family aprobados con otra cohorte.
    Contrastar SHA/digest, trial distinto, minimum_sequence/high-water externo.
    Si falla, diagnosticar; no relajar controles ni resetear historia.
-4. Solo entonces completar casillas/matriz E2 y cierre documental por PR/checks.
+3. Solo entonces completar casillas/matriz E2 y cierre documental por PR/checks.
    El cierre documental dispara CD; quedan cohortes para verificarlo, sin crear
    bucle de commits solo para actualizar el último resultado. Aceptación por SHA.
-5. E3–E5 pendientes: QR/retiro, avisos, Android físico y producción deshabilitados.
+4. E3–E5 pendientes: QR/retiro, avisos, Android físico y producción deshabilitados.
 
 Scratch y reportes locales bajo work/, ignorados; evidencias/anclas privadas
 fuera de Git. No ejecutar scripts antiguos de refresh de funciones en work/.
+
+BLOQUEO ACTUAL: CD 42540357530 de 5817ef7 aprobó publish/prepare pero falló
+en migrate (job 128913916031), 74 s después de iniciar el paso, con
+Migration failed; deployment prohibited. No se desplegó 5817ef7 ni se ejecutaron
+E1/E2; ninguna cohorte nueva consumida. El log no incluye startedAt/exitCode/
+stopCode, por lo que NO se asume ausencia de SQL. Se pidió al operador un
+diagnóstico ECS de solo lectura para retiro-staging-migrate: estado, inicio,
+exit_codes, categoría de causa y subredes; sin secretos ni logs. No reintentar
+una migración ejecutada o incierta. API última verificada sigue en 855fc2e.
+
+Diagnóstico candidato de migración: scripts/task_diagnostics.py limita salida
+a stop_code, started, exit_codes y reason_type de lista fija. No incluye razones
+crudas, env, task ARN ni logs. deploy_staging.py imprime esa proyección tras
+DescribeTasks, sin cambiar ejecución ni reintentos de migración. Dos regresiones
+de privacidad/clasificación y mypy aprobados. make check final: 245 Python/20 JS
+aprobados; siete staging previos sin cambios. CI del nuevo head pendiente.
+Mantener PR en draft y no integrar/activar otro CD de migración hasta conocer
+si el contenedor de la tarea anterior llegó a ejecutar el comando.
