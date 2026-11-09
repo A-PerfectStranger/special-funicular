@@ -602,3 +602,102 @@ def test_denied_confirmation_key_cannot_be_rebound_to_a_new_token(pickup: dict[s
     assert confirm(p["guard_access"], p["raw"], key) == {"error": "DENIED"}
     assert confirm(p["guard_access"], p["raw"], key) == {"error": "DENIED"}
     assert confirm(p["guard_access"], fresh, key) == {"error": "CONFLICT"}
+
+
+@pytest.mark.parametrize(
+    ("action", "wait_on"),
+    [(a, "student") for a in ["issue", "resolve", "confirm", "operation", "report"]]
+    + [(a, "idempotency") for a in ["issue", "confirm", "report"]],
+)
+def test_access_expiring_while_waiting_for_student_lock_is_rejected(
+    pickup: dict[str, Any], action: str, wait_on: str
+) -> None:
+    import threading
+
+    p = pickup
+    access = p["parent_access"] if action == "issue" else p["guard_access"]
+    oid = None
+    if action in {"operation", "report"}:
+        oid = confirm(access, p["raw"])["operation_id"]
+        receipt(oid)
+    statements: dict[str, tuple[str, tuple[Any, ...]]] = {
+        "issue": (
+            "SELECT e3_issue('ISSUE',%s,%s,%s,%s,NULL,%s)",
+            (
+                uuid.uuid4(),
+                p["authorization"],
+                p["start"],
+                digest(secrets.token_urlsafe(32)),
+                digest("synthetic-origin"),
+            ),
+        ),
+        "resolve": (
+            "SELECT e3_resolve(%s,%s,false)",
+            (digest(p["raw"]), digest("synthetic-origin")),
+        ),
+        "confirm": (
+            "SELECT e3_confirm(%s,%s,%s::jsonb)",
+            (uuid.uuid4(), digest(p["raw"]), json.dumps(CHECKS)),
+        ),
+        "operation": ("SELECT e3_get_operation(%s)", (oid,)),
+        "report": (
+            "SELECT e3_report(%s,%s,true,%s,'synthetic observed fact')",
+            (oid, uuid.uuid4(), datetime.now(UTC)),
+        ),
+    }
+    started = threading.Event()
+    worker_pid: list[int] = []
+    sql, params = statements[action]
+    if wait_on == "idempotency":
+        assert "error" not in call(access, sql, params)
+
+    def request() -> Any:
+        with connect() as db, db.transaction():
+            assert db.execute("SELECT e1_authenticate(%s,true)", (digest(access),)).fetchone()[0]
+            worker_pid.append(db.info.backend_pid)
+            started.set()
+            return db.execute(sql, params).fetchone()[0]
+
+    owner(
+        "UPDATE identity_session SET access_expires_at=clock_timestamp()+interval '2 seconds' "
+        "WHERE access_hash=%s",
+        (digest(access),),
+    )
+    with connect("importer") as blocker:
+        blocker.execute("BEGIN")
+        if wait_on == "student":
+            blocker.execute(
+                "SELECT id FROM school_roster_student WHERE id=%s FOR UPDATE", (p["student"],)
+            )
+        else:
+            key = params[1] if action == "report" else params[0]
+            blocker.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s::text,30))", (key,))
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(request)
+            try:
+                assert started.wait(timeout=1)
+                deadline = time.monotonic() + 1
+                while not blocker.execute(
+                    "SELECT pg_blocking_pids(%s)", (worker_pid[0],)
+                ).fetchone()[0]:
+                    assert time.monotonic() < deadline
+                    time.sleep(0.01)
+                # Prove the request authenticated first, then waited on the real row lock.
+                time.sleep(2.1)
+            finally:
+                blocker.execute("COMMIT")
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                pending.result(timeout=5)
+    if action == "confirm" and wait_on == "student":
+        assert owner(
+            "SELECT consumed_at IS NULL FROM pickup_token WHERE token_hash=%s", (digest(p["raw"]),)
+        ) == [(True,)]
+    if action == "issue" and wait_on == "student":
+        assert owner(
+            "SELECT invalidated_at IS NULL FROM pickup_token WHERE token_hash=%s",
+            (digest(p["raw"]),),
+        ) == [(True,)]
+    if action == "report" and wait_on == "student":
+        assert owner(
+            "SELECT report_event_id IS NULL FROM pickup_operation WHERE id=%s", (oid,)
+        ) == [(True,)]
