@@ -216,7 +216,7 @@ def report(request: HttpRequest, operation_id: uuid.UUID) -> JsonResponse:
     result = command(
         request,
         "GUARDIA",
-        "SELECT public.e3_report(%s,%s,%s,%s,%s,%s)",
+        "SELECT public.e3_report(%s,%s,%s,%s,%s)",
         (
             operation_id,
             correlation(request),

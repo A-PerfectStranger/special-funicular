@@ -1,91 +1,92 @@
 # Continuidad E3
 
-PLAN contiene criterios y backlog; Actions conserva los resultados por SHA.
-Anclas, snapshots y recibos privados permanecen fuera del repositorio. No copiar
-secretos, QR, fotos ni reportes privados a Git. E0/E1/E2 están aceptadas según PLAN.
+PLAN concentra criterios y backlog; Actions conserva resultados por SHA. Anclas,
+snapshots y recibos privados quedan fuera del repositorio. No copiar secretos,
+QR, fotos ni reportes privados a Git. E0/E1/E2 están aceptadas según PLAN.
 **E3 NO está aceptada todavía.**
 
-## Candidato y resultados verificados
+## Base y resultados verificados
 
-Base funcional integrada por PR #23–#26, #28 y #29:
-`71ebf16a291deaf6f37da3a6786e93f3ddf9d166`.
-[CI 42767296241](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42767296241)
-aprobó 332 Python con PostgreSQL/roles reales, 24 móvil + 2 vendor JavaScript,
+Base integrada por PR #23–#26 y #28–#30:
+`bd8eca2b74356964e23fb41824830a80df72c2f5`.
+[CI 42776069649](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42776069649)
+aprobó 333 Python con PostgreSQL/roles reales, 24 móvil + 2 vendor JavaScript,
 diez navegador/recuperación/diagnóstico, tipos/lint/migraciones/Expo, seguridad,
 imagen y APK con cámara, sin micrófono y firma de desarrollo v2.
 
-[CD 42768417415](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42768417415)
-aprobó publish/prepare/migrate/staging, digest runtime/TLS/callback/nueve sondas,
-E1 browser/cloud/archive-drill/recuperación y APK staging con bundle/origen,
-paquete/callback/permisos/firma comprobados. Digest:
-`sha256:6926fba996cd8825f07f12cbe4f9974171e81eb719076e31d5975993e666bfef`.
-APK SHA-256: `9bd0605b8e096316729a0a29ef9d71a9ec947f7ee9d41d58aafd772253458d3f`.
-El lector independiente E1 verificó 894 eventos sin SQL; archive-drill verificó
-hasta 903, incluido el intento tardío 898 que siguió denegado.
+[CD 42777229650](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42777229650)
+aprobó publicación/preparación/migración/staging, SHA/digest/TLS/callback/nueve
+sondas, E1 browser/cloud/archive-drill/recuperación, APK staging con origen/bundle,
+paquete/callback/permisos/firma y E2 completo con su ancla final (mínimo 1081).
+Digest runtime: `sha256:e1b59a3a8eb18b38cf3c134c284cf508ad7ce2eaab8cb198aa1b8313c72bc840`.
+APK SHA-256: `2b02d4d79c65abfabf9807e49390193457a283aea2ee3db7489c4e948c036df6`.
+El lector independiente E1 verificó 1030 eventos sin SQL; archive-drill verificó
+hasta 1039, incluido el intento tardío 1034 que siguió denegado.
 
-E2 aprobó los seis grupos y el ancla final audit_anchor_mutation, mínimo 945.
-E3 falló en scope_resolution tras aprobar solo before_start_no_data_or_photo,
-mínimo 976; el reporte tiene passed=false y e3_accepted=false. WORM final fue
-omitido. No acreditar E3 ni atribuir al nuevo candidato resultados de ese SHA.
-Cohorte consumida: `6d17c1e8-29e2-545a-954c-8b30b6e3fa0e`; no reutilizarla.
+E3 aprobó before_start_no_data_or_photo y same_site_guard_only_authenticated_minimal_photo:
+la corrección LF de PostgreSQL quedó comprobada realmente en foto/roles/sede.
+Falló después en lost_response_success, HTTP 503, mínimo 1112. WORM final fue
+omitido; passed=false/e3_accepted=false. No acreditar E3 ni atribuir estos
+resultados a un candidato posterior. Cohorte consumida:
+`f86ddf69-cef1-54d9-928b-7e3dae1caaa7`; también está consumida la anterior
+`6d17c1e8-29e2-545a-954c-8b30b6e3fa0e`. No reutilizar ninguna.
 
-## Defecto reproducido y corrección en verificación
+## Defecto actual reproducido y corrección
 
-La ruta HTTP de foto decodifica con validate=True la salida de PostgreSQL
-encode(bytea,'base64'), que inserta LF cada 76 caracteres. La regresión nueva con
-PostgreSQL real/roles/RLS, QR vigente y JPEG real reprodujo HTTP 400 en el guardia
-correcto; los accesos anónimo, padre y guardia de otra sede eran rechazados.
+El adaptador HTTP de report-handover llamaba e3_report con seis placeholders y
+cinco parámetros, aunque la función SQL recibe cinco. PostgreSQL/HTTP real
+reprodujo 503 tanto para entrega como para no entrega. Las pruebas SQL existentes
+pasaban pero faltaba el recorrido completo por HTTP; no cambiar ni editar las
+migraciones aplicadas para corregir este enlace del transporte.
 
-Rama fix/e3-photo-postgres-base64 elimina solo LF de esa representación interna,
-conserva validación estricta del resto y devuelve los mismos bytes JPEG. La
-regresión pasó después del cambio y comprueba bytes exactos, tipo image/jpeg,
-no-store, permisos y token sin consumir. No modifica SQL, migraciones, formatos
-externos ni exposición de fotos. El driver E3 distingue ahora rechazo por otra
-sede/padre, resolución válida y foto, sin publicar cuerpo ni excepción remota.
-Verificación local aprobada: 333 Python con PostgreSQL real, 26 JavaScript,
-tipos/lint, migraciones/Django y dependencias Expo. La regresión falló antes y
-pasó después de la corrección. PR/CI y aceptación AWS siguen pendientes.
+Rama fix/e3-handover-http-binding corrige a cinco placeholders. Dos regresiones
+pasaron después del cambio: confirmar, descartar cuerpo, recuperar por UUID
+original, habilitar con recibo SIMULATED, reportar ambos resultados, replay exacto,
+conflicto por cambio de cuerpo/actor, padre denegado, no-store, único hecho nuevo
+y protección posterior. SIMULATED no acredita AWS. Se conservan transacciones,
+idempotencia, RLS/roles, evidencia, plazos y formatos API. El driver distingue
+inyección de respuesta perdida, recuperación, reporte físico y token consumido.
+Verificación local aprobada: 335 Python con PostgreSQL real, 26 JavaScript,
+tipos/lint, migraciones/Django y dependencias Expo. Las dos regresiones fallaron
+antes y pasaron después del cambio. PR/CI y aceptación AWS siguen pendientes.
 
 ## Próximos pasos obligatorios
 
-1. Completar suite/PR/checks e integrar solo con CI aprobado y main actualizado.
-   El CD anterior terminó; no queda migración ni archive-drill activo. No ampliar
-   límites de MFA/sesión, archivo ni políticas para hacer pasar el ensayo.
-2. Exigir main CI y CD completos del nuevo SHA/digest: E1/APK, E2, nueve controles
-   E3 y lector WORM independiente hasta máximo minimum_sequence. Los campos
-   e2_accepted/e3_accepted=false delimitan reportes parciales, no aceptación global.
-3. El operador confirmó cuatro cohortes nuevas desde 3592c40; una se consumió en
-   el CD anterior y el selector verificará las restantes. No queda acción de
-   CloudShell pendiente. Agotarse bloquea y se repone según runbook E2, sin reset.
-4. Solo tras esos gates cerrar las seis filas E3 de PLAN. PR #27 sigue borrador;
-   su rama local ya integró 71ebf16 y debe reconciliar la corrección y reescribirse
-   con SHA/digest/runs/trial/secuencias/APK realmente aceptados. Su diff final será
-   solo documentación permitida; exigir calidad/docs-only antes de integrar para
-   evitar otro despliegue o consumo de cohorte por el cierre.
+1. Completar suite/PR/checks e integrar con CI aprobado y main actualizado. El CD
+   anterior terminó; no queda migración ni archive-drill activo. Mantener límites
+   MFA/sesión, SQL y archivo; no debilitar pruebas para presentar éxito.
+2. Exigir main CI y CD del nuevo SHA/digest: E1/APK, E2, nueve controles E3 y
+   lector independiente hasta máximo minimum_sequence. e2_accepted/e3_accepted=false
+   delimitan el alcance parcial; exigir passed=true en protocolos, WORM y CI.
+3. Del pool de cuatro cohortes nuevas confirmado por operador se consumieron dos;
+   el selector debe verificar las restantes. No queda acción CloudShell pendiente.
+   Agotarse bloquea y se repone según runbook E2, sin reset de identidades/canjes.
+4. Solo tras todos los gates cerrar las seis filas E3 de PLAN. PR #27 sigue
+   borrador; su rama local 48c7511 ya integró bd8eca2 y debe reconciliar esta
+   corrección y reescribirse con SHA/digest/runs/trial/secuencias/APK aceptados.
+   Exigir diff exclusivamente documental permitido, calidad y filtro docs-only
+   para no redeplegar ni consumir una cohorte por el cierre documental.
 
 ## Operación y límites que conservar
 
-- El gateway efímero fue recuperado y el operador sincronizó el callback existente.
-  Ensayos y APK usan STAGING_RELEASE_ORIGIN verificado; base_url es solo una pista.
-  Ante retirada seguir bootstrap stateless y sincronización estrecha del runbook;
-  no repetir commission_e1 ni editar el hostname en cada recreación.
-- El wrapper intercambia una vez JWT GitHub por sesión STS temporal reutilizada
-  por los hijos; elimina JWT y credenciales heredadas, sin cambiar trust/IAM.
-  PR #29 y el CD real completaron la restauración/ancla E2 antes bloqueada.
+- Gateway recuperado y callback existente sincronizado por operador. Ensayos/APK
+  usan STAGING_RELEASE_ORIGIN verificado; base_url es pista. Ante retirada usar
+  bootstrap stateless/sincronización estrecha del runbook, sin commission_e1.
+- JWT GitHub se canjea una vez por sesión STS temporal para los hijos; se elimina
+  JWT/identidades heredadas, sin cambiar trust/IAM. El ancla E2 ya aprobó en AWS.
 - Nunca borrar/reiniciar cuentas, canjes, estudiantes, eventos, outbox, recibos ni
   WORM para repetir. No editar migraciones E2 0002–0005 ni ejecutar refresh SQL
   antiguos de work/. No pedir contraseñas/TOTP/semillas/códigos.
 - La BD local original alcanzó el límite deliberado de snapshot sintético
-  (5000 eventos/8 MB). Se conserva sin ampliar cuotas ni borrar; usar BD aislada
-  retenida para suites, según scratch work/e3-apk-isolated-db.txt y scripts de
-  verificación work/. .env conserva la original; nunca publicar credenciales.
-- pickup_enabled=false del contrato anterior se mantiene. El endpoint E3 separado
-  anuncia synthetic_only=true; una capacidad/health nunca concede entrega.
-- E4 conserva avisos/consultas/correcciones. E5 conserva Android físico, cámara y
-  retorno OIDC nativo, recuperación integral/epoch/carga/RTO, retención
-  institucional, firma/distribución y producción NOT_CONFIGURED. No hubo datos,
-  importaciones, invitaciones ni mensajes reales. APK de desarrollo no acredita
-  instalación/cámara física ni se publica como binario en el repositorio público.
+  (5000 eventos/8 MB); se conserva sin ampliar cuotas ni borrar. Suites en BD
+  aisladas retenidas: consultar work/e3-apk-isolated-db.txt y scripts work/.
+  .env conserva la original. No publicar credenciales ni purgar datos de ensayo.
+- pickup_enabled=false anterior se mantiene; el endpoint E3 separado anuncia
+  synthetic_only=true. Capacidad/health nunca conceden entrega.
+- E4: avisos/consultas/correcciones. E5: Android físico/cámara/retorno OIDC,
+  recuperación integral/epoch/carga/RTO, retención institucional, firma,
+  distribución y producción NOT_CONFIGURED. No hubo datos/mensajes reales.
+  APK de desarrollo no acredita teléfono físico ni se publica aquí como binario.
 - No crear commits en bucle para registrar cada SHA documental. Distinguir base
   funcional aceptada de revisión documental; consultar releases por SHA en Actions.
-  Scratch saneado en work/, ignorado; fuentes/estado aquí y evidencia en su custodia.
+  Scratch saneado en work/, ignorado; estado/fuentes aquí, evidencia en su custodia.

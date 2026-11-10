@@ -86,6 +86,11 @@ def receipt(oid: str) -> None:
     # The private test identity schedules only this operational job, then the real
     # archiver lease/completion functions check the matching digest and lease.
     eid = owner("SELECT event_id FROM pickup_operation WHERE id=%s", (oid,))[0][0]
+    complete_receipt(eid)
+
+
+def complete_receipt(eid: uuid.UUID) -> None:
+    # SIMULATED adapter receipt, never evidence of real AWS acceptance.
     owner(
         "UPDATE evidence_archivejob SET available_at='2000-01-01T00:00:00Z' WHERE event_id=%s",
         (eid,),
@@ -505,6 +510,81 @@ def test_transport_auth_validation_no_store_and_ambiguous_operation_recovery(
             == 403
         )
         assert views.instant("2026-11-08T13:00:00-05:00").utcoffset() == timedelta(hours=-5)
+
+
+@pytest.mark.parametrize("delivered", [True, False])
+def test_http_recovery_and_physical_report_replay_preserve_one_protected_fact(
+    pickup: dict[str, Any], delivered: bool
+) -> None:
+    from django.urls import include, path
+
+    p = pickup
+    routes = type("Routes", (), {"urlpatterns": [path("v1/", include("pickup.urls"))]})
+    client = Client()
+    headers = {"HTTP_AUTHORIZATION": f"Bearer {p['guard_access']}"}
+    operation_id = str(uuid.uuid4())
+    with override_settings(ROOT_URLCONF=routes):
+        # Discard the confirm body, then recover using the original UUID.
+        assert (
+            client.post(
+                "/v1/guard/confirm-pickup",
+                data=json.dumps({"token": p["raw"], "checks": CHECKS}),
+                content_type="application/json",
+                HTTP_IDEMPOTENCY_KEY=operation_id,
+                **headers,
+            ).status_code
+            == 200
+        )
+        url = f"/v1/guard/operations/{operation_id}"
+        pending = client.get(url, **headers).json()
+        assert pending["state"] == "PENDIENTE_ARCHIVO" and not pending["may_handover"]
+        receipt(operation_id)
+        enabled = client.get(url, **headers).json()
+        assert enabled["state"] == "HABILITADA" and enabled["may_handover"]
+        key = str(uuid.uuid4())
+        payload = {
+            "delivered": delivered,
+            "witnessed_at": enabled["server_now"],
+            "reason": "Synthetic observed physical result",
+        }
+
+        def report(body: dict[str, Any], actor: str = p["guard_access"]) -> Any:
+            return client.post(
+                url + "/report-handover",
+                data=json.dumps(body),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {actor}",
+                HTTP_IDEMPOTENCY_KEY=key,
+            )
+
+        response = report(payload)
+        assert response.status_code == 200
+        assert "no-store" in response.headers["Cache-Control"]
+        result = response.json()
+        assert result["operation_id"] == operation_id
+        assert report(payload).json() == result
+        assert report({**payload, "delivered": not delivered}).status_code == 409
+        assert report(payload, p["parent_access"]).status_code == 403
+        assert report(payload, login(roster()["accounts"]["GUARDIA"])[0]).status_code == 409
+        fact = owner("SELECT id,kind FROM evidence_event WHERE id=%s", (result["report_event_id"],))
+        assert fact == [
+            (
+                uuid.UUID(result["report_event_id"]),
+                "ENTREGA_FISICA_REPORTADA" if delivered else "NO_ENTREGA_REPORTADA",
+            )
+        ]
+        recorded = client.get(url, **headers).json()
+        assert recorded["state"] == "ENTREGA_REPORTADA" and not recorded["may_handover"]
+        assert not recorded["report_protected"]
+        complete_receipt(fact[0][0])
+        protected = client.get(url, **headers).json()
+        assert protected["report_protected"] and not protected["may_handover"]
+        assert protected["report_result"] == ("DELIVERED" if delivered else "NOT_DELIVERED")
+        assert owner(
+            "SELECT count(*) FROM evidence_event WHERE correlation_id=%s AND kind IN "
+            "('ENTREGA_FISICA_REPORTADA','NO_ENTREGA_REPORTADA')",
+            (operation_id,),
+        ) == [(1,)]
 
 
 def test_ten_thousand_invalid_tokens_reveal_no_data_without_entropy_claim(
