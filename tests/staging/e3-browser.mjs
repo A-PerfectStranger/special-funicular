@@ -121,6 +121,12 @@ try {
   checks.push('before_start_no_data_or_photo');
   step = 'wait_valid_from';
   while (Date.now() <= start+100) await new Promise(resolve => setTimeout(resolve, Math.min(1000, start+101-Date.now())));
+  // A midnight boundary can defer valid_from beyond the five-minute MFA/idle window.
+  // Start fresh interactive sessions after waiting; never relax server freshness.
+  step = 'fresh_mfa_after_schedule_wait';
+  assert(await p.login() === 'PADRE');
+  assert(await g.login() === 'GUARDIA');
+  assert(await other.login() === 'GUARDIA');
   step = 'scope_resolution';
   await denied(() => other.pickupRequest('/v1/guard/resolve-qr', { token: episodes.success.qr }));
   await denied(() => p.pickupRequest('/v1/guard/resolve-qr', { token: episodes.success.qr }));

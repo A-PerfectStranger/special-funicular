@@ -31,6 +31,6 @@ mkdir -p work/artifacts
 cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
 uv run python scripts/verify_mobile_permissions.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
 if [ "$APP_ENV" = staging ]; then
-  uv run python scripts/verify_staging_apk.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
+  uv run python -m scripts.verify_staging_apk "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk"
 fi
 uv run python scripts/artifact_manifest.py "work/artifacts/mobile-${APP_ENV}-${GIT_SHA}.apk" --kind "${APP_ENV}-apk" --sha "$GIT_SHA"

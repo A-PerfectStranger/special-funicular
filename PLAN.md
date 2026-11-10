@@ -222,27 +222,21 @@ sintética integrada, verificador independiente, cierre documental. El control
 privado de fallo es acotado y exclusivo de fixtures E3; no borra evidencia.
 Operación y límites en [runbook E3](docs/runbooks/e3.md).
 
-**Verificación del candidato integrado `ab2d8fb`:**
-[CI 42573282125](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42573282125)
-aprobado: 289 Python, 24 móvil + 2 vendor JavaScript, siete navegador/recuperación,
+**Candidato vigente:** `3592c40f830cb27b7ccd94b99b77ca6acdd653fb`, integrado por
+PR #23–#26 y #28. [CI 42757851196](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42757851196)
+aprobó 322 Python, 24 móvil + 2 vendor JavaScript, diez navegador/recuperación,
 tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
-firma de desarrollo v2). Las 35 pruebas nuevas de dominio usan PostgreSQL/roles
-reales, incluida concurrencia de dos guardias, revocación ordenada, 10 000 tokens
-inválidos y ocho rechazos de sesión vencida mientras espera locks. Migración desde
-base vacía aprobada.
+firma de desarrollo v2). PostgreSQL real cubre dos guardias, revocación ordenada,
+10 000 tokens inválidos y ocho expiraciones de sesión durante espera de locks.
 
-Implementación integrada por PR #23–#26 en `3a65293`; su
-[CI 42750238114](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42750238114)
-aprobó 318 Python/26 JS/diez navegador-diagnóstico, imagen/APK/firma. El
-[CD 42751425748](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42751425748)
-aprobó migración y recreó una puerta stateless con digest/TLS/sondas verificados.
-E1/E2/E3 siguen apagadas, no inició otro archivador y el gate quedó bloqueado con
-GATEWAY_BOOTSTRAP_ONLY hasta sincronizar el callback existente. El operador ya
-recibió el comando del SHA main aprobado; no hay sincronización acreditada aún.
-Después se debe reintentar staging del mismo SHA y exigir E1/E2/E3/WORM completos.
-Mantener main fijo; este estado está en borrador documental hasta la aceptación.
-Procedimiento en [deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
-Ninguna casilla se cierra por existencia de código o solo por salud del despliegue.
+El operador sincronizó el callback del gateway recuperado; E1 browser/cloud y
+archive-drill aprobaron en el candidato anterior. El verificador de APK corregido
+exige el origen real de release. El [CD 42758935625](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42758935625)
+está verificando todos los gates del candidato vigente; E2/E3/WORM todavía
+pendientes. No se atribuyen resultados de otro SHA ni se cierran casillas por
+existencia de código, build o salud. Continuidad y límites en
+[PROGRESS](PROGRESS.md); recuperación en
+[deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
 
 ### E4 — Avisos y consulta escolar
 

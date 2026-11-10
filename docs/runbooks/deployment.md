@@ -105,7 +105,9 @@ repetir. El comando no acredita aceptación. Repetir staging para inyectar el ca
 actualizado y exigir E1/E2/E3/WORM completos del mismo candidato. Tras comprobar
 callback, digest y TLS, CD publica `STAGING_RELEASE_ORIGIN` a los ensayos y al build
 del APK de staging; esos consumidores rechazan un origen ausente o ajeno a AWS.
-No se añaden permisos de modificación de Cognito a CI. Los errores del comando
+El verificador del APK exige ese mismo origen en EXPO_PUBLIC_API_URL y en el
+bundle real, además de paquete/callback nativos; la pista de arranque no sustituye
+esa comprobación. No se añaden permisos de modificación de Cognito a CI. Los errores del comando
 muestran solo motivos fijos/códigos AWS permitidos, nunca excepciones privadas.
 
 El workflow manual `Anonymous staging navigation diagnostic` recibe opcionalmente
