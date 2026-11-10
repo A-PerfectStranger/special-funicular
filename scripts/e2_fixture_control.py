@@ -17,6 +17,7 @@ from scripts.commission_e1 import outputs
 from scripts.commission_staging import register
 from scripts.e1_fixture_data import identifier
 from scripts.isolated_task import run_isolated_task
+from scripts.sync_staging_origin import release_origin, require_web_origin
 
 SELECTION = Path("work/e2-selected-trial.json")
 
@@ -46,6 +47,8 @@ def read_context() -> tuple[dict[str, Any], dict[str, str], dict[str, Any]]:
         raise RuntimeError("Synthetic only")
     if state.get("schema_version") != 1 or state.get("roster_ready") is not True:
         raise RuntimeError("Prepared synthetic fixture catalogue required")
+    environment["base_url"] = release_origin()
+    require_web_origin(environment["base_url"], config["WebRedirect"])
     return state, config, environment
 
 

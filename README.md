@@ -139,9 +139,11 @@ se conserva el checksum; el binario solo se sube automáticamente si el reposito
 es privado. Para distribución interna en este repositorio falta conectar un destino privado.
 No hay código privilegiado ejecutado desde forks ni `pull_request_target`.
 
-La URL temporal de staging se obtiene de `base_url` en
-[su configuración](infra/environments/staging.json) y se contrasta con AWS al
-desplegar; recrear Express puede cambiarla. Ventanas, retirada y costes:
+La URL temporal de staging se obtiene del reporte de despliegue verificado por
+SHA/digest en Actions. `base_url` en
+[su configuración](infra/environments/staging.json) es una pista de arranque:
+recrear Express puede cambiarla. Los ensayos y el APK reciben el origen verificado
+mediante `STAGING_RELEASE_ORIGIN`, después de comprobar el callback. Ventanas, retirada y costes:
 [runbook](docs/runbooks/deployment.md) y [AWS](infra/aws/README.md).
 CI valida también las plantillas de infraestructura.
 

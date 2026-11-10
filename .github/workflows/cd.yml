@@ -89,6 +89,7 @@ jobs:
       e1_enabled: ${{ steps.e1.outputs.enabled }}
       e2_enabled: ${{ steps.e1.outputs.family }}
       e3_enabled: ${{ steps.e1.outputs.pickup }}
+      origin: ${{ steps.deployment.outputs.origin }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -111,6 +112,7 @@ jobs:
               stream.write('pickup=' + str(pickup).lower() + '\n')
           PYCODE
       - name: Deploy, verify running digest and TLS probes
+        id: deployment
         env:
           RELEASE_SHA: ${{ needs.publish.outputs.sha }}
           RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
@@ -130,6 +132,7 @@ jobs:
     with:
       release_sha: ${{ needs.publish.outputs.sha }}
       release_digest: ${{ needs.publish.outputs.digest }}
+      release_origin: ${{ needs.staging.outputs.origin }}
   e2-acceptance:
     needs: [publish, staging, e1-acceptance]
     if: needs.staging.outputs.e2_enabled == 'true' && needs.e1-acceptance.result == 'success'
@@ -139,6 +142,7 @@ jobs:
       enable_pickup: ${{ needs.staging.outputs.e3_enabled == 'true' }}
       release_sha: ${{ needs.publish.outputs.sha }}
       release_digest: ${{ needs.publish.outputs.digest }}
+      release_origin: ${{ needs.staging.outputs.origin }}
   production:
     needs: [publish, staging, e1-acceptance, e2-acceptance]
     if: always() && needs.staging.result == 'success' && (needs.e1-acceptance.result == 'success' || (needs.e1-acceptance.result == 'skipped' && needs.staging.outputs.e1_enabled != 'true')) && (needs.e2-acceptance.result == 'success' || (needs.e2-acceptance.result == 'skipped' && needs.staging.outputs.e2_enabled != 'true'))

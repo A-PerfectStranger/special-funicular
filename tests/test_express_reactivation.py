@@ -68,3 +68,39 @@ def test_lookup_denial_cannot_trigger_service_creation(monkeypatch: pytest.Monke
     with pytest.raises(RuntimeError, match="absence not established"):
         deploy_staging.deploy_express({}, "approved-definition")
     assert not calls
+
+
+@pytest.mark.parametrize(
+    "message,absent",
+    [
+        (
+            "An error occurred (ResourceNotFoundException) when calling the "
+            "DescribeExpressGatewayService operation: Service not found",
+            True,
+        ),
+        (
+            "An error occurred (ResourceNotFoundException) when calling another operation: missing",
+            False,
+        ),
+        (
+            "An error occurred (AccessDeniedException) when calling the "
+            "DescribeExpressGatewayService operation: Service not found",
+            False,
+        ),
+    ],
+)
+def test_only_specific_verified_express_absence_is_recoverable(
+    message: str,
+    absent: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        deploy_staging.subprocess,
+        "run",
+        lambda *a, **kw: subprocess.CompletedProcess([], 1, "", message),
+    )
+    if absent:
+        assert deploy_staging.describe_gateway() is None
+    else:
+        with pytest.raises(RuntimeError, match="absence not established"):
+            deploy_staging.describe_gateway()

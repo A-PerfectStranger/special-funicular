@@ -10,6 +10,7 @@ import boto3
 
 from scripts.commission_e1 import outputs
 from scripts.e1_fixture_data import identifier
+from scripts.sync_staging_origin import release_origin
 
 
 def main() -> int:
@@ -35,7 +36,7 @@ def main() -> int:
         user = fixture.get("users", {}).get(name, {})
         if not user.get("mfa_ready") or not user.get("password") or not user.get("totp_seed"):
             raise RuntimeError("Complete MFA synthetic fixture required")
-    expected = json.loads(Path("infra/environments/staging.json").read_text())["base_url"]
+    expected = release_origin()
     if config["WebRedirect"] != expected + "/auth/callback":
         raise RuntimeError("Observed staging callback differs from reviewed environment")
     payload = {

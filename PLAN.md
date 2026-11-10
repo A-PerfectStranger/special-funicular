@@ -231,17 +231,18 @@ reales, incluida concurrencia de dos guardias, revocación ordenada, 10 000 toke
 inválidos y ocho rechazos de sesión vencida mientras espera locks. Migración desde
 base vacía aprobada.
 
-La sonda de ruta se corrigió por PR #24 (`b423949`), con
-[CI 42577523107](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42577523107)
-aprobado: 295 Python/26 JS/siete navegador, imagen/APK/firma. El
-[CD 42578747692](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42578747692)
-aprobó staging/digest/TLS, WORM cloud y APK. E1 browser falló en un hostname
-retirado; la sonda anónima aisló `ERR_NAME_NOT_RESOLVED`. E2/E3 no se ejecutaron.
-La recreación Express cambió el origen y requiere sincronizar el callback existente.
-La corrección de deriva/diagnóstico tiene diez pruebas de navegador y 36 Python
-pertinentes locales aprobadas; faltan PR/CI, actualización de callback por operador
-y todos los gates E1/E2/E3/WORM del candidato integrado. Procedimiento acotado en
-[runbook deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
+Implementación integrada por PR #23–#25 en `c31dbcc`; su
+[CI 42584549657](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42584549657)
+aprobó 304 Python/26 JS/diez navegador-diagnóstico, imagen/APK/firma. El
+[CD 42585734865](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42585734865)
+aprobó migración y bloqueó la discrepancia de callback; E1/E2/E3 no se acreditaron.
+La consulta del operador confirmó que la retirada programada ya eliminó Express.
+La recuperación debe crear una puerta stateless, sincronizar solo el callback
+existente del servicio/candidato observado y repetir los gates completos. El
+origen verificado debe acompañar los ensayos y el APK, evitando la pista retirada.
+Corrección en verificación local (41 pruebas pertinentes y tipos aprobados), aún
+sin aceptación AWS. Procedimiento en
+[deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
 Ninguna casilla se cierra por existencia de código o solo por salud del despliegue.
 
 ### E4 — Avisos y consulta escolar

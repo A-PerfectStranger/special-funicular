@@ -13,6 +13,10 @@ on:
         description: SHA from the approved active E1 deployment report
         type: string
         default: ''
+      expected_origin:
+        description: Verified origin from the passed deployment report for the expected release
+        type: string
+        default: ''
       expected_image_digest:
         description: Digest from the approved active E1 deployment report
         type: string
@@ -192,6 +196,7 @@ jobs:
       - run: uv sync --frozen
       - name: Observe the actual threshold, isolation and 15-minute expiry
         env:
+          STAGING_RELEASE_ORIGIN: ${{ inputs.expected_origin }}
           RELEASE_SHA: ${{ inputs.expected_release_sha }}
           RELEASE_DIGEST: ${{ inputs.expected_image_digest }}
         run: uv run python -m scripts.probe_e1_limits --sha "$RELEASE_SHA" --digest "$RELEASE_DIGEST"

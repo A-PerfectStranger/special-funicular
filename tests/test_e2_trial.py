@@ -28,7 +28,8 @@ def test_e2_gate_is_explicit_and_never_adds_private_import_credentials_to_api() 
     assert "--e2-trial" not in json.dumps(standard)
     trial = yaml.safe_load(Path(".github/workflows/e2-trial.yml").read_text())
     assert trial["concurrency"] == standard["concurrency"]
-    assert trial["jobs"]["family"]["needs"] == ["publish", "acceptance"]
+    assert trial["jobs"]["family"]["needs"] == ["publish", "trial", "acceptance"]
+    assert trial["jobs"]["family"]["with"]["release_origin"] == "${{ needs.trial.outputs.origin }}"
     shared = yaml.safe_load(Path(".github/workflows/e2-checks.yml").read_text())
     assert "E1Verifier" in json.dumps(shared["jobs"]["family"])
     assert standard["jobs"]["e2-acceptance"]["uses"] == "./.github/workflows/e2-checks.yml"

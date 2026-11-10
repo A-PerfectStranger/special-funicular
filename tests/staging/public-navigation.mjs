@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { safeFailure, documentScope } from './diagnostics.mjs';
 
-const origin = JSON.parse(readFileSync('infra/environments/staging.json', 'utf8')).base_url;
+const origin = process.env.STAGING_RELEASE_ORIGIN || JSON.parse(readFileSync('infra/environments/staging.json', 'utf8')).base_url;
 const provider = 'https://retiro-e1-028364485203.auth.us-east-1.amazoncognito.com';
 let browser, phase = 'launch', status = null, scope = null, passed = false, failure = {};
 try {
