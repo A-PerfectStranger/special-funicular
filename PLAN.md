@@ -229,17 +229,15 @@ tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
 firma de desarrollo v2). PostgreSQL real cubre dos guardias, revocación ordenada,
 10 000 tokens inválidos y ocho expiraciones de sesión durante espera de locks.
 
-El [CD 42768417415](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42768417415)
-aprobó en 71ebf16 migración/staging/digest/TLS/callback, E1 completo, APK staging
-y protocolo E2 con su ancla final. E3 falló en scope_resolution; WORM final no se
-ejecutó. La foto HTTP rechazaba LF insertados por PostgreSQL en su base64. Una
-regresión PostgreSQL/HTTP reprodujo 400 y pasó al eliminar solo esos LF, sin
-relajar validación ni permisos. PR #30 integrada; el nuevo
-[CD 42777229650](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42777229650)
-verifica todos los gates de bd8eca2. E3 no está aceptada todavía.
-El pool nuevo tiene una cohorte consumida y el selector verificará las restantes.
-Diagnóstico y siguientes pasos en [PROGRESS](PROGRESS.md); operación en
-[E3](docs/runbooks/e3.md) y [deployment](docs/runbooks/deployment.md).
+El [CD 42777229650](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42777229650)
+aprobó en bd8eca2 staging/digest/TLS/callback, E1 completo, APK y E2 con ancla
+final. E3 aprobó denegación anticipada y foto autenticada/aislada; falló después
+en el recorrido de respuesta perdida con HTTP 503. WORM final no se ejecutó.
+El enlace HTTP del reporte físico tenía seis placeholders para cinco parámetros.
+Dos regresiones PostgreSQL/HTTP reprodujeron 503 y pasaron al corregir el enlace,
+sin tocar SQL, evidencia ni permisos. Corrección en verificación; E3 no está
+aceptada. El selector verificará las dos cohortes restantes del pool nuevo.
+Diagnóstico y continuación: [PROGRESS](PROGRESS.md); operación: [E3](docs/runbooks/e3.md).
 
 ### E4 — Avisos y consulta escolar
 
