@@ -5,6 +5,9 @@ on:
       release_sha:
         required: true
         type: string
+      release_origin:
+        required: true
+        type: string
       release_digest:
         required: true
         type: string
@@ -13,6 +16,8 @@ on:
         default: false
 permissions:
   contents: read
+env:
+  STAGING_RELEASE_ORIGIN: ${{ inputs.release_origin }}
 jobs:
   family:
     permissions: {contents: read, id-token: write}

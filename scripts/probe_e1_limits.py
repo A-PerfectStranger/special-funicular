@@ -12,6 +12,8 @@ from typing import Any
 
 import httpx
 
+from scripts.sync_staging_origin import release_origin
+
 
 def start(client: httpx.Client, origin: str, expected: int) -> None:
     response = client.post(
@@ -41,7 +43,7 @@ def probe(sha: str, digest: str) -> dict[str, Any]:
     config = json.loads(Path("infra/environments/staging.json").read_text())
     if config.get("synthetic_only") is not True or config.get("pickup_enabled") is not False:
         raise RuntimeError("Synthetic staging only")
-    origin = config["base_url"]
+    origin = release_origin()
     if not re.fullmatch(r"https://[a-z0-9-]+\.ecs\.us-east-1\.on\.aws", origin):
         raise RuntimeError("Reviewed staging origin required")
     with httpx.Client(timeout=20, follow_redirects=False, trust_env=True) as client:

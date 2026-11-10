@@ -1,6 +1,11 @@
 name: Anonymous staging navigation diagnostic
 on:
   workflow_dispatch:
+    inputs:
+      origin:
+        description: Observed origin from the deployment report; empty uses the bootstrap hint
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -15,6 +20,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: node tests/staging/public-navigation.mjs
+        env: {STAGING_RELEASE_ORIGIN: '${{ inputs.origin }}'}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

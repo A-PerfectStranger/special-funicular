@@ -8,9 +8,10 @@ import pytest
 
 from scripts import sync_staging_origin as module
 
+SHA = "f" * 40
 ORIGIN = "https://reviewed.ecs.us-east-1.on.aws"
 CONFIG = {
-    "base_url": ORIGIN,
+    "base_url": "https://retired.ecs.us-east-1.on.aws",
     "service": "reviewed-service",
     "synthetic_only": True,
     "pickup_enabled": False,
@@ -72,9 +73,29 @@ def test_only_existing_callback_changes_and_other_parameters_outputs_are_preserv
             return {
                 "service": {
                     "status": {"statusCode": "ACTIVE"},
-                    "activeConfigurations": [{"ingressPaths": [{"endpoint": ORIGIN[8:]}]}],
+                    "activeConfigurations": [
+                        {
+                            "ingressPaths": [{"endpoint": ORIGIN[8:]}],
+                            "taskDefinitionArn": "approved",
+                        }
+                    ],
                 }
             }
+        if command == ("ecs", "describe-task-definition"):
+            return {
+                "taskDefinition": {
+                    "containerDefinitions": [
+                        {
+                            "environment": [{"name": "GIT_SHA", "value": SHA}],
+                            "image": "028364485203.dkr.ecr.us-east-1.amazonaws.com/"
+                            "retiro-staging/backend@sha256:" + "a" * 64,
+                        }
+                    ]
+                }
+            }
+        if command == ("ecr", "describe-images"):
+            assert args[-1] == "imageTag=" + SHA
+            return {"imageDetails": [{"imageDigest": "sha256:" + "a" * 64}]}
         if command == ("cloudformation", "describe-stacks"):
             outputs = {
                 **OUTPUTS,
@@ -117,7 +138,7 @@ def test_only_existing_callback_changes_and_other_parameters_outputs_are_preserv
         raise AssertionError("Unexpected AWS operation")
 
     monkeypatch.setattr(module, "aws", read)
-    module.sync(CONFIG)
+    module.sync(CONFIG, SHA)
     assert sum(c[:2] == ("cloudformation", "execute-change-set") for c in calls) == (
         0 if already_synced else 1
     )
@@ -135,25 +156,94 @@ def test_callback_drift_and_ci_operator_are_rejected(monkeypatch: pytest.MonkeyP
         },
     )
     with pytest.raises(RuntimeError, match="not provisioning operators"):
-        module.sync(CONFIG)
+        module.sync(CONFIG, SHA)
 
 
-def test_unreviewed_observed_hostname_stops_before_any_stack_or_client_action(
+@pytest.mark.parametrize("bad", ["sha", "digest"])
+def test_unapproved_candidate_stops_before_any_stack_or_client_action(
     monkeypatch: pytest.MonkeyPatch,
+    bad: str,
 ) -> None:
     def read(*args: str) -> dict[str, Any]:
         if args[:2] == ("sts", "get-caller-identity"):
             return {"Account": "028364485203", "Arn": "arn:aws:iam::028364485203:user/operator"}
-        assert args[:2] == ("ecs", "describe-express-gateway-service")
-        return {
-            "service": {
-                "status": {"statusCode": "ACTIVE"},
-                "activeConfigurations": [
-                    {"ingressPaths": [{"endpoint": "unreviewed.ecs.us-east-1.on.aws"}]}
-                ],
+        if args[:2] == ("ecs", "describe-express-gateway-service"):
+            return {
+                "service": {
+                    "status": {"statusCode": "ACTIVE"},
+                    "activeConfigurations": [
+                        {
+                            "taskDefinitionArn": "unapproved",
+                            "ingressPaths": [{"endpoint": ORIGIN[8:]}],
+                        }
+                    ],
+                }
             }
-        }
+        if args[:2] == ("ecs", "describe-task-definition"):
+            return {
+                "taskDefinition": {
+                    "containerDefinitions": [
+                        {
+                            "environment": [
+                                {
+                                    "name": "GIT_SHA",
+                                    "value": SHA if bad == "digest" else "unapproved",
+                                }
+                            ],
+                            "image": "028364485203.dkr.ecr.us-east-1.amazonaws.com/"
+                            "retiro-staging/backend@sha256:" + "a" * 64,
+                        }
+                    ]
+                }
+            }
+        assert args[:2] == ("ecr", "describe-images")
+        return {"imageDetails": [{"imageDigest": "sha256:" + "b" * 64}]}
 
     monkeypatch.setattr(module, "aws", read)
-    with pytest.raises(RuntimeError, match="differs from reviewed"):
-        module.sync(CONFIG)
+    with pytest.raises(RuntimeError, match="approved candidate"):
+        module.sync(CONFIG, SHA)
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://a.ecs.us-east-1.on.aws",
+        "https://foreign.invalid",
+        "https://user:secret@a.ecs.us-east-1.on.aws",
+        "https://a.ecs.us-east-1.on.aws/path",
+        "https://a.ecs.us-east-1.on.aws\n",
+    ],
+)
+def test_release_origin_cannot_inject_an_unowned_host_or_workflow_output(
+    origin: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STAGING_RELEASE_ORIGIN", origin)
+    with pytest.raises(RuntimeError):
+        module.release_origin()
+
+
+def test_release_origin_is_explicit_and_failures_never_print_arbitrary_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("STAGING_RELEASE_ORIGIN", raising=False)
+    with pytest.raises(RuntimeError):
+        module.release_origin()
+    monkeypatch.setenv("STAGING_RELEASE_ORIGIN", ORIGIN)
+    assert module.release_origin() == ORIGIN
+    assert (
+        module.safe_failure(
+            RuntimeError("ecs.describe-express-gateway-service: ResourceNotFoundException")
+        )
+        == "ecs.describe-express-gateway-service: ResourceNotFoundException"
+    )
+    assert module.safe_failure(
+        RuntimeError("BLOCKED: active observed Express service required")
+    ).endswith("active observed Express service required")
+    for error in [
+        RuntimeError("private-secret-or-provider-text"),
+        ValueError("private-secret-or-provider-text"),
+        RuntimeError("cloudformation.wait: PRIVATE_SECRET"),
+    ]:
+        assert "PRIVATE_SECRET" not in module.safe_failure(error)
+        assert "private-secret" not in module.safe_failure(error)

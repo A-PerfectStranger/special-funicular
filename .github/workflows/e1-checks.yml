@@ -5,11 +5,16 @@ on:
       release_sha:
         required: true
         type: string
+      release_origin:
+        required: true
+        type: string
       release_digest:
         required: true
         type: string
 permissions:
   contents: read
+env:
+  STAGING_RELEASE_ORIGIN: ${{ inputs.release_origin }}
 jobs:
   browser:
     permissions: {contents: read, id-token: write}
@@ -77,9 +82,10 @@ jobs:
       - name: Set public staging endpoint
         run: |
           python3 - <<'PY'
-          import json, os
+          import os
+          from scripts.sync_staging_origin import release_origin
           with open(os.environ['GITHUB_ENV'],'a') as stream:
-              stream.write('EXPO_PUBLIC_API_URL=' + json.load(open('infra/environments/staging.json'))['base_url'] + '\n')
+              stream.write('EXPO_PUBLIC_API_URL=' + release_origin() + '\n')
           PY
       - name: Prepare the exact pinned Gradle from its official release API
         id: gradle

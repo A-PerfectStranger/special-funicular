@@ -70,6 +70,8 @@ jobs:
           RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
         run: python3 scripts/aws_oidc.py --role Migrate -- python3 -m scripts.deploy_staging --mode migrate --sha "$RELEASE_SHA" --digest "$RELEASE_DIGEST"
   trial:
+    outputs:
+      origin: ${{ steps.deployment.outputs.origin }}
     needs: [publish, migrate]
     permissions: {contents: read, id-token: write}
     runs-on: ubuntu-24.04
@@ -78,6 +80,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with: {ref: '${{ needs.publish.outputs.sha }}', persist-credentials: false}
       - name: Run bounded E2 family API and E1 archive trial
+        id: deployment
         env:
           RELEASE_SHA: ${{ needs.publish.outputs.sha }}
           RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
@@ -96,11 +99,13 @@ jobs:
     with:
       release_sha: ${{ needs.publish.outputs.sha }}
       release_digest: ${{ needs.publish.outputs.digest }}
+      release_origin: ${{ needs.trial.outputs.origin }}
 
   family:
-    needs: [publish, acceptance]
+    needs: [publish, trial, acceptance]
     permissions: {contents: read, id-token: write}
     uses: ./.github/workflows/e2-checks.yml
     with:
       release_sha: ${{ needs.publish.outputs.sha }}
       release_digest: ${{ needs.publish.outputs.digest }}
+      release_origin: ${{ needs.trial.outputs.origin }}

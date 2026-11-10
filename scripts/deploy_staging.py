@@ -3,6 +3,7 @@
 import argparse
 import copy
 import json
+import os
 import re
 import subprocess
 import time
@@ -13,7 +14,7 @@ from scripts.aws_cli import aws
 from scripts.commission_staging import arm_expiry, register, runtime_digests, task_definition
 from scripts.e1_release import api_definition, archive_definition, start_archive
 from scripts.isolated_task import run_isolated_task
-from scripts.sync_staging_origin import require_web_origin
+from scripts.sync_staging_origin import gateway_origin
 from scripts.task_diagnostics import task_outcome
 from scripts.verify_staging import verify
 from scripts.verify_staging_network import verify_ingress
@@ -51,7 +52,7 @@ def candidate_running(cluster: str, definition: str, expected: set[str]) -> bool
     )
 
 
-def deploy_express(outputs: dict[str, str], definition: str) -> tuple[str, str | None, str]:
+def describe_gateway() -> dict[str, Any] | None:
     service = "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api"
     state_result = subprocess.run(
         [
@@ -67,12 +68,16 @@ def deploy_express(outputs: dict[str, str], definition: str) -> tuple[str, str |
         text=True,
         check=False,
     )
-    previous_definition = None
     state = None
     if state_result.returncode:
         if (
             "ServiceNotFound" not in state_result.stderr
             and "ClusterNotFound" not in state_result.stderr
+            and not re.search(
+                r"An error occurred \(ResourceNotFoundException\) when calling the "
+                r"DescribeExpressGatewayService operation: Service not found(?:\s|$)",
+                state_result.stderr,
+            )
         ):
             raise RuntimeError("Service lookup failed; absence not established")
     else:
@@ -84,6 +89,13 @@ def deploy_express(outputs: dict[str, str], definition: str) -> tuple[str, str |
             state = None
         elif status != "ACTIVE" or not state.get("activeConfigurations"):
             raise RuntimeError("Express service not ready; no creation or update performed")
+    return state
+
+
+def deploy_express(outputs: dict[str, str], definition: str) -> tuple[str, str | None, str]:
+    service = "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api"
+    state = describe_gateway()
+    previous_definition = None
     if state is None:
         service = aws(
             "ecs",
@@ -199,6 +211,8 @@ def main() -> int:
         return 0
     expected = runtime_digests(args.digest)
     archive_task = None
+    effective_e1 = False
+    e1: dict[str, str] = {}
     if e1_enabled:
         e1 = {
             v["OutputKey"]: v["OutputValue"]
@@ -206,14 +220,19 @@ def main() -> int:
                 "Stacks"
             ][0]["Outputs"]
         }
-        # Validate both definitions before starting a process. Same image, isolated credentials.
-        require_web_origin(environment["base_url"], e1["WebRedirect"])
+        existing = describe_gateway()
+        effective_e1 = existing is not None and (
+            e1["WebRedirect"] == gateway_origin(existing) + "/auth/callback"
+        )
+    if effective_e1:
         api = api_definition(
             outputs, e1, image, args.sha, enable_family=e2_enabled, enable_pickup=e3_enabled
         )
         archive = register(archive_definition(outputs, e1, image, args.sha))
         archive_task = start_archive(outputs, archive, expected)
     else:
+        # A recreated gateway must exist before its owned hostname can be bound.
+        # The bootstrap exposes health only; it never enables identity or pickup.
         api = task_definition(outputs, image, args.sha, False)
     definition = register(api)
     service, previous_definition, expiry = deploy_express(outputs, definition)
@@ -233,7 +252,7 @@ def main() -> int:
     report: dict[str, Any] = {}
     if origin:
         for _ in range(12):
-            report = verify(origin, e3_enabled=e3_enabled)
+            report = verify(origin, e3_enabled=effective_e1 and e3_enabled)
             if report["passed"]:
                 break
             time.sleep(10)
@@ -250,8 +269,12 @@ def main() -> int:
         and all(c.get("imageDigest") in expected for c in t["containers"])
         for t in running
     )
-    origin_matches = not e1_enabled or origin == environment["base_url"]
-    passed = bool(report.get("passed") and correct and origin_matches)
+    origin_matches = not e1_enabled or (
+        bool(origin) and e1["WebRedirect"] == origin + "/auth/callback"
+    )
+    passed = bool(
+        report.get("passed") and correct and origin_matches and (effective_e1 or not e1_enabled)
+    )
     evidence = {
         "sha": args.sha,
         "digest": args.digest,
@@ -264,21 +287,26 @@ def main() -> int:
         "expires_at": expiry,
         "probes": report,
         "passed": passed,
-        "e1_identity_enabled": e1_enabled,
-        "e2_family_enabled": e2_enabled,
-        "e3_pickup_enabled": e3_enabled,
+        "e1_identity_enabled": effective_e1,
+        "e2_family_enabled": effective_e1 and e2_enabled,
+        "e3_pickup_enabled": effective_e1 and e3_enabled,
+        "origin_sync_required": e1_enabled and not passed and not effective_e1,
         "archive_task": archive_task,
         "e1_accepted": False,
         "scope": "Deployment and technical probes only; functional E1 acceptance is separate",
     }
     Path("work").mkdir(exist_ok=True)
     Path("work/staging-deployment.json").write_text(json.dumps(evidence, indent=2) + "\n")
+    if e1_enabled and not effective_e1:
+        print(
+            "BLOCKED: GATEWAY_BOOTSTRAP_ONLY; synchronize the observed callback, then retry staging"
+        )
     if not origin_matches:
         print(
             "BLOCKED: STAGING_ORIGIN_DRIFT; "
             "review actual origin and synchronize the existing callback"
         )
-    if not passed and previous_definition:
+    if not passed and previous_definition and (effective_e1 or not e1_enabled):
         # Compatible code only: no schema/evidence rollback.
         aws(
             "ecs",
@@ -289,6 +317,9 @@ def main() -> int:
             previous_definition,
         )
         print("Candidate failed; compatible previous task definition requested; schema untouched")
+    if passed and os.environ.get("GITHUB_OUTPUT"):
+        with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+            stream.write("origin=" + origin + "\n")
     return 0 if passed else 2
 
 

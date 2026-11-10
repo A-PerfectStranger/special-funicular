@@ -43,6 +43,18 @@ def test_required_pipeline_runs_e3_before_the_independent_chain_verifier() -> No
     assert "work/e3-browser-acceptance.json" in steps[verifier]["run"]
 
 
+def test_acceptance_and_staging_apk_use_the_verified_release_origin() -> None:
+    cd = yaml.safe_load(Path(".github/workflows/cd.yml").read_text())
+    assert cd["jobs"]["staging"]["outputs"]["origin"] == "${{ steps.deployment.outputs.origin }}"
+    for name in ["e1-acceptance", "e2-acceptance"]:
+        assert cd["jobs"][name]["with"]["release_origin"] == "${{ needs.staging.outputs.origin }}"
+    for path in ["e1-checks.yml", "e2-checks.yml"]:
+        shared = yaml.safe_load((Path(".github/workflows") / path).read_text())
+        assert shared["env"]["STAGING_RELEASE_ORIGIN"] == "${{ inputs.release_origin }}"
+    mobile = Path(".github/workflows/e1-checks.yml").read_text()
+    assert "EXPO_PUBLIC_API_URL=' + release_origin()" in mobile
+
+
 def test_synthetic_faults_are_bounded_and_use_independent_student_episodes() -> None:
     import uuid
 
