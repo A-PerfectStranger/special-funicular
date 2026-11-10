@@ -170,6 +170,48 @@ def test_resolve_is_minimal_does_not_consume_and_photo_is_guard_scoped(
             resolve(access, p["raw"])
 
 
+def test_guard_photo_http_decodes_real_postgres_wrapped_base64_without_changing_bytes(
+    pickup: dict[str, Any],
+) -> None:
+    from django.urls import include, path
+
+    p = pickup
+    encoded = resolve(p["guard_access"], p["raw"], True)["photo"]
+    assert "\n" in encoded  # PostgreSQL encode(bytea,'base64') wraps at 76 characters.
+    expected = bytes(
+        owner(
+            "SELECT c.photo FROM authorization_caregiver c "
+            "JOIN authorization_authorization a ON a.caregiver_id=c.id WHERE a.id=%s",
+            (p["authorization"],),
+        )[0][0]
+    )
+    routes = type("Routes", (), {"urlpatterns": [path("v1/", include("pickup.urls"))]})
+    client = Client()
+    with override_settings(ROOT_URLCONF=routes):
+        for access, status in [
+            (None, 401),
+            (p["parent_access"], 403),
+            (login(roster()["accounts"]["GUARDIA"])[0], 403),
+            (p["guard_access"], 200),
+        ]:
+            response = client.post(
+                "/v1/guard/caregiver-photo",
+                data=json.dumps({"token": p["raw"]}),
+                content_type="application/json",
+                **({"HTTP_AUTHORIZATION": f"Bearer {access}"} if access else {}),
+            )
+            assert response.status_code == status
+            assert "no-store" in response.headers["Cache-Control"]
+            if status == 200:
+                assert response["Content-Type"] == "image/jpeg"
+                assert response.content == expected and expected.startswith(b"\xff\xd8\xff")
+            else:
+                assert expected not in response.content
+    assert owner(
+        "SELECT consumed_at FROM pickup_token WHERE token_hash=%s", (digest(p["raw"]),)
+    ) == [(None,)]
+
+
 def test_fifty_confirmations_two_guards_one_decision(pickup: dict[str, Any]) -> None:
     p = pickup
     second_id = uuid.uuid4()
