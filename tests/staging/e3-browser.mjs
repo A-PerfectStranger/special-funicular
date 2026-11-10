@@ -127,10 +127,13 @@ try {
   assert(await p.login() === 'PADRE');
   assert(await g.login() === 'GUARDIA');
   assert(await other.login() === 'GUARDIA');
-  step = 'scope_resolution';
+  step = 'scope_other_site_denied';
   await denied(() => other.pickupRequest('/v1/guard/resolve-qr', { token: episodes.success.qr }));
+  step = 'scope_parent_denied';
   await denied(() => p.pickupRequest('/v1/guard/resolve-qr', { token: episodes.success.qr }));
+  step = 'same_site_resolution';
   assert((await g.pickupRequest('/v1/guard/resolve-qr', { token: episodes.success.qr })).caregiver.document === 'E3-SYNTHETIC');
+  step = 'same_site_photo';
   assert((await g.pickupPhoto(episodes.success.qr)).startsWith('data:image/jpeg;base64,'));
   checks.push('same_site_guard_only_authenticated_minimal_photo');
   step = 'lost_response_success';
