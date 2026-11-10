@@ -229,13 +229,14 @@ tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
 firma de desarrollo v2). PostgreSQL real cubre dos guardias, revocación ordenada,
 10 000 tokens inválidos y ocho expiraciones de sesión durante espera de locks.
 
-El operador sincronizó el callback del gateway recuperado; E1 browser/cloud y
-archive-drill aprobaron en el candidato anterior. El verificador de APK corregido
-exige el origen real de release. El [CD 42758935625](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42758935625)
-está verificando todos los gates del candidato vigente; E2/E3/WORM todavía
-pendientes. No se atribuyen resultados de otro SHA ni se cierran casillas por
-existencia de código, build o salud. Continuidad y límites en
-[PROGRESS](PROGRESS.md); recuperación en
+El operador sincronizó el callback del gateway recuperado. El
+[CD 42758935625](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42758935625)
+aprobó migración/staging/digest/TLS, E1 browser/cloud/archive-drill y APK con
+bundle/origen/paquete/callback/permisos/firma verificados en 3592c40. E2 falló en
+su ancla de auditoría final tras seis grupos aprobados; E3 y WORM final no se
+ejecutaron. El pool de cuatro cohortes quedó consumido y requiere reposición sin
+reset. E3 no está aceptada. Diagnóstico y continuación concretos en
+[PROGRESS](PROGRESS.md); procedimiento de infraestructura en
 [deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
 
 ### E4 — Avisos y consulta escolar

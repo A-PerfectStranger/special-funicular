@@ -39,25 +39,51 @@ origen obsoleto y ejecución por módulo. E3 renueva sesiones interactivas despu
 de esperar valid_from sin ampliar MFA/idle ni límites del servidor.
 
 [CD 42758935625](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42758935625)
-ensaya ahora 3592c40. **No atribuirle los resultados del candidato anterior.**
-No avanzar main mientras migra o ejecuta archive-drill/aceptación. No queda una
-acción CloudShell pendiente; pedir intervención solo ante un bloqueo real nuevo.
-La sesión de desarrollo no tiene identidad AWS de operador.
+verificó 3592c40: migración, staging/digest/TLS/callback/nueve sondas, E1 browser,
+cloud, archive-drill/recuperación y APK staging con origen/paquete/callback,
+cámara/sin micrófono/firma v2 aprobados. Digest runtime:
+`sha256:48246ca90b8e043328e658ff3946568b1ec3d59247cc8a52f11ac525169e32cb`.
+APK staging SHA-256:
+`169376f5a7691b794ef0bd28f3dcc168638158433f5349d87a3dd33305b43d24`.
+El lector independiente inicial verificó 806 eventos sin SQL; archive-drill
+verificó hasta 815, incluido el intento tardío 810 que siguió denegado.
+
+**Bloqueo actual:** E2 falló en `audit_anchor`, tras aprobar sus seis grupos de
+activación, capacidades, cuidadores/revocación, cambio de principal, restricción
+y baja técnica. Reporte `passed=false`, `minimum_sequence=849`, `failure_kind=unknown`.
+E3 y lector WORM final fueron omitidos. No considerar esos seis grupos una nueva
+aceptación E2 ni acreditar E3. Cohorte consumida:
+`9b874f2c-740f-59de-a22d-0d33c91a1bf7`; no reutilizarla.
+El selector encontró tres cohortes con salida 42 y reservó la cuarta con salida 0;
+el pool actual está consumido. Un TaskFailedToStart/CannotPull anterior se
+reintentó una vez sin ejecución y luego devolvió 42; no explica por sí solo el
+fallo posterior de audit_anchor.
+
+El reporte no distingue entre el control privado original-principal, el login
+posterior y la mutación final. Se solicitó al operador una consulta ECS de solo
+lectura (tiempos/stopCode/exitCodes, sin variables ni credenciales) para identificar
+la tarea fallida. Esta sesión no tiene identidad AWS de operador. No reintentar
+la cohorte ni restablecer cuentas/evidencia para ocultar el fallo. El run terminó;
+no queda migración ni archive-drill activo. Main permanece en 3592c40.
 
 ## Próximos pasos obligatorios
 
-1. Exigir en ese candidato publish/prepare/migrate/staging, SHA/digest runtime,
-   TLS/callback, E1 browser/cloud/archive-drill y APK staging con bundle verificado.
-2. Exigir E2 y los nueve controles E3; después, lector WORM independiente hasta
-   el máximo minimum_sequence de ambos reportes. Un reporte de protocolo con
-   e3_accepted=false delimita esa dependencia y no equivale a aceptación global.
-3. Consultar disponibilidad mediante selector real, sin deducirla de intentos
-   omitidos. El pool previo tenía cuatro cohortes y algunas están consumidas.
-   Agotarse bloquea: operador repone según runbook E2, sin resetear historial.
-4. Solo tras esos gates, verificar las seis filas E3 de PLAN y cerrar este estado
-   con SHA/digest/runs/secuencias reales. PR #27 sigue borrador; su diff final
+1. Obtener el diagnóstico ECS solicitado y distinguir tarea privada/login/mutación
+   del ancla final. Si hace falta, consultar logs privados limitados; no publicar
+   variables de tareas, secretos ni errores con códigos OAuth.
+2. Corregir la causa demostrada y el diagnóstico insuficiente; probar localmente
+   y exigir PR/CI antes de main. Mantener sin cambios límites MFA/archivo/SQL y
+   no editar migraciones E2 aplicadas. Si el fallo es externo, documentar prueba.
+3. El pool fue consumido: preparar otro mediante operador según runbook E2, con
+   identidades nuevas, sin reset de canjes/eventos. Solicitar el comando concreto
+   cuando exista candidato main aprobado para repetir los gates.
+4. Exigir todos los gates del candidato: E1/APK, E2, nueve controles E3 y lector
+   independiente hasta máximo minimum_sequence. Reportes de protocolo con
+   e2_accepted/e3_accepted=false no equivalen por sí solos a aceptación global.
+5. Solo tras esos gates, cerrar las seis filas E3 de PLAN con SHA/digest/runs y
+   secuencias reales. PR #27 sigue borrador; su diff frente al main funcional
    será exclusivamente documentación permitida. Exigir calidad y filtro docs-only
-   antes de integrar, para no redeplegar ni consumir otra cohorte por el cierre.
+   antes de integrar para no consumir otra cohorte por el cierre documental.
 
 ## Reglas de continuidad y límites
 
