@@ -7,10 +7,10 @@ snapshots privados permanecen fuera del repositorio. No copiar secretos/reportes
 ## Estado vigente
 
 E0/E1/E2 están aceptadas con datos sintéticos según las referencias de PLAN.
-**E3 todavía no está aceptada.** Implementación integrada por PR #23–#26 y #28;
-base funcional actual `3592c40f830cb27b7ccd94b99b77ca6acdd653fb`.
-[CI 42757851196](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42757851196)
-aprobó 322 Python con PostgreSQL/roles reales, 24 móvil + 2 vendor JavaScript,
+**E3 todavía no está aceptada.** Implementación integrada por PR #23–#26, #28 y #29;
+base funcional actual `71ebf16a291deaf6f37da3a6786e93f3ddf9d166`.
+[CI 42767296241](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42767296241)
+aprobó 332 Python con PostgreSQL/roles reales, 24 móvil + 2 vendor JavaScript,
 diez navegador/recuperación/diagnóstico, tipos/lint/migraciones/Expo, auditorías,
 secretos, imagen y APK (cámara, sin micrófono, firma de desarrollo v2).
 
@@ -59,24 +59,44 @@ el pool actual está consumido. Un TaskFailedToStart/CannotPull anterior se
 reintentó una vez sin ejecución y luego devolvió 42; no explica por sí solo el
 fallo posterior de audit_anchor.
 
-El reporte no distingue entre el control privado original-principal, el login
-posterior y la mutación final. Se solicitó al operador una consulta ECS de solo
-lectura (tiempos/stopCode/exitCodes, sin variables ni credenciales) para identificar
-la tarea fallida. Esta sesión no tiene identidad AWS de operador. No reintentar
-la cohorte ni restablecer cuentas/evidencia para ocultar el fallo. El run terminó;
-no queda migración ni archive-drill activo. Main permanece en 3592c40.
+Las consultas de solo lectura del operador confirmaron las tareas técnicas
+principal/block/deactivate con exit 0; no se creó la tarea original-principal.
+El wrapper comenzó a las 05:35:56 UTC y falló a las 05:46:43. CloudTrail mostró
+un intercambio correcto a las 05:45:44, sin error de expiración acreditado en la
+consulta; no presentar esa hipótesis como prueba AWS concluyente.
+
+El wrapper antiguo entrega un mismo JWT GitHub a cada proceso SDK nuevo. Esa
+ruta exige intercambiar de nuevo un JWT de vida corta al final de un ensayo largo.
+Corrección integrada por PR #29 en 71ebf16: intercambiar una vez al iniciar por una
+sesión STS temporal de una hora (duración habitual, cubre jobs de hasta 45 min),
+con el mismo rol/trust/IAM; retirar JWT antes del hijo y propagar solo credenciales
+STS en memoria. No amplía sesiones/MFA de usuarios ni plazos SQL/archivo.
+Diez regresiones prueban los cuatro roles, SDKs nuevos sin archivo JWT, bloqueo de
+refs ajenas, errores/malformación sin ejecutar hijo y redacción de secretos.
+Las fases finales E2 ahora distinguen restauración, login y mutación del ancla.
+Verificación local aprobada: 332 Python, 26 JavaScript, diez navegador, tipos/lint,
+migraciones/Django y dependencias Expo. Las pruebas usan la BD aislada retenida,
+sin borrar la original. PR y main CI aprobaron.
+[CD 42768417415](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42768417415)
+está verificando el candidato nuevo; su aceptación AWS sigue pendiente.
+
+El operador confirmó la preparación de cuatro cohortes nuevas desde main 3592c40
+con CI aprobado, compatibles con releases posteriores. No queda acción CloudShell
+pendiente. No reutilizar la cohorte fallida ni resetear cuentas para reanudar.
+El run terminó; no queda migración ni archive-drill activo. Main sigue fijo en 71ebf16;
+PR #27 permanece borrador hasta aceptación final, después debe resolver estos docs.
 
 ## Próximos pasos obligatorios
 
-1. Obtener el diagnóstico ECS solicitado y distinguir tarea privada/login/mutación
-   del ancla final. Si hace falta, consultar logs privados limitados; no publicar
-   variables de tareas, secretos ni errores con códigos OAuth.
+1. Completar checks de la corrección de federación y sus diagnósticos; no afirmar
+   causa AWS confirmada ni aceptación por simulaciones. Si se repite, usar la fase
+   precisa y código saneado, nunca secretos ni errores con códigos OAuth.
 2. Corregir la causa demostrada y el diagnóstico insuficiente; probar localmente
    y exigir PR/CI antes de main. Mantener sin cambios límites MFA/archivo/SQL y
    no editar migraciones E2 aplicadas. Si el fallo es externo, documentar prueba.
 3. El pool fue consumido: preparar otro mediante operador según runbook E2, con
-   identidades nuevas, sin reset de canjes/eventos. Solicitar el comando concreto
-   cuando exista candidato main aprobado para repetir los gates.
+   identidades nuevas, sin reset de canjes/eventos. El operador confirmó cuatro
+   cohortes nuevas desde 3592c40 aprobado; comprobar selección en el siguiente gate.
 4. Exigir todos los gates del candidato: E1/APK, E2, nueve controles E3 y lector
    independiente hasta máximo minimum_sequence. Reportes de protocolo con
    e2_accepted/e3_accepted=false no equivalen por sí solos a aceptación global.

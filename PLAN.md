@@ -222,9 +222,9 @@ sintética integrada, verificador independiente, cierre documental. El control
 privado de fallo es acotado y exclusivo de fixtures E3; no borra evidencia.
 Operación y límites en [runbook E3](docs/runbooks/e3.md).
 
-**Candidato vigente:** `3592c40f830cb27b7ccd94b99b77ca6acdd653fb`, integrado por
-PR #23–#26 y #28. [CI 42757851196](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42757851196)
-aprobó 322 Python, 24 móvil + 2 vendor JavaScript, diez navegador/recuperación,
+**Candidato vigente:** `71ebf16a291deaf6f37da3a6786e93f3ddf9d166`, integrado por
+PR #23–#26, #28 y #29. [CI 42767296241](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42767296241)
+aprobó 332 Python, 24 móvil + 2 vendor JavaScript, diez navegador/recuperación,
 tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
 firma de desarrollo v2). PostgreSQL real cubre dos guardias, revocación ordenada,
 10 000 tokens inválidos y ocho expiraciones de sesión durante espera de locks.
@@ -235,7 +235,11 @@ aprobó migración/staging/digest/TLS, E1 browser/cloud/archive-drill y APK con
 bundle/origen/paquete/callback/permisos/firma verificados en 3592c40. E2 falló en
 su ancla de auditoría final tras seis grupos aprobados; E3 y WORM final no se
 ejecutaron. El pool de cuatro cohortes quedó consumido y requiere reposición sin
-reset. E3 no está aceptada. Diagnóstico y continuación concretos en
+reset. E3 no está aceptada. La corrección integrada cambia el intercambio JWT
+repetido por una sesión STS temporal reutilizada y precisa las fases del ancla;
+sin modificar IAM ni MFA/ventanas del dominio. El nuevo
+[CD 42768417415](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42768417415)
+verifica todos los gates de 71ebf16. Diagnóstico y continuación en
 [PROGRESS](PROGRESS.md); procedimiento de infraestructura en
 [deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
 
