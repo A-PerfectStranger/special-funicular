@@ -9,9 +9,9 @@ funciones ya disponibles. Contrato funcional:
 [requisitos](Requerimientos_retiro_seguro_estudiantes.md); reglas de desarrollo:
 [AGENTS.md](AGENTS.md); comandos: [README.md](README.md).
 
-E0, E1 y E2 están aceptadas con datos sintéticos. E3–E5 siguen pendientes: no hay
-retiros, avisos ni uso con datos reales habilitados. La configuración de
-[staging](infra/environments/staging.json) habilita E1/E2 y exige sus gates en CD;
+E0, E1, E2 y E3 están aceptadas con datos sintéticos. E4–E5 siguen pendientes;
+retiros, avisos y uso con datos reales continúan deshabilitados. La configuración de
+[staging](infra/environments/staging.json) habilita E1/E2/E3 y exige sus gates en CD;
 [producción](infra/environments/production.json) permanece sin configurar.
 El estado de un despliegue concreto se consulta por commit en
 [Actions](https://github.com/A-PerfectStranger/special-funicular/actions), no se
@@ -200,44 +200,70 @@ Actions; estos resultados no se heredan automáticamente a otra release.
 
 ### E3 — QR y retiro completo
 
-**Estado:** implementación en verificación; E3 no está aceptada todavía. Retiros
-reales deshabilitados; el candidato habilita solo ensayo sintético y exige su gate.
+**Estado:** aceptada en staging sintético. El artefacto funcional acreditado es
+`0a429bc17a6c608ac24dab1306699e5764ddbb58`; retiros y datos reales siguen bloqueados.
 
-- [ ] Acreditar QR CSPRNG de 256 bits, anticipación <=24 h, vigencia UTC/IANA, renovación sin extender fin y reprogramación atómica.
-- [ ] Acreditar escaneo por guardia de sede, foto autenticada y las tres comprobaciones físicas en móvil SDK 56.
-- [ ] Acreditar episodio estudiante/fecha local, consumo/decisión únicos, idempotencia, revocación y 50 confirmaciones concurrentes.
-- [ ] Acreditar recibo WORM oportuno <=5 s, habilitación 30 s, reloj confiable e incidencias durables sin reactivación tardía.
-- [ ] Acreditar reporte físico mediante evento nuevo, no entrega, respuesta perdida/reporte tardío y archivo del hecho pendiente sin borrado.
-- [ ] Completar CI, artefactos, ensayo E1/E2/E3/WORM real por SHA y documentación del resultado observado.
+- [x] Acreditar QR CSPRNG de 256 bits, anticipación <=24 h, vigencia UTC/IANA, renovación sin extender fin y reprogramación atómica.
+- [x] Acreditar escaneo por guardia de sede, foto autenticada y las tres comprobaciones físicas en móvil SDK 56.
+- [x] Acreditar episodio estudiante/fecha local, consumo/decisión únicos, idempotencia, revocación y 50 confirmaciones concurrentes.
+- [x] Acreditar recibo WORM oportuno <=5 s, habilitación 30 s, reloj confiable e incidencias durables sin reactivación tardía.
+- [x] Acreditar reporte físico mediante evento nuevo, no entrega, respuesta perdida/reporte tardío y archivo del hecho pendiente sin borrado.
+- [x] Completar CI, artefactos, ensayo E1/E2/E3/WORM real por SHA y documentación del resultado observado.
 
-**Criterios verificables:** RF07–10/15/19; CA-F07–10/F15/F19 y
-CA-S04–06/S08/S11–16/S22; AT03/05/07 y regresiones AB01/03–08/11/15/17/23/24.
-Cada fila anterior requiere verificación local y, cuando corresponde, staging
-real. Los mocks no acreditan servicios AWS ni prueba Android física.
+**Contrato:** RF07–10/15/19; CA-F07–10/F15/F19 y CA-S04–06/S08/S11–16/S22;
+AT03/05/07 y regresiones AB01/03–08/11/15/17/23/24. Implementación en Django
+modular, PostgreSQL con RLS/roles/funciones estrechas y migraciones aditivas,
+cliente Expo SDK 56 y contrato OpenAPI 0.4. Se conservan las migraciones E2
+aplicadas, cuentas, canjes y evidencia anteriores.
 
-**Ejecución:** (1) modelo/SQL y migraciones aditivas con RLS/roles existentes;
-(2) API/contrato y reloj/archivo; (3) QR/cámara/reporte/recuperación móvil;
-(4) regresiones PostgreSQL, tipos, seguridad y builds; (5) PR/checks y aceptación
-sintética integrada, verificador independiente, cierre documental. El control
-privado de fallo es acotado y exclusivo de fixtures E3; no borra evidencia.
-Operación y límites en [runbook E3](docs/runbooks/e3.md).
+**Aceptación acreditada:** PR #23–#26 y #28–#31 integradas; base funcional indicada arriba,
+[CI 42786554831](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42786554831)
+y [CD 42788128412](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42788128412).
+CI aprobó 335 Python con PostgreSQL/roles reales, 24 móvil + 2 vendor JavaScript,
+diez navegador/recuperación/diagnóstico, tipos/lint/migraciones/Expo, auditorías y
+secretos, imagen y APK. CD aprobó publicación, preparación, migración aislada,
+SHA/digest runtime/TLS/callback/nueve sondas, E1 browser/cloud/archive-drill y
+recuperación, APK staging, E2, nueve controles E3 y WORM independiente final.
 
-**Candidato vigente:** `bd8eca2b74356964e23fb41824830a80df72c2f5`, integrado por
-PR #23–#26 y #28–#30. [CI 42776069649](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42776069649)
-aprobó 333 Python, 24 móvil + 2 vendor JavaScript, diez navegador/recuperación,
-tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
-firma de desarrollo v2). PostgreSQL real cubre dos guardias, revocación ordenada,
-10 000 tokens inválidos y ocho expiraciones de sesión durante espera de locks.
+- Digest verificado de API/archivador:
+  `sha256:f10d670ee36c01d3f4413cf282e93864fc84f19059f5f28d903dab5b18eee4cb`.
+- APK staging SHA-256:
+  `ccc77c588e5d9428a638b00a93b8783991188a2746eb4061c60c8af2080c7079`.
+  Bundle/origen/paquete/callback, cámara presente, micrófono ausente y firma v2 de
+  desarrollo verificados; no acredita teléfono físico ni distribución productiva.
+- Cohorte de un solo uso: `ad86e8ec-928d-58e8-adf1-814badfd3e12`.
+  E2 exige secuencia 1219 y E3 exige 1335; el lector independiente verificó
+  1338 eventos hasta 1338, sin SQL ni comparación contra una copia SQL.
 
-El [CD 42777229650](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42777229650)
-aprobó en bd8eca2 staging/digest/TLS/callback, E1 completo, APK y E2 con ancla
-final. E3 aprobó denegación anticipada y foto autenticada/aislada; falló después
-en el recorrido de respuesta perdida con HTTP 503. WORM final no se ejecutó.
-El enlace HTTP del reporte físico tenía seis placeholders para cinco parámetros.
-Dos regresiones PostgreSQL/HTTP reprodujeron 503 y pasaron al corregir el enlace,
-sin tocar SQL, evidencia ni permisos. Corrección en verificación; E3 no está
-aceptada. El selector verificará las dos cohortes restantes del pool nuevo.
-Diagnóstico y continuación: [PROGRESS](PROGRESS.md); operación: [E3](docs/runbooks/e3.md).
+| Criterio | Verificación local/CI | Verificación AWS acreditada |
+| --- | --- | --- |
+| QR y tiempo | CSPRNG 32 bytes, solo hash, UTC/IANA, límites, replay sin secreto, renovación y reprogramación atómicas | Denegación anticipada sin datos/foto; renovación conserva fin, reprogramación invalida QR anterior y revocación previa deniega |
+| Guardia, foto y comprobaciones | Roles/sede/RLS, JPEG exacto/no-store por HTTP, SDK 56 y permisos nativos; tres booleanos explícitos | Solo guardia de sede obtiene datos/foto mínima; discrepancia física fija incidencia sin permiso |
+| Decisión única y revocación | 50 confirmaciones entre dos guardias, otras autorizaciones sin reapertura, carreras ordenadas y ocho expiraciones durante locks | 50 solicitudes concurrentes producen una decisión; pérdida de respuesta recupera UUID original; bloqueo posterior impide permiso sin reescribir decisión |
+| Archivo, reloj y permiso | Evento/outbox atómicos, reloj ausente/desviado/caducado, vencimiento y estados cerrados | WORM oportuno <=5 s permite 30 s; demora real acotada a 15 s fija timeout, archivo tardío nunca rehabilita y pantalla vencida no autoriza |
+| Hecho físico e idempotencia | HTTP completo entrega/no entrega, replay/conflictos, evento nuevo único, hecho pendiente conservado y protección posterior simulada explícita | Reporte idempotente protegido, no entrega y hecho tardío conservados, sin segundo retiro |
+| Integración y evidencia | Contratos/tipos, migraciones, seguridad, imagen/APK y regresiones completas por SHA | E1/E2/E3 y lector WORM independiente hasta 1338 >= 1335 en el mismo candidato |
+
+Los campos e2_accepted/e3_accepted=false de los reportes de protocolo delimitan
+su alcance parcial; la aceptación anterior requiere sus passed=true junto con
+CI, E1, artefactos y verificación independiente, todos aprobados. La concurrencia
+con dos guardias se acreditó en PostgreSQL local; AWS ensayó 50 solicitudes del
+mismo guardia, además de rechazos de otra sede/rol.
+
+**Límites:** solo sintéticos, WORM COMPLIANCE de siete días para ensayo y firma
+APK de desarrollo. pickup_enabled=false anterior permanece compatible; el
+endpoint E3 separado anuncia synthetic_only=true. Ningún health/capacidad concede
+entrega. E4 conserva avisos/consultas/correcciones; E5 conserva Android físico,
+cámara/retorno OIDC nativo, recuperación integral/epoch/carga/RTO, retención
+institucional, firma/distribución y producción. El job productivo de ese CD
+falló deliberadamente con BLOCKED/NOT_CONFIGURED; no presentar el pipeline
+productivo ni el MVP real como aprobados.
+
+Operación y repetición sin reset: [E3](docs/runbooks/e3.md), [E2](docs/runbooks/e2.md)
+y [deployment](docs/runbooks/deployment.md). Estado de continuación:
+[PROGRESS](PROGRESS.md). El cierre documental no cambia el artefacto aceptado;
+CI/CD verifica el diff exclusivamente documental antes de omitir builds/deploy,
+sin consumir otra cohorte. Releases posteriores se consultan por su propio SHA.
 
 ### E4 — Avisos y consulta escolar
 
