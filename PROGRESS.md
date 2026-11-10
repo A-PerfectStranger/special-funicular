@@ -116,3 +116,27 @@ verificado. No declarar E3 completa mientras esos gates falten. Scratch saneado
 en work/, ignorado; fuentes/estado en Git, reportes por SHA en Actions y anclas
 privadas fuera del repositorio. Esta sesión no tiene identidad AWS de operador;
 el escritorio no pudo inicializarse y la actualización depende del operador.
+
+
+## Verificación posterior del candidato 3a65293
+
+PR #26 quedó integrada y su CI 42750238114 aprobó 318 Python/26 JS/diez regresiones,
+imagen/APK. CD 42751425748 recreó y verificó la puerta stateless. El operador
+confirmó la sincronización limitada del callback; el reintento de staging aprobó
+con el origen `re-b70d4a26db5e4e5892df797d3fec4467.ecs.us-east-1.on.aws`, digest
+`sha256:776d30f68c4374d858db47fb2e3341fa323a8b30e525bb0b6404bfc83ccf3901` y
+E1/E2/E3 activadas solo para sintéticos. E1 browser aprobó; cloud/archive-drill
+continúan según Actions. E2/E3 aún no se acreditaron.
+
+El APK de staging compiló y pasó permisos nativos, pero el verificador del bundle
+seguía comparando contra la pista retirada de base_url y falló correctamente.
+Corrección en feat/e3-staging-apk-origin: el verificador exige el origen de release
+verificado, el mismo EXPO_PUBLIC_API_URL y su presencia en el bundle; conserva
+validación de paquete/callback. La entrada por módulo también tiene regresión.
+El ensayo E3 inicia sesiones interactivas nuevas después de esperar valid_from,
+incluida medianoche, sin ampliar ventanas MFA/idle ni cambiar la política servidor.
+
+No integrar esta corrección ni avanzar main durante archive-drill. Exigir CI/PR,
+main CI y todos los gates del nuevo candidato; no atribuirle resultados del 3a65293.
+El borrador documental docs/e3-status / PR #27 debe permanecer sin integrar hasta
+la aceptación final y reescribirse con los resultados reales. E3 NO está aceptada.
