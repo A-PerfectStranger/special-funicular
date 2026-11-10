@@ -222,26 +222,24 @@ sintética integrada, verificador independiente, cierre documental. El control
 privado de fallo es acotado y exclusivo de fixtures E3; no borra evidencia.
 Operación y límites en [runbook E3](docs/runbooks/e3.md).
 
-**Candidato vigente:** `71ebf16a291deaf6f37da3a6786e93f3ddf9d166`, integrado por
-PR #23–#26, #28 y #29. [CI 42767296241](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42767296241)
-aprobó 332 Python, 24 móvil + 2 vendor JavaScript, diez navegador/recuperación,
+**Candidato vigente:** `bd8eca2b74356964e23fb41824830a80df72c2f5`, integrado por
+PR #23–#26 y #28–#30. [CI 42776069649](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42776069649)
+aprobó 333 Python, 24 móvil + 2 vendor JavaScript, diez navegador/recuperación,
 tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
 firma de desarrollo v2). PostgreSQL real cubre dos guardias, revocación ordenada,
 10 000 tokens inválidos y ocho expiraciones de sesión durante espera de locks.
 
-El operador sincronizó el callback del gateway recuperado. El
-[CD 42758935625](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42758935625)
-aprobó migración/staging/digest/TLS, E1 browser/cloud/archive-drill y APK con
-bundle/origen/paquete/callback/permisos/firma verificados en 3592c40. E2 falló en
-su ancla de auditoría final tras seis grupos aprobados; E3 y WORM final no se
-ejecutaron. El pool de cuatro cohortes quedó consumido y requiere reposición sin
-reset. E3 no está aceptada. La corrección integrada cambia el intercambio JWT
-repetido por una sesión STS temporal reutilizada y precisa las fases del ancla;
-sin modificar IAM ni MFA/ventanas del dominio. El nuevo
-[CD 42768417415](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42768417415)
-verifica todos los gates de 71ebf16. Diagnóstico y continuación en
-[PROGRESS](PROGRESS.md); procedimiento de infraestructura en
-[deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
+El [CD 42768417415](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42768417415)
+aprobó en 71ebf16 migración/staging/digest/TLS/callback, E1 completo, APK staging
+y protocolo E2 con su ancla final. E3 falló en scope_resolution; WORM final no se
+ejecutó. La foto HTTP rechazaba LF insertados por PostgreSQL en su base64. Una
+regresión PostgreSQL/HTTP reprodujo 400 y pasó al eliminar solo esos LF, sin
+relajar validación ni permisos. PR #30 integrada; el nuevo
+[CD 42777229650](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42777229650)
+verifica todos los gates de bd8eca2. E3 no está aceptada todavía.
+El pool nuevo tiene una cohorte consumida y el selector verificará las restantes.
+Diagnóstico y siguientes pasos en [PROGRESS](PROGRESS.md); operación en
+[E3](docs/runbooks/e3.md) y [deployment](docs/runbooks/deployment.md).
 
 ### E4 — Avisos y consulta escolar
 

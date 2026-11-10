@@ -164,7 +164,10 @@ def photo(request: HttpRequest) -> HttpResponse:
     )
     if result.get("error"):
         return response(result)
-    return HttpResponse(base64.b64decode(result["photo"], validate=True), content_type="image/jpeg")
+    # PostgreSQL encode(bytea, 'base64') inserts LF every 76 characters. Remove
+    # only that documented formatting; retain strict validation of the payload.
+    encoded = result["photo"].replace("\n", "")
+    return HttpResponse(base64.b64decode(encoded, validate=True), content_type="image/jpeg")
 
 
 @csrf_exempt
