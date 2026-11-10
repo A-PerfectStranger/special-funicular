@@ -1,16 +1,17 @@
 """Fail a staging APK build if its actual bundle/native manifest has stale public config."""
 
 import argparse
-import json
 import os
 import zipfile
 from pathlib import Path
 
+from scripts.sync_staging_origin import release_origin
+
 
 def verify(path: Path) -> None:
-    origin = json.loads(Path("infra/environments/staging.json").read_text())["base_url"]
+    origin = release_origin()
     if os.environ.get("EXPO_PUBLIC_API_URL") != origin:
-        raise RuntimeError("Reviewed staging origin required")
+        raise RuntimeError("Verified release origin required")
     with zipfile.ZipFile(path) as apk:
         bundle = apk.read("assets/index.android.bundle")
         manifest = apk.read("AndroidManifest.xml")
