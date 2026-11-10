@@ -231,18 +231,17 @@ reales, incluida concurrencia de dos guardias, revocación ordenada, 10 000 toke
 inválidos y ocho rechazos de sesión vencida mientras espera locks. Migración desde
 base vacía aprobada.
 
-Implementación integrada por PR #23–#25 en `c31dbcc`; su
-[CI 42584549657](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42584549657)
-aprobó 304 Python/26 JS/diez navegador-diagnóstico, imagen/APK/firma. El
-[CD 42585734865](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42585734865)
-aprobó migración y bloqueó la discrepancia de callback; E1/E2/E3 no se acreditaron.
-La consulta del operador confirmó que la retirada programada ya eliminó Express.
-La recuperación debe crear una puerta stateless, sincronizar solo el callback
-existente del servicio/candidato observado y repetir los gates completos. El
-origen verificado debe acompañar los ensayos y el APK, evitando la pista retirada.
-Corrección en verificación local (41 pruebas pertinentes y tipos aprobados), aún
-sin aceptación AWS. Procedimiento en
-[deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
+Implementación integrada por PR #23–#26 en `3a65293`; su
+[CI 42750238114](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42750238114)
+aprobó 318 Python/26 JS/diez navegador-diagnóstico, imagen/APK/firma. El
+[CD 42751425748](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42751425748)
+aprobó migración y recreó una puerta stateless con digest/TLS/sondas verificados.
+E1/E2/E3 siguen apagadas, no inició otro archivador y el gate quedó bloqueado con
+GATEWAY_BOOTSTRAP_ONLY hasta sincronizar el callback existente. El operador ya
+recibió el comando del SHA main aprobado; no hay sincronización acreditada aún.
+Después se debe reintentar staging del mismo SHA y exigir E1/E2/E3/WORM completos.
+Mantener main fijo; este estado está en borrador documental hasta la aceptación.
+Procedimiento en [deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
 Ninguna casilla se cierra por existencia de código o solo por salud del despliegue.
 
 ### E4 — Avisos y consulta escolar

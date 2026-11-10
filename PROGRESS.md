@@ -66,53 +66,71 @@ Scratch y reportes saneados en work/, ignorados. Git conserva fuentes/estado,
 Actions los checks y la custodia privada las anclas y versiones WORM.
 
 
-## Trabajo E3 vigente
+## Continuación E3 vigente
 
-PR #23–#25 integradas; main funcional `c31dbcc4b933bf633354ad492164f0f10c1fbdd1`.
-[CI 42584549657](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42584549657)
-aprobó 304 Python, 24 móvil + 2 vendor JS, diez navegador/recuperación/diagnóstico,
-tipos/lint/migraciones/Expo, seguridad, imagen y APK con cámara, sin micrófono,
-firma de desarrollo v2. Migración limpia y ocho expiraciones de sesión durante
-locks verificadas. No ejecutar refresh SQL antiguos de work/.
+**E3 NO está aceptada.** Este estado documental se conserva en un borrador;
+no integrarlo ni avanzar main hasta concluir la aceptación del candidato funcional.
+La base integrada por PR #23–#26 es `3a65293b3e59956cb7f48cd64802d17a64995b93`.
+[CI 42750238114](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42750238114)
+aprobó 318 Python, 24 móvil + 2 vendor JS, diez navegador/recuperación/diagnóstico,
+tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
+firma de desarrollo v2). `make check` y las diez regresiones también pasaron
+localmente en la misma fuente. No ejecutar refresh SQL antiguos de work/.
 
-E3 implementa episodio estudiante/fecha local, QR/hash/versiones, decisión/outbox,
+E3 incluye episodio estudiante/fecha local, QR/hash/versiones, decisión/outbox,
 recibo/sweep, reloj S3, reporte físico vinculado y SDK 56. Producción/uso real
 continúan bloqueados. El ensayo E2/E3 comparte una cohorte de un solo uso y añade
-ocho estudiantes sintéticos independientes. E3 NO está aceptada: no atribuir a
-mocks, builds o salud un resultado de Cognito/KMS/WORM o Android físico.
+ocho estudiantes sintéticos. Los builds no acreditan cámara física ni AWS.
 
-[CD 42578747692](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42578747692)
-del b423949 aprobó staging/digest/TLS, WORM cloud y APK. E1 browser usó un hostname
-retirado y falló antes del proveedor; E2/E3 no corrieron. La sonda
-[42581925936](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42581925936)
-aisló DNS y [42582862978](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42582862978)
-llegó al formulario IdP con el hostname activo, sin credenciales ni login.
-[CD 42585734865](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42585734865)
-del c31dbcc aprobó publish/prepare/migrate y bloqueó la discrepancia de callback.
-Estos intentos no consumieron una cohorte E2. No contar su disponibilidad por
-suposición; el selector real debe verificarla sin resetear historial.
+## Infraestructura comprobada y bloqueo actual
 
-El operador intentó sincronizar; el mensaje genérico ocultó el motivo. Sus dos
-consultas de solo lectura confirmaron servicio `ResourceNotFoundException`
-y stack E1 UPDATE_COMPLETE con el origen anterior `re-dc7939bf752047ff8947f600b81bc157`.
-La retirada acotada eliminó la puerta; no hay sincronización de callback acreditada.
-No reejecutar `commission_e1`, restaurar cuentas ni pedir contraseñas/TOTP/códigos.
+El operador confirmó que la retirada programada eliminó el gateway anterior:
+DescribeExpressGatewayService devolvió ResourceNotFoundException. El stack E1
+conservaba el callback del host retirado. La recuperación de PR #26 distingue
+esta ausencia de una denegación, evita la dependencia circular y muestra motivos
+fijos/códigos AWS saneados en lugar del error genérico.
 
-Corrección en `feat/e3-origin-recovery`: reconocer ausencia específica, recuperar
-una puerta stateless sin E1/E2/E3, dejar el gate bloqueado y conservar evidencia;
-operador sincroniza solo WebClient.CallbackURLs del servicio/candidato observado,
-con change set estrecho sin reemplazo y outputs persistentes iguales. Después
-reintentar staging del mismo SHA. Los ensayos y APK reciben el origen verificado
-por CD; `base_url` queda como pista de arranque. Diagnósticos con categorías fijas.
-Pruebas pertinentes locales: 41 Python aprobadas y tipos completos; suite global,
-PR/CI/main e infraestructura real de esta corrección aún en verificación.
+[CD 42751425748](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42751425748)
+aprobó publish/prepare/migrate y recreó realmente la puerta stateless. El reporte
+staging-deployment del SHA funcional comprobó digest runtime, TLS y ocho sondas;
+E1/E2/E3 están false, archive_task null, origin_sync_required true y passed false.
+El job staging `129617817768` falló deliberadamente con GATEWAY_BOOTSTRAP_ONLY
+antes de E1/E2/E3. No confundir este resultado técnico con aceptación funcional.
 
-Siguiente paso: completar checks/PR, integrar y observar bootstrap real; dar al
-operador el SHA main aprobado para el comando acotado del runbook deployment.
-Verificar su actualización real y reintentar staging sin avanzar main; exigir
-E1 browser/cloud/archive-drill/APK, E2/E3 y WORM independiente. Solo después
-cerrar los seis criterios de PLAN y el estado documental, mediante diff solo docs
-verificado. No declarar E3 completa mientras esos gates falten. Scratch saneado
-en work/, ignorado; fuentes/estado en Git, reportes por SHA en Actions y anclas
-privadas fuera del repositorio. Esta sesión no tiene identidad AWS de operador;
-el escritorio no pudo inicializarse y la actualización depende del operador.
+- Origen observado: `https://re-b70d4a26db5e4e5892df797d3fec4467.ecs.us-east-1.on.aws`.
+- Digest del candidato: `sha256:776d30f68c4374d858db47fb2e3341fa323a8b30e525bb0b6404bfc83ccf3901`.
+- La ventana de retirada sigue acotada. No borrar cuentas, base, eventos ni WORM.
+- `base_url` es una pista; ensayos y APK reciben el origen verificado mediante
+  STAGING_RELEASE_ORIGIN. No editar el hostname por cada recreación.
+
+El operador recibió el comando del checkout limpio main aprobado para ejecutar
+`python3 -m scripts.sync_staging_origin --sha 3a65293b3e59956cb7f48cd64802d17a64995b93`.
+La salida de sincronización todavía está pendiente; no afirmar que AWS fue
+actualizado. El helper obtiene el hostname del servicio revisado, comprueba task
+SHA y tag ECR inmutable y solo ejecuta un change set de WebClient.CallbackURLs
+sin reemplazo, conservando otros parámetros/outputs. No accede al vault ni
+provisiona identidades, SQL, IAM, claves o retención. No repetir commission_e1 ni
+pedir contraseñas/TOTP/códigos. Procedimiento completo en runbook deployment.
+Esta sesión carece de identidad AWS de operador; el escritorio no inicializó y
+la acción debe realizarse desde CloudShell del operador.
+
+## Pasos necesarios para cerrar E3
+
+1. Obtener salida verificable del helper. Si bloquea, usar su categoría saneada y
+   consultas privadas mínimas; no reintentar a ciegas ni modificar evidencia.
+2. Reejecutar solo staging `129617817768` del CD anterior, con main todavía en
+   `3a65293`. No repetir publish/migrate aprobados ni introducir otro SHA.
+3. Exigir staging digest/TLS/callback, E1 browser/cloud/archive-drill/APK y
+   E2/E3/lector WORM independiente hasta la secuencia final. Esas pruebas de
+   puerta AWS aún no se ejecutaron; no cerrar casillas por existencia de código.
+4. Verificar cohorte disponible con el selector real. Los CD fallidos previos no
+   consumieron E2; no deducir disponibilidad de esa afirmación. Si el pool se
+   agotó, operador prepara otro según E2, sin resetear canjes ni identidades.
+5. Solo tras todos los gates, revisar los seis criterios de PLAN y convertir este
+   borrador en cierre documental con SHA/digest/runs/secuencias reales. Exigir
+   calidad y filtro docs-only verificable para evitar otro despliegue/cohorte.
+
+E4 mantiene avisos/correcciones; E5, Android físico, recuperación integral, carga,
+retención institucional/firma/distribución y producción. Scratch saneado en work/,
+ignorado; fuentes/estado en Git, reportes por SHA en Actions y anclas privadas
+fuera del repositorio. No publicar QR, credenciales, fotos o copias privadas WORM.
