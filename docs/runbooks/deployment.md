@@ -8,6 +8,15 @@ Estado y aceptación: [PLAN.md](../../PLAN.md). Parámetros del destino:
 presupuesto y lifecycle: [AWS](../../infra/aws/README.md). Ensayos de identidad y
 archivo: [E1](e1.md). No se requieren claves AWS permanentes para CD.
 
+`scripts/aws_oidc.py` verifica repositorio/main y canjea una vez el JWT GitHub
+por credenciales STS temporales del rol solicitado. La sesión de una hora cubre
+los jobs acotados a un máximo de 45 minutos; los procesos CLI/SDK hijos reutilizan
+esa sesión y no intentan canjear el JWT inicial cuando ya venció. Se eliminan
+credenciales/perfiles heredados y el archivo JWT antes de iniciar el hijo; los
+secretos STS permanecen solo en memoria/entorno del proceso, sin logs ni artefactos.
+Esto conserva trust/IAM y los límites MFA/sesión del dominio. Un intercambio
+fallido bloquea el comando, sin recurrir a otra identidad.
+
 ## Publicación rutinaria
 
 1. Abrir PR y completar required: calidad, imagen inmutable y APK. main exige PR/check.

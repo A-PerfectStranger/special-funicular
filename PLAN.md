@@ -222,28 +222,24 @@ sintética integrada, verificador independiente, cierre documental. El control
 privado de fallo es acotado y exclusivo de fixtures E3; no borra evidencia.
 Operación y límites en [runbook E3](docs/runbooks/e3.md).
 
-**Verificación del candidato integrado `ab2d8fb`:**
-[CI 42573282125](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42573282125)
-aprobado: 289 Python, 24 móvil + 2 vendor JavaScript, siete navegador/recuperación,
+**Candidato vigente:** `3592c40f830cb27b7ccd94b99b77ca6acdd653fb`, integrado por
+PR #23–#26 y #28. [CI 42757851196](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42757851196)
+aprobó 322 Python, 24 móvil + 2 vendor JavaScript, diez navegador/recuperación,
 tipos/lint/migraciones/Expo, seguridad, imagen y APK (cámara, sin micrófono,
-firma de desarrollo v2). Las 35 pruebas nuevas de dominio usan PostgreSQL/roles
-reales, incluida concurrencia de dos guardias, revocación ordenada, 10 000 tokens
-inválidos y ocho rechazos de sesión vencida mientras espera locks. Migración desde
-base vacía aprobada.
+firma de desarrollo v2). PostgreSQL real cubre dos guardias, revocación ordenada,
+10 000 tokens inválidos y ocho expiraciones de sesión durante espera de locks.
 
-Implementación integrada por PR #23–#25 en `c31dbcc`; su
-[CI 42584549657](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42584549657)
-aprobó 304 Python/26 JS/diez navegador-diagnóstico, imagen/APK/firma. El
-[CD 42585734865](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42585734865)
-aprobó migración y bloqueó la discrepancia de callback; E1/E2/E3 no se acreditaron.
-La consulta del operador confirmó que la retirada programada ya eliminó Express.
-La recuperación debe crear una puerta stateless, sincronizar solo el callback
-existente del servicio/candidato observado y repetir los gates completos. El
-origen verificado debe acompañar los ensayos y el APK, evitando la pista retirada.
-Corrección en verificación local (41 pruebas pertinentes y tipos aprobados), aún
-sin aceptación AWS. Procedimiento en
+El operador sincronizó el callback del gateway recuperado. El
+[CD 42758935625](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42758935625)
+aprobó migración/staging/digest/TLS, E1 browser/cloud/archive-drill y APK con
+bundle/origen/paquete/callback/permisos/firma verificados en 3592c40. E2 falló en
+su ancla de auditoría final tras seis grupos aprobados; E3 y WORM final no se
+ejecutaron. El pool de cuatro cohortes quedó consumido y requiere reposición sin
+reset. E3 no está aceptada. La corrección en verificación cambia el intercambio JWT
+repetido por una sesión STS temporal reutilizada y precisa las fases del ancla;
+sin modificar IAM ni MFA/ventanas del dominio. Diagnóstico y continuación en
+[PROGRESS](PROGRESS.md); procedimiento de infraestructura en
 [deployment](docs/runbooks/deployment.md#origen-express-y-callback-existente).
-Ninguna casilla se cierra por existencia de código o solo por salud del despliegue.
 
 ### E4 — Avisos y consulta escolar
 

@@ -116,8 +116,10 @@ try {
   step = 'technical_deactivation'; await control('deactivate');
   await denied(() => s.check()); await denied(() => s.login());
   checks.push('technical_deactivation_denies_existing_and_new_sessions');
-  step = 'audit_anchor'; await control('original-principal');
+  step = 'audit_restore_principal'; await control('original-principal');
+  step = 'audit_primary_login';
   assert(await p.login() === 'PADRE');
+  step = 'audit_anchor_mutation';
   await mutate(p, '/v1/caregivers', body);
   passed = true;
 } catch (error) { passed = false; failure = safeFailure(error); }
