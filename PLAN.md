@@ -73,7 +73,7 @@ CA-S02/11/12/14/18/21/22/23; AT02/05/07; AB02/10/12/14/16/23.
 | Correcciones | Comando importer privado, aprobación/motivo/operador, evento vinculado, replay/conflicto; conserva bytes, estado original y token consumido. | Corrección y ancla WORM independientes del candidato en staging. |
 | Integración | Migraciones aditivas, contratos/tipos, worker aislado, definición de tarea y plantilla IAM/alarma. | Comisionar recursos, habilitar bandera revisada y completar gate integrado E4 antes de declararla aceptada. |
 
-Verificación local del candidato: 386 pruebas Python con PostgreSQL y roles reales,
+Verificación local del candidato: 415 pruebas Python con PostgreSQL y roles reales,
 27 JavaScript, diez pruebas Chromium/recuperación/diagnóstico, portal escolar en
 Chromium, tipos/lint, bundle Android, migraciones desde cero y auditorías de
 paquetes. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
@@ -83,9 +83,11 @@ nuevo SHA requieren sus propios resultados.
 La preparación operativa incluye SNS al correo del presupuesto autorizado y
 custodia S3 privada del APK mediante OIDC limitado a artefactos, con publicación
 condicional, lectura/checksum y descarga autenticada. Falta aplicar el stack,
-confirmar la suscripción y verificar publicación/descarga reales. El inventario
-AWS del operador confirma presupuesto/créditos y access token vigente; aún no
-hay tópico SNS, bucket interno ni allowlist de dispositivos. Android disponible:
+confirmar la suscripción y verificar publicación/descarga reales. La comisión
+está en `ROLLBACK_COMPLETE`: SNS rechazó `sns:*`; el candidato corregido usa
+acciones explícitas y recuperación que conserva la clave retenida. El inventario
+AWS confirma presupuesto/créditos y access token vigente; los recursos SNS se
+revirtieron, el bucket no tiene identificador físico y falta la allowlist. Android disponible:
 versión 13. Registrar el equipo antes de comisionar el notificador.
 
 Orden: cerrar persistencia/permisos → transporte/worker/vistas → regresiones y

@@ -85,6 +85,10 @@ expiran después de un día. No es la retención institucional. Bucket y clave s
 retienen al eliminar el stack; su retirada requiere comprobar referencias y
 costes. El preflight de comisión incluye la reserva incremental de USD 5 y la
 base retenida de USD 27; no acredita el presupuesto de producción.
+Una recuperación de comisión puede reutilizar la clave retenida mediante
+`ExistingOperationsKeyArn`, bajo custodia del operador y con política/identidad
+validadas. El stack conserva su ARN como salida; las actualizaciones mantienen
+esa referencia. Procedimiento y límites de recuperación: [E4](../../docs/runbooks/e4.md).
 
 ## Bootstrap con operador CloudShell
 

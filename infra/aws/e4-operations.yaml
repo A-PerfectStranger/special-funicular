@@ -1,13 +1,21 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Private staging APK distribution and the confirmed technical alert channel. No school activation.
 Parameters:
+  ExistingOperationsKeyArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '(|arn:aws:kms:us-east-1:028364485203:key/[0-9a-f-]{36})'
+    Description: Explicit retained operations key after rollback; remains in operator custody.
   AlertEmail:
     Type: String
     NoEcho: true
     AllowedPattern: '[^\s@]+@[^\s@]+\.[^\s@]+'
+Conditions:
+  CreateOperationsKey: !Equals [!Ref ExistingOperationsKeyArn, '']
 Resources:
   OperationsKey:
     Type: AWS::KMS::Key
+    Condition: CreateOperationsKey
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
@@ -51,7 +59,9 @@ Resources:
       VersioningConfiguration: {Status: Enabled}
       BucketEncryption:
         ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault: {SSEAlgorithm: 'aws:kms', KMSMasterKeyID: !GetAtt OperationsKey.Arn}
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !If [CreateOperationsKey, !GetAtt OperationsKey.Arn, !Ref ExistingOperationsKeyArn]
             BucketKeyEnabled: true
       LifecycleConfiguration:
         Rules:
@@ -99,7 +109,7 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: retiro-staging-operations-alerts
-      KmsMasterKeyId: !GetAtt OperationsKey.Arn
+      KmsMasterKeyId: !If [CreateOperationsKey, !GetAtt OperationsKey.Arn, !Ref ExistingOperationsKeyArn]
       Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: staging}]
   AlertSubscription:
     Type: AWS::SNS::Subscription
@@ -117,7 +127,8 @@ Resources:
           - Sid: AccountOwner
             Effect: Allow
             Principal: {AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'}
-            Action: 'sns:*'
+            # SNS topic policies accept explicit topic actions, not sns:*.
+            Action: [sns:GetTopicAttributes, sns:SetTopicAttributes, sns:AddPermission, sns:RemovePermission, sns:DeleteTopic, sns:Subscribe, sns:ListSubscriptionsByTopic, sns:Publish]
             Resource: !Ref AlertTopic
           - Sid: OnlyProjectCloudWatchAlarms
             Effect: Allow
@@ -157,10 +168,11 @@ Resources:
                 Resource: !Sub '${MobileBucket.Arn}/staging/*'
               - Effect: Allow
                 Action: [kms:GenerateDataKey, kms:Decrypt]
-                Resource: !GetAtt OperationsKey.Arn
+                Resource: !If [CreateOperationsKey, !GetAtt OperationsKey.Arn, !Ref ExistingOperationsKeyArn]
                 Condition: {StringEquals: {kms:ViaService: !Sub 's3.${AWS::Region}.amazonaws.com'}}
 Outputs:
   MobileBucket: {Value: !Ref MobileBucket}
-  MobileEncryptionKeyArn: {Value: !GetAtt OperationsKey.Arn}
+  MobileEncryptionKeyArn:
+    Value: !If [CreateOperationsKey, !GetAtt OperationsKey.Arn, !Ref ExistingOperationsKeyArn]
   MobilePublisherArn: {Value: !GetAtt MobilePublisher.Arn}
   OperatorAlertTopicArn: {Value: !Ref AlertTopic}

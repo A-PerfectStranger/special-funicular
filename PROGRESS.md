@@ -14,12 +14,12 @@ Migraciones nuevas: pickup 0008–0009 y notification_worker 0001–0004; no mod
 migraciones E1/E2/E3 ya desplegadas. `e4_enabled=false` en staging; los controles
 productivos siguen bloqueando identidad/retiros/archivo sin comisión E5.
 
-Verificación local: 386 Python con PostgreSQL real, 27 JavaScript, diez navegador,
+Verificación local: 415 Python con PostgreSQL real, 27 JavaScript, diez navegador,
 portal Chromium, tipos/lint/bundle/migraciones y auditorías de dependencias. Los
 adaptadores/recibos de estas pruebas son simulados. Consultar CI del nuevo commit;
 no atribuirle los resultados de E3 ni afirmar imagen/APK/AWS aprobados sin sus jobs.
 Chromium usa `scripts/install_ci_chromium.sh`, con descarga fijada y arranque/
-interacción obligatorios sin APT. El candidato base `a830355` pasó ambos CI,
+interacción obligatorios sin APT. El candidato base `2d7d2ef` pasó ambos CI,
 incluidos quality, imagen y APK. Los cambios posteriores de preparación operativa
 requieren sus propios checks por SHA. Los runners Ubuntu 24.04 ya incluyen Skopeo;
 su presencia se exige antes de federar, sin reinstalarlo mediante APT.
@@ -30,8 +30,19 @@ Preparación operativa implementada: `e4-operations.yaml`,
 `commission_e4_operations.py` y `private_mobile.py`. Stack separado para SNS,
 clave y APK interno con OIDC MobilePublisher. Publicación condicional con lectura
 posterior, descarga AWS autenticada y checksum independiente de Actions; sin APK público ni enlace
-prefirmado. **No se ha aplicado ni verificado en AWS.** Comisionarlo antes de
+prefirmado. **Comisión AWS bloqueada por rollback de SNS.** Recuperarla antes de
 integrar para que CD pueda entregar el APK configurado de staging.
+
+CloudFormation `retiro-staging-operations`: `ROLLBACK_COMPLETE`. SNS rechazó
+`sns:*` en la política del tópico; el candidato corregido usa acciones admitidas
+explícitas y diagnóstico JSON por etapa/código. El inventario del operador
+confirma la clave `7f98c09f-49db-48f2-b2bd-72463fd7fbbe` en `DELETE_SKIPPED`,
+bucket sin identificador físico y recursos SNS eliminados. No asumir ausencia
+física del bucket: el modo de recuperación la verifica antes de cualquier cambio.
+Recuperar con `--recover-retained-key-id` y ese UUID. Se conserva la clave en
+custodia del operador mediante `ExistingOperationsKeyArn`; solo se retira el
+registro completamente revertido. La recuperación y la nueva suscripción aún
+requieren verificación AWS; no declarar stack comisionado ni E4/E5 aceptadas.
 
 ## Decisiones y configuración externa
 
@@ -58,7 +69,8 @@ integrar para que CD pueda entregar el APK configurado de staging.
 
 1. Verificar los checks del nuevo SHA. El responsable autorizó expresamente usar
    el mismo correo del presupuesto para SNS. Desde CloudShell ejecutar
-   `commission_e4_operations --expected-sha SHA --use-budget-alert-email`,
+   `commission_e4_operations --expected-sha SHA --use-budget-alert-email`
+   con el modo de recuperación y UUID retenido descritos arriba,
    aceptar el correo de confirmación y revisar su JSON sin publicar la dirección.
 2. Con el stack listo y checks aprobados, integrar y verificar CD por SHA.
    Descargar el APK con `private_mobile download`, transferirlo de forma privada
