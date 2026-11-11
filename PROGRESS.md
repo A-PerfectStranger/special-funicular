@@ -18,6 +18,12 @@ Verificación local: 357 Python con PostgreSQL real, 27 JavaScript, diez navegad
 portal Chromium, tipos/lint/bundle/migraciones y auditorías de dependencias. Los
 adaptadores/recibos de estas pruebas son simulados. Consultar CI del nuevo commit;
 no atribuirle los resultados de E3 ni afirmar imagen/APK/AWS aprobados sin sus jobs.
+La preparación de Chromium es compartida por CI y ensayos de staging mediante
+`scripts/install_ci_chromium.sh`: repositorios oficiales Ubuntu HTTPS, claves
+APT conservadas y errores/reintentos de red acotados. Configuración y propagación
+de fallos verificadas en Ubuntu 24.04; diez pruebas Chromium y 16 de infraestructura
+aprobadas localmente. La descarga completa de dependencias debe acreditarse en
+Actions: el proxy del entorno local rechazó esos repositorios con HTTP 403.
 
 ## Decisiones y configuración externa
 
@@ -29,8 +35,10 @@ no atribuirle los resultados de E3 ni afirmar imagen/APK/AWS aprobados sin sus j
   Firma staging de desarrollo; no usarla como firma productiva.
 - El responsable confirmó el identificador Android y FCM v1 con la cuenta
   `retiro-push` en Expo, y guardó `STAGING_GOOGLE_SERVICES_JSON` en GitHub. La carga
-  se verificará en el build/ensayo real. Por verificar e incorporar a las tareas: enhanced push security/secret de servidor,
-  allowlist del equipo y aviso/recibo en dispositivo.
+  se verificará en el build/ensayo real. También confirmó enhanced push security
+  y el secreto `retiro-staging/e4/ExpoAccessToken` en Secrets Manager. Falta
+  verificar su inyección/funcionamiento, la allowlist del equipo y el aviso/recibo
+  en dispositivo.
 - Android físico disponible; objetivo: preparar activación escolar. Continuar paso
   a paso con el responsable, sin sustituir la prueba física por unitarias.
 - Retención inicial delegada: política seleccionada en retention.json; aplicación,

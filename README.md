@@ -70,7 +70,10 @@ detiene la base sin borrar su volumen; no usar `down -v` sobre datos que se deba
 
 Para la regresión de navegador: `npx playwright install chromium` (dependencias
 Linux con `--with-deps`), o `E1_CHROMIUM_PATH=/ruta/a/chromium` con un navegador
-local. CI instala el navegador oficial y ejecuta la misma prueba sin credenciales.
+local. En sus runners Ubuntu 24.04, CI usa `bash scripts/install_ci_chromium.sh`:
+instala Chromium y todas sus dependencias desde repositorios oficiales HTTPS,
+con reintentos acotados y error ante índices APT incompletos. Después ejecuta la
+misma prueba sin credenciales; un fallo de instalación o navegador bloquea el job.
 
 `make security` crea `work/` para sus archivos temporales. Instalar gitleaks
 desde su release oficial y comprobar el checksum publicado; CI contiene los comandos.
