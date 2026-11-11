@@ -66,7 +66,7 @@ jobs:
       - run: make install db check
       - name: Regression for the real Chromium native-scheme callback boundary
         run: |
-          npx playwright install --with-deps chromium
+          bash scripts/install_ci_chromium.sh
           node --test tests/staging/native-callback.test.mjs tests/staging/recovery.test.mjs tests/staging/diagnostics.test.mjs
       - run: npm run mobile:export
       - name: Audit locked Python and npm dependencies

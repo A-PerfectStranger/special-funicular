@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "selection_basis": "project_owner_delegated_initial_policy",
+  "evidence_and_signed_manifests_days": 90,
+  "school_access_and_sensitive_read_events_days": 90,
+  "operational_school_data_days_after_verified_deactivation": 30,
+  "caregiver_photos_days_after_last_authorization_ends": 7,
+  "notification_attempts_and_receipts_days": 90,
+  "inactive_push_endpoints_days": 30,
+  "expired_identity_sessions_and_invitation_hashes_days": 30,
+  "invitation_validity_hours": 24,
+  "encrypted_backup_days": 7,
+  "minimum_key_custody_days_after_last_protected_write": 97,
+  "manual_evidence_purge_allowed": false,
+  "active_references_or_incident_hold_override_deletion": true
+}

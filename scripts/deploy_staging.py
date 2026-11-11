@@ -12,7 +12,8 @@ from typing import Any
 
 from scripts.aws_cli import aws
 from scripts.commission_staging import arm_expiry, register, runtime_digests, task_definition
-from scripts.e1_release import api_definition, archive_definition, start_archive
+from scripts.e1_release import api_definition, archive_definition, start_archive, start_worker
+from scripts.e4_release import notification_definition
 from scripts.isolated_task import run_isolated_task
 from scripts.sync_staging_origin import gateway_origin
 from scripts.task_diagnostics import task_outcome
@@ -183,6 +184,9 @@ def main() -> int:
     )
     e2_enabled = args.e2_trial or args.e3_trial or environment.get("e2_enabled") is True
     e3_enabled = args.e3_trial or environment.get("e3_enabled") is True
+    e4_enabled = environment.get("e4_enabled") is True
+    if e4_enabled and not e3_enabled:
+        raise RuntimeError("BLOCKED: E4 requires E3")
     if e2_enabled and not e1_enabled:
         raise RuntimeError("BLOCKED: E2 requires the E1 identity and archive gate")
     outputs = {
@@ -211,6 +215,7 @@ def main() -> int:
         return 0
     expected = runtime_digests(args.digest)
     archive_task = None
+    notification_task = None
     effective_e1 = False
     e1: dict[str, str] = {}
     if e1_enabled:
@@ -225,11 +230,30 @@ def main() -> int:
             e1["WebRedirect"] == gateway_origin(existing) + "/auth/callback"
         )
     if effective_e1:
+        if e4_enabled:
+            e4 = {
+                v["OutputKey"]: v["OutputValue"]
+                for v in aws(
+                    "cloudformation", "describe-stacks", "--stack-name", "retiro-staging-e4"
+                )["Stacks"][0]["Outputs"]
+            }
+            e1.update(e4)
         api = api_definition(
-            outputs, e1, image, args.sha, enable_family=e2_enabled, enable_pickup=e3_enabled
+            outputs,
+            e1,
+            image,
+            args.sha,
+            enable_family=e2_enabled,
+            enable_pickup=e3_enabled,
+            enable_operations=e4_enabled,
         )
         archive = register(archive_definition(outputs, e1, image, args.sha))
         archive_task = start_archive(outputs, archive, expected)
+        if e4_enabled:
+            notifications = register(notification_definition(outputs, e1, image, args.sha))
+            notification_task = start_worker(
+                outputs, notifications, expected, "retiro-staging-notifications"
+            )
     else:
         # A recreated gateway must exist before its owned hostname can be bound.
         # The bootstrap exposes health only; it never enables identity or pickup.
@@ -290,6 +314,8 @@ def main() -> int:
         "e1_identity_enabled": effective_e1,
         "e2_family_enabled": effective_e1 and e2_enabled,
         "e3_pickup_enabled": effective_e1 and e3_enabled,
+        "e4_operations_enabled": effective_e1 and e4_enabled,
+        "notification_task": notification_task,
         "origin_sync_required": e1_enabled and not passed and not effective_e1,
         "archive_task": archive_task,
         "e1_accepted": False,

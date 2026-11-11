@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with: {node-version-file: .node-version}
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: bash scripts/install_ci_chromium.sh
       - run: python3 -m pip install --target work/e1-sdk --require-hashes -r infra/aws/e1-ops.txt
       - name: Real E2 activation, family permissions and private revocations
         env:

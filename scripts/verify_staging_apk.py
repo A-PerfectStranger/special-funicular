@@ -1,10 +1,13 @@
 """Fail a staging APK build if its actual bundle/native manifest has stale public config."""
 
 import argparse
+import json
 import os
+import subprocess
 import zipfile
 from pathlib import Path
 
+from scripts.mobile_push_config import validate as validate_firebase
 from scripts.sync_staging_origin import release_origin
 
 
@@ -26,6 +29,27 @@ def verify(path: Path) -> None:
     for value in ["org.retiroseguro.staging", "retiro-seguro-staging"]:
         if value.encode() not in manifest and value.encode("utf-16-le") not in manifest:
             raise RuntimeError("Staging native package/scheme missing")
+    firebase = os.environ.get("ANDROID_GOOGLE_SERVICES_FILE")
+    if firebase:
+        data = json.loads(Path(firebase).read_text())
+        validate_firebase(data, "org.retiroseguro.staging")
+        client = next(
+            value
+            for value in data["client"]
+            if value["client_info"]["android_client_info"]["package_name"]
+            == "org.retiroseguro.staging"
+        )
+        resources = subprocess.check_output(
+            [
+                str(Path(os.environ["ANDROID_HOME"]) / "build-tools/36.0.0/aapt2"),
+                "dump",
+                "resources",
+                str(path),
+            ],
+            text=True,
+        )
+        if client["client_info"]["mobilesdk_app_id"] not in resources:
+            raise RuntimeError("Actual APK is missing the registered Firebase Android app")
 
 
 if __name__ == "__main__":

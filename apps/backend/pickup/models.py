@@ -75,3 +75,16 @@ class TrialHold(models.Model):
         "school_roster.Student", primary_key=True, on_delete=models.PROTECT
     )
     until = models.DateTimeField()
+
+
+class Correction(models.Model):
+    """Append-only interpretation; never a new handover permission."""
+
+    id = models.UUIDField(primary_key=True)
+    operation = models.ForeignKey(Operation, on_delete=models.PROTECT)
+    event = models.OneToOneField("evidence.Event", on_delete=models.PROTECT)
+    related_event = models.ForeignKey(
+        "evidence.Event", related_name="pickup_corrections", on_delete=models.PROTECT
+    )
+    digest = models.CharField(max_length=64)
+    outcome = models.CharField(max_length=20)

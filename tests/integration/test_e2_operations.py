@@ -17,7 +17,11 @@ from tests.integration.e1_support import connect, digest
 from tests.integration.test_e2_family import batch, import_batch
 
 pytestmark = pytest.mark.integration
-IMPORT_URL = "postgresql://retiro_importer:synthetic-importer-only@127.0.0.1:5432/"
+IMPORT_URL = (
+    "postgresql://retiro_importer:synthetic-importer-only@127.0.0.1:"
+    + os.environ.get("PGPORT", "5432")
+    + "/"
+)
 
 
 @pytest.fixture(autouse=True)

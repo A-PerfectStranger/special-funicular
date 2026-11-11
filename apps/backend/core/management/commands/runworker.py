@@ -1,4 +1,4 @@
-"""Archive process entrypoint; notification handling is deferred to E4."""
+"""Explicit isolated worker entrypoints; no universal service credential."""
 
 import json
 import time
@@ -8,14 +8,46 @@ from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
-    help = "Run the isolated E1 archive worker. No notification handler."
+    help = "Run one isolated worker: --archive or --notifications."
 
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument("--check", action="store_true")
         parser.add_argument("--archive", action="store_true")
+        parser.add_argument("--notifications", action="store_true")
         parser.add_argument("--once", action="store_true")
 
     def handle(self, *args: Any, **options: Any) -> None:
+        if options["notifications"]:
+            if options["archive"]:
+                raise CommandError("BLOCKED: select one isolated worker identity")
+            from notification_worker.provider import ExpoPush
+            from notification_worker.worker import process_batch as notify_batch
+            from notification_worker.worker import status as notify_status
+
+            try:
+                provider = ExpoPush.configured()
+                try:
+                    if options["check"]:
+                        self.stdout.write(
+                            json.dumps({"notification_handlers": 1, **notify_status()})
+                        )
+                        return
+                    while True:
+                        result = notify_batch(provider)
+                        if result["claimed"] or result["receipts"] or options["once"]:
+                            self.stdout.write(json.dumps(result))
+                        if options["once"]:
+                            if result["failed"]:
+                                raise CommandError("Notification failed; retry remains durable")
+                            return
+                        if not result["claimed"]:
+                            time.sleep(0.5)
+                finally:
+                    provider.client.close()
+            except Exception:
+                raise CommandError(
+                    "BLOCKED: isolated notification configuration or provider unavailable"
+                ) from None
         if options["check"] and not options["archive"]:
             self.stdout.write("worker_handlers=0 pickup_enabled=false")
             return

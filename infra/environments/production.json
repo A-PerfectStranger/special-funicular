@@ -2,7 +2,7 @@
   "environment": "production",
   "provider": "aws",
   "region": "us-east-1",
-  "account_id": null,
+  "account_id": "028364485203",
   "deploy_role_arn": null,
   "migration_role_arn": null,
   "image_repository": null,

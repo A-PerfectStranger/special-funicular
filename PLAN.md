@@ -1,373 +1,171 @@
-# PLAN.md — Implementación y despliegue continuo
+# PLAN — Estado y aceptación
 
-Proyecto: Aplicación Segura de Rastreo / retiro seguro de estudiantes.
+Proyecto de retiro seguro de estudiantes. El [contrato](Requerimientos_retiro_seguro_estudiantes.md)
+define comportamiento y seguridad; [AGENTS](AGENTS.md) fija las reglas de trabajo;
+[README](README.md) contiene comandos y los runbooks contienen procedimientos.
+Este documento concentra el estado y los criterios pendientes. Los resultados de
+cada candidato se consultan por SHA en Actions; no se atribuye una aceptación
+anterior a una imagen, APK o despliegue posterior.
 
-Este documento concentra el estado vigente, la aceptación y el trabajo pendiente.
-Las casillas completadas requieren evidencia real; una base local o un build no
-acreditan despliegue AWS. Los procedimientos futuros describen objetivos, no
-funciones ya disponibles. Contrato funcional:
-[requisitos](Requerimientos_retiro_seguro_estudiantes.md); reglas de desarrollo:
-[AGENTS.md](AGENTS.md); comandos: [README.md](README.md).
+## Estado vigente
 
-E0, E1, E2 y E3 están aceptadas con datos sintéticos. E4–E5 siguen pendientes;
-retiros, avisos y uso con datos reales continúan deshabilitados. La configuración de
-[staging](infra/environments/staging.json) habilita E1/E2/E3 y exige sus gates en CD;
-[producción](infra/environments/production.json) permanece sin configurar.
-El estado de un despliegue concreto se consulta por commit en
-[Actions](https://github.com/A-PerfectStranger/special-funicular/actions), no se
-deduce de la aceptación de una entrega ni de una URL temporal.
-
-## 1. Configuración de trabajo fijada
-
-| Área | Configuración |
-| --- | --- |
-| Código | Monorepo en GitHub; ramas cortas y PR a `main`. |
-| Móvil | Expo SDK 56 / React Native; una base de código con flujos padre/guardia; Android APK interno inicial. |
-| Web | Django templates, sesión/BFF de Django y CSRF. |
-| Backend | Django modular, PostgreSQL, OIDC/MFA, workers/outbox, KMS y WORM. |
-| Integración | GitHub Actions, checks obligatorios y artefactos vinculados al commit. |
-| Promoción | Staging y pruebas automáticas antes de producción automática, sin aprobación manual rutinaria. |
-| Infraestructura | AWS us-east-1; parámetros por entorno en infra/environments y operación/presupuesto en infra/aws/README.md. |
-| Operaciones escolares | Escuela verifica los datos; equipo técnico ejecuta bulk, provisioning, bajas y cambios urgentes. |
-
-El desarrollo y CI usan datos sintéticos. Los adaptadores locales deben
-identificarse como simulaciones y nunca activarse en producción. La ausencia de
-configuración productiva bloquea ese destino, no el desarrollo ni staging.
-
-## 2. Estructura y arranque del repositorio
-
-| Ruta | Entregable |
-| --- | --- |
-| `apps/backend/` | Django, módulos de dominio, API, templates, migraciones y comandos privados. |
-| `apps/mobile/` | Expo SDK 56, TypeScript, navegación por rol y configuración Android. |
-| `tests/contracts/` | OpenAPI, compatibilidad de clientes y pruebas compartidas del contrato. |
-| `infra/` | Infraestructura versionada, variables por entorno y políticas de IAM/red/retención. |
-| `.github/workflows/` | CI, CD backend, build APK y ensayos programados. |
-| `docs/runbooks/` | Despliegue, rollback, importación, incidentes y recuperación. |
-| Raíz | Requisitos, AGENTS, PLAN y README con comandos reales y configuración de desarrollo. |
-
-El arranque reproducible, las versiones y los comandos implementados se mantienen
-en [README.md](README.md), los manifiestos y lockfiles. Conservar `.env.example`
-sin secretos y fixtures sintéticos; mantener SDK 56 y dependencias compatibles.
-
-## 3. Backlog en orden de dependencia
-
-Cada entrega incluye implementación y pruebas de sus controles; la seguridad se desarrolla junto al flujo. Integrar a `main` incrementos pequeños, manteniendo rutas incompletas inaccesibles o deshabilitadas en servidor. No habilitar retiros reales con un flujo parcial.
-
-### E0 — Base y pipeline inicial
-
-- [x] Inicializar monorepo, estructura, dependencias fijadas, configuración sintética y README de arranque.
-- [x] Crear aplicación Django, templates base, esqueleto móvil y health/readiness sin datos sensibles.
-- [x] Implementar CI de lint/typecheck, unitarias, integración PostgreSQL, secretos y dependencias.
-- [x] Construir imagen del backend/worker, guardar digest y generar APK de desarrollo interno (firma de desarrollo; sin distribución productiva).
-- [x] Crear estructura de CD y validación obligatoria: destinos incompletos fallan con BLOCKED/NOT_CONFIGURED.
-- [x] Conectar identidad OIDC de lectura para GitHub/main y verificar en AWS cuenta, créditos y denegación de acceso ajeno.
-- [x] Aprovisionar y verificar staging AWS privado, presupuesto/alertas y CD real con OIDC, roles separados, SHA/digest y probes TLS.
-
-**Aceptación acreditada:** [preflight 42430538070](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42430538070)
-y [CD 42433511451](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42433511451).
-Publicación OCI, preparación RDS, migración aislada y despliegue/probes reales
-aprobados. Estos resultados acreditan la base técnica de E0, no funciones de negocio.
-
-**Aceptación:** un checkout limpio ejecuta los comandos documentados y CI; artefactos llevan SHA. Sin destino, el estado de deploy es bloqueado/no configurado y no se publica un éxito ficticio.
-
-### E1 — Identidad, aislamiento y base de evidencia
-
-- [x] Implementar cuatro roles, OIDC/MFA móvil/web, sesiones, reautenticación y revocación online.
-- [x] Crear escuelas, estudiantes, padres, vínculos y restricciones de principal único.
-- [x] Configurar RLS y credenciales separadas; probar conexión reutilizada y límites por escuela/familia.
-- [x] Implementar eventos canónicos, funciones de escritura restringidas, outbox y worker de archivo.
-- [x] Conectar WORM/KMS de ensayo, recibos por versión, manifiestos y verificador externo.
-- [x] Registrar login escolar protegido antes de abrir sesión; pantalla de accesos para admin. sistema sin datos de menores.
-
-**Aceptación acreditada:** AT02, AT04 y la parte E1 de AT05/AT06, mediante
-[ensayo integrado 42501830048](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42501830048)
-y [recuperación independiente 42507955250](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42507955250).
-Base funcional ensayada: `0ca43742fd1a5ad77311a64ee522ef932682922d`;
-controlador de recuperación: `36954c0`. Estas referencias delimitan la aceptación,
-sin afirmar que ese SHA sea el despliegue activo.
-
-| Control | Alcance aceptado y referencia de contrato |
-| --- | --- |
-| Identidad | OIDC/MFA real de los cuatro roles, BFF web y protocolo móvil compartido, reauth, refresh/replay, logout y baja/restauración online. Recuperación conserva subject y comprueba crecimiento del bloqueo Cognito con cotas de RPC. AT04; RFS01/03/07/08/09/19; AB09/11/12. |
-| Vínculos | Aislamiento por escuela/familia y principal único con PostgreSQL real; roster sintético original y vínculos conservados tras recuperación. Bulk e invitaciones siguen en E2. AT02; RF03/14; AB02/10/24. |
-| Permisos | RLS ENABLE/FORCE, conexión reutilizada y rollback sin fuga, credenciales separadas, sin propiedad/DDL/BYPASSRLS/SET ROLE del escritor; lector sin menores. Inspección privada contrastada por verificador independiente. AT02/05; RFS02/12/22; AB02/10/14. |
-| Archivo | Evento/outbox atómicos, escritura restringida, leases y recibo idempotente. Archivo ausente deniega el portal; archivo tardío no reabre el intento; un login nuevo protegido sí abre. AT05; RFS11/12/13/23; AB14/21/22/23. |
-| Integridad externa | WORM COMPLIANCE/KMS sintético, versión/hash/retención y manifiestos firmados, denegaciones efectivas. Verificador sin SQL/Sign/Put acepta copia original y rechaza reescritura con cadena local válida. AT05/06; RFS10/12/17/23; AB22/25. |
-| Acceso escolar | Login protegido antes de abrir sesión, deduplicación, cierre ante fallo y consulta mínima paginada del administrador de sistema con lectura auditada. RF16/17; CA-F16/17; RFS14/21/22; AB10/21. |
-
-El límite backend de RFS07 fue medido por separado en
-[42456781366](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42456781366),
-sobre `5ac4f02`; no se atribuye esa medición a otro candidato. Los reportes
-parciales conservan su alcance y `e1_accepted=false`; la aceptación requiere el
-conjunto de controles. Las ejecuciones y artefactos por commit se consultan en
-Actions; las copias privadas y anclas confiables permanecen fuera del repositorio.
-
-**Límites:** COMPLIANCE siete días solo para evidencia sintética. La prueba del
-protocolo móvil y el APK firmado con clave de desarrollo no acreditan instalación,
-cámara ni retorno OIDC en Android físico. Retención institucional, distribución
-privada, firma productiva y restauración integral del dominio siguen en E5.
-Operación y repetición de ensayos: [runbook E1](docs/runbooks/e1.md).
-
-### E2 — Bulk, activación y autorización familiar
-
-Decisión del usuario: una familia pertenece a una sola escuela en este MVP.
-El importador debe rechazar la reutilización entre escuelas también cuando
-las promociones son concurrentes.
-
-- [x] Crear importador privado: staging, esquema, hash, aprobación escolar, promoción atómica e idempotencia.
-- [x] Crear provisioning/baja y cambios de principal auditados para el equipo técnico.
-- [x] Implementar invitación 256 bits/24 h, contacto verificado y asociación OIDC `issuer`/`sub`.
-- [x] Mostrar estudiantes propios y capacidades por vínculo en móvil.
-- [x] Crear cuidador, autorizaciones, recurrencias, restricciones de horario y revocación.
-
-**Aceptación:** AT01 y casos relevantes AT02/AT04; ninguna asignación por datos declarados; lote incorrecto sin activación parcial; secundario sin capacidad de autorizar; cambios sensibles invalidan tokens.
-
-**Criterios verificables y ejecución E2:**
-
-1. Importador privado separado del runtime: esquema versionado, validación completa,
-   hash de bytes, aprobación escolar vinculada al hash y promoción atómica. Replay
-   idéntico conserva resultado; mismo ID con contenido distinto falla. Sin acceso
-   desde apps administrativas ni activación parcial ante referencias inválidas.
-2. Operaciones técnicas con ejecutor, motivo y aprobación: altas/bajas de personal,
-   cambio de principal y restricciones. Invalidación online de sesiones pertinentes
-   y versiones/autorizaciones afectadas, con evento/outbox en la misma transacción.
-3. Invitación de 32 bytes CSPRNG, hash único y vida de 24 h, un solo uso y revocable.
-   Canje con Code/PKCE, nonce, MFA y contacto verificado por IdP que coincide con
-   la precarga; asociación exclusiva issuer/sub. Sin enumeración ni autoasignación.
-4. API/móvil: estudiantes propios, capacidad por vínculo y aislamiento de familias,
-   escuelas y roles. Principal registra/actualiza cuidador completo con foto
-   reencodificada; autorizaciones por fecha o recurrencia semanal finita dentro de
-   ventanas IANA precargadas. MFA <=5 min en cambios; revocación y actualización
-   invalidan versiones anteriores. Sin QR permanente ni retiro habilitado.
-5. PostgreSQL real con roles separados, RLS forzada, concurrencia, replay, límites
-   temporales, rollback y pruebas negativas. Contrato, tipos, migraciones, seguridad,
-   bundle/APK y ensayo integrado de staging por commit antes de acreditar E2.
-
-**Implementación integrada:** modelo/migraciones E2 y comandos SQL con RLS forzada;
-`family_ops` privado con esquema/hash/aprobación/promoción; invitaciones y canje
-Code/PKCE con email verificado; principal/políticas/baja auditados; API familiar,
-fotos reencodificadas y móvil SDK 56; OpenAPI y runbook operativo. La promoción
-serializa UUID de padres en orden global y rechaza reutilización entre escuelas.
-El móvil conserva el formulario bajo máscara durante la galería, revalida online
-al volver y descarta la vista ante logout, rechazo o segundo plano ordinario.
-
-**Aceptación acreditada:** base funcional integrada
-`1a16b85fcc7f8ac25d268c308c1ccf9451c667b1`, con
-[CI 42543919847](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42543919847)
-y [CD 42544785382](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42544785382).
-Staging, migración aislada, E1/browser/archivo, APK y gate E2 aprobados. Digest
-verificado en ejecución para API/archivador:
-`sha256:3aa74250b1bfe778e2ed8d601e845124087d30ef603bf712e9004d5fafde44eb`.
-El protocolo familiar exige secuencia 614; el lector independiente verificó
-615 eventos sin SQL. Cohorte `52cb10c3-9494-5893-bd8a-ce52d8c11ba3`, distinta
-de la del [ensayo previo 42529491296](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42529491296)
-sobre 74297b3 (secuencias 489–490). CD usa el pool sin reiniciar canjes ni datos;
-CI no recibe provisioning Cognito ni escritura del vault.
-
-CI del contenido aceptado: 245 pruebas Python con PostgreSQL/roles reales,
-20 JavaScript móvil/vendor y siete staging (cuatro Chromium y tres recuperación),
-tipos/contratos/migraciones, auditorías/secretos e imagen/APK/firma aprobados.
-El gate E2 compartido es obligatorio después de E1 cuando la bandera está activa.
-El job de producción de ese CD informa **BLOCKED/NOT_CONFIGURED** por E5; el
-resultado global no se presenta como un pipeline productivo aprobado.
-
-| Criterio | Verificación local/CI | Verificación AWS acreditada |
+| Entrega | Estado | Alcance |
 | --- | --- | --- |
-| Lote/hash/aprobación/idempotencia/rollback | Importer real, lote inválido, conflicto tras staging y payload adulterado | Lote correcto/incorrecto y dos escuelas concurrentes: solo una promueve, sin activación parcial |
-| Operaciones técnicas y capacidades | CLI privado, altas/bajas de personal, aprobación/motivo, matriz de roles/RLS y concurrencia | Hijos exactos, secundario solo consulta, principal anterior rechazado; cambios de principal/política y baja familiar invalidan sesiones existentes/nuevas |
-| Activación/contacto/issuer-sub/uso único | Firma RSA, PKCE, expiración/revocación y ocho canjes concurrentes | Cognito/MFA real, contacto ajeno rechazado, asociación exacta y replay denegado con cohortes nuevas |
-| Cuidadores/fotos/autorizaciones/horarios | Reencodificación/no-store, IANA/DST, frescura MFA y ciclo de vida de galería | Cuidador/versiones/revocación; recurrencia semanal de dos fechas UTC, fuera de horario y bloqueo rechazados |
-| Evidencia/compatibilidad/distribución | Evento/outbox, migraciones, tipos/contratos, bundle y APK/firma | Imagen/digest/API/archivador/APK por SHA y WORM independiente hasta 614–615; regresión E1/archivo aprobada |
+| E0 | Aceptada | Monorepo, CI, imagen/APK de desarrollo, AWS staging privado, OIDC de Actions, presupuesto y probes. |
+| E1 | Aceptada con sintéticos | Cuatro roles, OIDC/MFA real, sesiones/revocación, RLS, eventos/outbox, WORM/KMS y verificador independiente. |
+| E2 | Aceptada con sintéticos | Bulk privado, activación/contacto verificado, principal único, cuidadores/fotos, autorizaciones y revocación. Una familia pertenece a una sola escuela. |
+| E3 | Aceptada con sintéticos | QR diferido, decisión única, archivo antes del permiso de 30 s, reporte físico, incidencias e idempotencia. |
+| E4 | Candidato implementado y verificado localmente; aceptación AWS pendiente | Notificador Expo Push, historial familiar, consulta escolar y correcciones técnicas. La bandera de staging sigue apagada. |
+| E5 | Pendiente | Producción, recuperación integral/carga, Android físico y activación escolar. Distribución privada implementada; falta comisión y ensayo real. |
 
-**Operación y límites:** staging habilita E2 con datos sintéticos y exige el gate
-compartido E1 → E2 → WORM antes de considerar producción. Las cohortes son de un
-solo uso; agotamiento o un fallo de validación/infraestructura bloquea, sin reset
-ni omisión de pruebas. Un único reintento de tarea aislada se permite solo si
-ECS demuestra ausencia de ejecución; SQL fallido o estado incierto no reintentan.
-Los fallos previos de arranque de fixtures y migración quedaron clasificados por
-operador como TaskFailedToStart, sin inicio/exitCode; el CD aceptado ya pasó con
-el control conservador y diagnóstico saneado, sin relajar MFA/frescura/revocación.
+No hay producción comisionada ni uso real autorizado. `pickup_enabled=false` y
+`synthetic_only=true` siguen en la configuración de ambos destinos. E3 se descubre
+por su endpoint separado, exclusivamente sintético. Health nunca concede entrega.
 
-No se ejecutaron importaciones/invitaciones ni mensajes reales. QR y permiso de
-entrega pertenecen a E3; invalidar autorizaciones en E2 no acredita esos controles.
-Instalación/cámara/retorno OIDC en Android físico, firma/distribución productiva,
-retención institucional y producción siguen en E5. El APK es de desarrollo y no
-se publica como binario en este repositorio público. Operación/reposición del
-pool: [runbook E2](docs/runbooks/e2.md). Continuidad solicitada por el usuario:
-[PROGRESS.md](PROGRESS.md). Cada despliegue posterior se consulta por SHA en
-Actions; estos resultados no se heredan automáticamente a otra release.
+### Evidencia que delimita E0–E3
 
-### E3 — QR y retiro completo
-
-**Estado:** aceptada en staging sintético. El artefacto funcional acreditado es
-`0a429bc17a6c608ac24dab1306699e5764ddbb58`; retiros y datos reales siguen bloqueados.
-
-- [x] Acreditar QR CSPRNG de 256 bits, anticipación <=24 h, vigencia UTC/IANA, renovación sin extender fin y reprogramación atómica.
-- [x] Acreditar escaneo por guardia de sede, foto autenticada y las tres comprobaciones físicas en móvil SDK 56.
-- [x] Acreditar episodio estudiante/fecha local, consumo/decisión únicos, idempotencia, revocación y 50 confirmaciones concurrentes.
-- [x] Acreditar recibo WORM oportuno <=5 s, habilitación 30 s, reloj confiable e incidencias durables sin reactivación tardía.
-- [x] Acreditar reporte físico mediante evento nuevo, no entrega, respuesta perdida/reporte tardío y archivo del hecho pendiente sin borrado.
-- [x] Completar CI, artefactos, ensayo E1/E2/E3/WORM real por SHA y documentación del resultado observado.
-
-**Contrato:** RF07–10/15/19; CA-F07–10/F15/F19 y CA-S04–06/S08/S11–16/S22;
-AT03/05/07 y regresiones AB01/03–08/11/15/17/23/24. Implementación en Django
-modular, PostgreSQL con RLS/roles/funciones estrechas y migraciones aditivas,
-cliente Expo SDK 56 y contrato OpenAPI 0.4. Se conservan las migraciones E2
-aplicadas, cuentas, canjes y evidencia anteriores.
-
-**Aceptación acreditada:** PR #23–#26 y #28–#31 integradas; base funcional indicada arriba,
-[CI 42786554831](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42786554831)
-y [CD 42788128412](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42788128412).
-CI aprobó 335 Python con PostgreSQL/roles reales, 24 móvil + 2 vendor JavaScript,
-diez navegador/recuperación/diagnóstico, tipos/lint/migraciones/Expo, auditorías y
-secretos, imagen y APK. CD aprobó publicación, preparación, migración aislada,
-SHA/digest runtime/TLS/callback/nueve sondas, E1 browser/cloud/archive-drill y
-recuperación, APK staging, E2, nueve controles E3 y WORM independiente final.
-
-- Digest verificado de API/archivador:
-  `sha256:f10d670ee36c01d3f4413cf282e93864fc84f19059f5f28d903dab5b18eee4cb`.
-- APK staging SHA-256:
-  `ccc77c588e5d9428a638b00a93b8783991188a2746eb4061c60c8af2080c7079`.
-  Bundle/origen/paquete/callback, cámara presente, micrófono ausente y firma v2 de
-  desarrollo verificados; no acredita teléfono físico ni distribución productiva.
-- Cohorte de un solo uso: `ad86e8ec-928d-58e8-adf1-814badfd3e12`.
-  E2 exige secuencia 1219 y E3 exige 1335; el lector independiente verificó
-  1338 eventos hasta 1338, sin SQL ni comparación contra una copia SQL.
-
-| Criterio | Verificación local/CI | Verificación AWS acreditada |
-| --- | --- | --- |
-| QR y tiempo | CSPRNG 32 bytes, solo hash, UTC/IANA, límites, replay sin secreto, renovación y reprogramación atómicas | Denegación anticipada sin datos/foto; renovación conserva fin, reprogramación invalida QR anterior y revocación previa deniega |
-| Guardia, foto y comprobaciones | Roles/sede/RLS, JPEG exacto/no-store por HTTP, SDK 56 y permisos nativos; tres booleanos explícitos | Solo guardia de sede obtiene datos/foto mínima; discrepancia física fija incidencia sin permiso |
-| Decisión única y revocación | 50 confirmaciones entre dos guardias, otras autorizaciones sin reapertura, carreras ordenadas y ocho expiraciones durante locks | 50 solicitudes concurrentes producen una decisión; pérdida de respuesta recupera UUID original; bloqueo posterior impide permiso sin reescribir decisión |
-| Archivo, reloj y permiso | Evento/outbox atómicos, reloj ausente/desviado/caducado, vencimiento y estados cerrados | WORM oportuno <=5 s permite 30 s; demora real acotada a 15 s fija timeout, archivo tardío nunca rehabilita y pantalla vencida no autoriza |
-| Hecho físico e idempotencia | HTTP completo entrega/no entrega, replay/conflictos, evento nuevo único, hecho pendiente conservado y protección posterior simulada explícita | Reporte idempotente protegido, no entrega y hecho tardío conservados, sin segundo retiro |
-| Integración y evidencia | Contratos/tipos, migraciones, seguridad, imagen/APK y regresiones completas por SHA | E1/E2/E3 y lector WORM independiente hasta 1338 >= 1335 en el mismo candidato |
-
-Los campos e2_accepted/e3_accepted=false de los reportes de protocolo delimitan
-su alcance parcial; la aceptación anterior requiere sus passed=true junto con
-CI, E1, artefactos y verificación independiente, todos aprobados. La concurrencia
-con dos guardias se acreditó en PostgreSQL local; AWS ensayó 50 solicitudes del
-mismo guardia, además de rechazos de otra sede/rol.
-
-**Límites:** solo sintéticos, WORM COMPLIANCE de siete días para ensayo y firma
-APK de desarrollo. pickup_enabled=false anterior permanece compatible; el
-endpoint E3 separado anuncia synthetic_only=true. Ningún health/capacidad concede
-entrega. E4 conserva avisos/consultas/correcciones; E5 conserva Android físico,
-cámara/retorno OIDC nativo, recuperación integral/epoch/carga/RTO, retención
-institucional, firma/distribución y producción. El job productivo de ese CD
-falló deliberadamente con BLOCKED/NOT_CONFIGURED; no presentar el pipeline
-productivo ni el MVP real como aprobados.
-
-Operación y repetición sin reset: [E3](docs/runbooks/e3.md), [E2](docs/runbooks/e2.md)
-y [deployment](docs/runbooks/deployment.md). Estado de continuación:
-[PROGRESS](PROGRESS.md). El cierre documental no cambia el artefacto aceptado;
-CI/CD verifica el diff exclusivamente documental antes de omitir builds/deploy,
-sin consumir otra cohorte. Releases posteriores se consultan por su propio SHA.
-
-### E4 — Avisos y consulta escolar
-
-- [ ] Implementar worker de notificación, destinatarios derivados, deduplicación, reintentos y callbacks autenticados.
-- [ ] Avisar desde reporte físico protegido; mensajes externos genéricos y estados de envío honestos.
-- [ ] Crear consulta paginada de salidas/incidencias en Django templates por escuela.
-- [ ] Implementar correcciones mediante comandos técnicos restringidos que añaden eventos vinculados.
-- [ ] Completar vistas mínimas del padre y accesos escolares del admin. sistema.
-
-**Aceptación:** AT02/AT05/AT07; no aviso por escaneo o decisión pendiente; ninguna duplicación lógica de salida/aviso; los administradores carecen de CRUD y acceso lateral.
-
-### E5 — Operación real y primera distribución
-
-- [ ] Completar ensayos AT01–AT08 y todos los CA-F/CA-S con resultados vinculados a commit.
-- [ ] Medir carga, archivo, notificación y RTO; ensayar caída DB/IdP/WORM/push/reloj y recuperación desde backup antiguo.
-- [ ] Verificar permisos reales, retención, claves, alertas, reconciliación y restauración con datos sintéticos.
-- [ ] Probar APK en dispositivos Android del equipo, cámara, permisos, retorno de OIDC, bloqueo, actualización y red intermitente.
-- [ ] Ejecutar ensayo presencial del flujo con personal y datos sintéticos, sin confundirlo con entrega real de un estudiante.
-- [ ] Completar configuración productiva y publicar primera versión por el pipeline automático.
-- [ ] Incorporar la escuela mediante lote verificado y activar el uso real al cumplir todos los criterios del MVP.
-
-**Aceptación:** artefactos reproducibles, SHA/digest/APK identificables, cero defectos críticos de permisos/retiro/evidencia, runbooks ejecutables y datos operativos configurados. El despliegue de software puede preceder a la carga de datos reales; las rutas de retiro permanecen deshabilitadas mientras falten sus controles.
-
-## 4. Pipeline de integración
-
-| Disparador | Trabajo requerido | Resultado |
-| --- | --- | --- |
-| Pull request | Lint, typecheck, unitarias, contratos, migraciones, PostgreSQL/RLS, pruebas negativas y escaneo de secretos/dependencias. | Checks del PR y reportes por commit; sin acceso a secretos de producción. |
-| Cambio en retiro/evidencia/permisos | Además: concurrencia, replay, revocación, idempotencia, archivo fallido/tardío y aislamiento. | Impide integrar una regresión de seguridad. |
-| Integración en `main` | Repetir checks requeridos del commit integrado y construir artefactos inmutables. | Imagen por digest, lista de dependencias y manifiesto de release. |
-| Candidato en staging | Migraciones, smoke tests y suites de integración con servicios de ensayo. | Evidencia necesaria para promoción. |
-| Ejecución programada | Restauración/reconciliación, carga y revisión de dependencias/deriva de infraestructura. | Alerta y issue ante regresión; estas pruebas también se ejecutan antes de una release que afecte esa área. |
-
-Los cambios solo documentales pueden omitir builds/deploys si el filtro de rutas es verificable. Fallos de seguridad, contrato, migración o integración bloquean promoción. No permitir excepciones silenciosas ni checks simulados. Para la primera activación real se exige la suite completa; después cada release ejecuta la regresión base y las pruebas adicionales de su impacto.
-
-Seguridad de GitHub Actions: `GITHUB_TOKEN` con permisos mínimos por job, acciones fijadas por SHA y secretos por entorno. No ejecutar código de forks con secretos ni mediante un `pull_request_target` privilegiado. La identidad OIDC de despliegue se restringe a repositorio, rama/entorno y audiencia esperados; usar credenciales temporales del proveedor. La identidad de despliegue no se entrega a API/workers.
-
-## 5. Despliegue continuo del backend y la web
-
-API, Django templates y workers se publican desde la misma revisión. Construir una imagen una vez y promover su **mismo digest** entre staging y producción; la configuración se inyecta por entorno.
-
-1. Validar configuración del destino y permisos; resolver artefacto por digest y verificar correspondencia con el commit aprobado por CI.
-2. Obtener exclusión mutua del despliegue de staging. Ejecutar migraciones compatibles una sola vez con identidad separada; iniciar servicios y workers.
-3. Ejecutar readiness, smoke tests de roles, sesión escolar auditada, retiro sintético completo, negativa de permisos e integridad de evidencia. Usar IdP/KMS/WORM de ensayo y notificaciones dirigidas solo al equipo.
-4. Si todos los checks pasan, promover automáticamente a producción. No añadir revisores obligatorios de entorno para esta promoción rutinaria.
-5. Bajo bloqueo de despliegue productivo, comprobar que el candidato no ha sido superado por una versión ya publicada. Ejecutar migración compatible, desplegar imagen y revisar salud.
-6. Registrar commit, digest, esquema, fecha y resultado. Ejecutar sondas productivas no invasivas; cualquier prueba con eventos usa un tenant sintético separado, conserva su evidencia y jamás notifica a familias reales.
-7. Si falla validación/migración/staging, detener promoción. Si falla salud después del despliegue, revertir al digest compatible anterior; si la reversión no es segura, bloquear la función afectada y ejecutar corrección hacia delante.
-
-Serializar despliegues y migraciones por entorno; `cancel-in-progress: false` en producción. La exclusión de GitHub Actions no garantiza orden por antigüedad del commit: comprobar la ascendencia/revisión desplegada bajo el bloqueo y descartar candidatos obsoletos. Una release con dependencias entre backend y móvil publica primero la API compatible; no habilita una función móvil hasta disponer de backend seguro.
-
-Crear `/health/live` para proceso y `/health/ready` para preparación del servicio sin exponer secretos. Separar disponibilidad técnica de la capacidad de autorizar retiros: si DB/reloj/evidencia no permiten operar con seguridad, la aplicación bloquea ese flujo aunque otras consultas sigan disponibles. Monitorizar esa capacidad explícitamente.
-
-## 6. Migraciones, compatibilidad y rollback
-
-- Usar expand/contract: añadir esquema compatible, desplegar código que soporte transición, ejecutar backfill idempotente y retirar estructuras solo cuando ninguna versión soportada dependa de ellas.
-- Probar migraciones desde el esquema anterior y lectura por las versiones que puedan coexistir. Backfills no reescriben eventos históricos; nuevas interpretaciones viven en proyecciones/eventos nuevos.
-- Una identidad temporal realiza migraciones; runtime no tiene DDL. No ejecutar migraciones al arrancar cada réplica.
-- Un error de migración impide desplegar el resto; registrar estado y reparar mediante migración hacia delante. No cancelar a mitad para atender un nuevo commit.
-- El rollback rutinario cambia el artefacto de aplicación compatible. Nunca borra evidencia, baja esquema automáticamente ni restaura un backup para revertir código.
-- Mantener API `/v1` y contratos compatibles con los APK soportados. Para una retirada de compatibilidad, implementar respuesta explícita de actualización requerida y un despliegue coordinado; no asumir que todos actualizan al publicar el APK.
-
-Runbook de recuperación: suspender nuevos retiros, restaurar entorno, invalidar tokens anteriores al epoch, reconciliar WORM/manifiestos/proyecciones y reabrir únicamente sin discrepancias. Objetivo RTO 30 min, validado con simulacro. Separar esta recuperación de desastres del rollback de una release.
-
-## 7. Build y distribución móvil continua
-
-Configurar Expo/EAS Build para **APK Android interno** firmado. Perfiles de staging y producción con endpoints/configuración distintos; package ID de staging separado para evitar confusión. Mantener identidad de firma estable de producción y proteger su keystore. Nunca incluir secretos de backend ni credenciales cloud en variables incorporadas al bundle.
-
-Cada cambio móvil integrado ejecuta typecheck, pruebas y build; registrar commit, versiones, runtime, checksum y ubicación privada del APK. Antes de distribuir producción, probar el candidato con el backend de staging y verificar que la configuración del APK productivo apunta al entorno correcto. Los builds de staging/producción tienen configuración distinta y, por tanto, sus checksums se registran por separado; no afirmar que son el mismo binario.
-
-Automatizar la publicación interna de APK aprobados por checks a usuarios autorizados. Restringir acceso a los enlaces de distribución: un enlace compartible no equivale a distribución privada por sí solo. Publicación no equivale a instalación; medir las versiones activas sin PII y mantener compatibilidad con clientes soportados.
-
-El mecanismo inicial de actualización es nuevo APK interno. Si se habilita EAS Update posteriormente, agregar primero validación de `runtimeVersion`, canales separados y pruebas de compatibilidad; cambios nativos, SDK, permisos o módulos requieren un nuevo binario. No utilizar OTA para saltarse las pruebas o la compatibilidad de la release.
-
-## 8. Observabilidad y respuesta operativa
-
-Métricas: latencia/errores por operación, rechazos por permisos/ventana, replay y conflictos, tiempo de archivo, backlog/edad de outbox, entrega pendiente, estado de avisos, errores de login auditado y discrepancias del verificador. Identificadores de correlación internos sin QR, credenciales, fotos ni documentos completos.
-
-Alertar inmediatamente ante evidencia divergente, autorización inesperada o acceso cruzado; suspender el flujo afectado y preservar hechos. Alertar por archivo fuera de plazo, agotamiento de reintentos, degradación de reloj y trabajos pendientes. El equipo técnico atiende, comunica a la escuela por su canal operativo y reconcilia con eventos nuevos.
-
-Crear runbooks con comandos reales para alta/baja, importación, revocación urgente, incidencia de entrega, fallo WORM/IdP, rollback y recuperación. La escuela verifica y aprueba datos/cambios; el equipo técnico los ejecuta. Registrar ejecutor, motivo, alcance y resultado sin convertir esos procesos en CRUD de los administradores de aplicación.
-
-## 9. Datos necesarios para conectar los entornos
-
-Estos valores completan la configuración; no reabren la arquitectura. No inventarlos en código ni considerar que las casillas vacías están resueltas.
-
-| Dato pendiente | Quién lo aporta / efecto |
+| Entrega | Evidencia aceptada |
 | --- | --- |
-| Cuenta/destino productivo y presupuesto operativo | Equipo técnico con responsable del proyecto; staging ya tiene configuración versionada, producción requiere comisión E5. |
-| URL productiva, DNS y certificados | Equipo técnico; URLs API/web y callbacks OIDC productivos. Staging usa URL administrada temporal. |
-| IdP y clientes productivos, enrolamiento y recuperación MFA | Equipo técnico; Cognito de ensayo no acredita configuración productiva. |
-| PostgreSQL, WORM, KMS productivos y retención por categoría | Equipo técnico configura; institución define plazos. Sin plazos no cargar datos reales ni fijar retención productiva irreversible por omisión. |
-| Cuenta/proyecto Expo, package ID y custodia de firma | Equipo técnico; build firmado y acceso a APK internos. |
-| Proveedor/configuración push y destinatarios de ensayo | Equipo técnico; pruebas sin avisar a familias reales. |
-| Contacto técnico de guardia y canal escolar urgente | Equipo técnico/escuela; ejecución concreta de escalamiento y reconciliación. |
-| Primera sede, zona IANA, ventanas, restricciones y lote validado | Escuela entrega; equipo técnico carga cuando los controles del MVP estén operativos. |
+| E0 | [Preflight 42430538070](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42430538070) y [CD 42433511451](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42433511451). |
+| E1 | [Ensayo 42501830048](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42501830048) y [recuperación E1 42507955250](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42507955250). AT02/04 y alcance E1 de AT05/06; base `0ca43742fd1a5ad77311a64ee522ef932682922d`. |
+| E2 | Base `1a16b85fcc7f8ac25d268c308c1ccf9451c667b1`, [CI 42543919847](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42543919847) y [CD 42544785382](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42544785382). |
+| E3 | Base `0a429bc17a6c608ac24dab1306699e5764ddbb58`, [CI 42786554831](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42786554831) y [CD 42788128412](https://github.com/A-PerfectStranger/special-funicular/actions/runs/42788128412). |
 
-Implementar validación de estas variables y de los permisos reales por entorno. Permitir CI/build sin proveedor; el job de deploy debe detenerse con diagnóstico claro si falta destino. La falta de datos de una escuela bloquea su activación, no las entregas de software con datos sintéticos.
+Los CD citados no acreditan producción: ese destino terminó con
+`BLOCKED/NOT_CONFIGURED`. E1/E2/E3 usan WORM COMPLIANCE de siete días y APK con
+firma de desarrollo. E3 verificó 50 solicitudes concurrentes del mismo guardia en
+AWS; dos guardias y vencimiento de sesión bajo locks se comprobaron con PostgreSQL
+local. El APK inspeccionado acredita bundle, paquete, callback, permisos y firma,
+pero no instalación, cámara ni retorno OIDC en un teléfono.
 
-## 10. Referencias de implementación
+## Arquitectura y decisiones fijadas
 
-Consultar documentación oficial al escribir los workflows y configuración, manteniendo los contratos de este plan:
+- Monorepo Django modular para API, templates/BFF y workers; Expo SDK 56 para
+  padre/guardia. No frontend web separado ni transacción distribuida de retiro.
+- PostgreSQL real, RLS ENABLE/FORCE, cuentas distintas para negocio, lectores,
+  importación, notificación, archivo y migración. Runtime sin propiedad, DDL,
+  SUPERUSER, BYPASSRLS ni escritura libre de evidencias.
+- Hechos canónicos append-only, outbox transaccional, archivo WORM con versión y
+  hash exactos, manifiestos firmados y verificación fuera de SQL. Correcciones
+  añaden hechos vinculados; no se borra historia para repetir un ensayo.
+- Escuela aprueba datos y políticas; equipo técnico ejecuta operaciones privadas
+  auditadas. Los administradores de aplicación no reciben CRUD ni autoasignación.
+- AWS `us-east-1`, cuenta `028364485203`, techo total de USD 150 brutos. Antes de
+  aprovisionar se comprueban gasto, saldo, vigencia y costes retenidos. Presupuesto
+  y lifecycle: [AWS](infra/aws/README.md).
+- Producción usará URL/certificado administrados de AWS; no hay dominio propio.
+  Se prepara activación real después de completar todos los gates.
+- Avisos por Expo Push; ensayos solo a dispositivos del equipo. Proyecto Expo
+  `43s1r/retiro-seguro`, ID `8d55d0cb-2d9f-4a73-bac3-6ad7cab1f04f`;
+  Firebase `retiro-seguro-2ab03`. Las claves se custodian en Expo/Secrets Manager.
 
-- [GitHub Actions: OIDC](https://docs.github.com/en/actions/concepts/security/openid-connect).
-- [GitHub Actions: concurrencia de workflows y jobs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
-- [Expo: distribución interna](https://docs.expo.dev/build/internal-distribution/).
-- [Expo: runtime y compatibilidad de actualizaciones](https://docs.expo.dev/eas-update/runtime-versions/).
+## E4 — Criterios y cierre pendiente
+
+RF03/11/12/13/17/18/19; CA-F03/11/12/13/17/18/19;
+CA-S02/11/12/14/18/21/22/23; AT02/05/07; AB02/10/12/14/16/23.
+
+| Criterio | Implementación y comprobación local | Falta para aceptación |
+| --- | --- | --- |
+| Aviso desde hecho físico | Trigger transaccional: solo `DELIVERED`; destinatarios derivados de vínculos/cuentas activos. No aviso por escaneo, decisión pendiente o no entrega. Envío espera recibo del reporte. | Hecho protegido y aviso real al equipo en staging, verificados por SHA. |
+| Idempotencia y recuperación | Un aviso por evento/padre, leases concurrentes, reintentos 30 s/2 min/5 min/15 min, agotamiento pendiente de revisión, comando técnico auditado para reintentar el mismo aviso. | Fallo/recuperación del proveedor real, alarma y medición p95 de envío <=30 s. |
+| Confirmación del proveedor | Tickets y recibos Expo correlacionados por HTTPS autenticado; callback público inexistente. Mensaje genérico; nunca se afirma recibido/leído. | Enhanced push security, credencial FCM v1, allowlist y recibo reales; prueba en Android. |
+| Lecturas mínimas | API paginada de padre y lector SQL escolar separado; filtros por estudiante/fecha local; templates escapados; admin. sistema conserva exclusivamente accesos escolares. | Matriz completa en IdP/AWS y portal desplegado. |
+| Correcciones | Comando importer privado, aprobación/motivo/operador, evento vinculado, replay/conflicto; conserva bytes, estado original y token consumido. | Corrección y ancla WORM independientes del candidato en staging. |
+| Integración | Migraciones aditivas, contratos/tipos, worker aislado, definición de tarea y plantilla IAM/alarma. | Comisionar recursos, habilitar bandera revisada y completar gate integrado E4 antes de declararla aceptada. |
+
+Verificación local del candidato: 415 pruebas Python con PostgreSQL y roles reales,
+27 JavaScript, diez pruebas Chromium/recuperación/diagnóstico, portal escolar en
+Chromium, tipos/lint, bundle Android, migraciones desde cero y auditorías de
+paquetes. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
+acreditan AWS, Expo/FCM ni dispositivo físico. CI, builds de imagen/APK y CD del
+nuevo SHA requieren sus propios resultados.
+
+La preparación operativa incluye SNS al correo del presupuesto autorizado y
+custodia S3 privada del APK mediante OIDC limitado a artefactos, con publicación
+condicional, lectura/checksum y descarga autenticada. Falta aplicar el stack,
+confirmar la suscripción y verificar publicación/descarga reales. La comisión
+está en `ROLLBACK_COMPLETE`: SNS rechazó `sns:*`; el candidato corregido usa
+acciones explícitas y recuperación que conserva la clave retenida. El inventario
+AWS confirma presupuesto/créditos y access token vigente; los recursos SNS se
+revirtieron, el bucket no tiene identificador físico y falta la allowlist. Android disponible:
+versión 13. Registrar el equipo antes de comisionar el notificador.
+
+Orden: cerrar persistencia/permisos → transporte/worker/vistas → regresiones y
+contrato → comisión y ensayo AWS/Expo → verificador externo. Procedimientos y
+configuración pendiente: [E4](docs/runbooks/e4.md).
+
+## E5 — Secuencia de aceptación conjunta
+
+La primera activación exige AT01–AT08, CA-F01–F19 y CA-S01–S24, con cero defectos
+críticos de permisos, retiro o evidencia. Cada resultado debe vincular SHA,
+entorno, esperado y observado. No basta un build, una simulación ni un conjunto
+de unitarias. Procedimiento: [E5](docs/runbooks/e5.md).
+
+- [ ] Cerrar E4 en staging y ejecutar la regresión completa del candidato.
+- [ ] Medir resolución QR p95 <=2 s: 20 guardias, 5 resoluciones/s, 15 minutos;
+  archivo <=5 s, aviso p95 <=30 s y backlog/reintentos.
+- [ ] Inyectar caídas DB/IdP/WORM/push/reloj y verificar cierre seguro, evidencia y
+  recuperación sin duplicar salidas ni habilitar por caché.
+- [ ] Restaurar backup anterior a una salida: epoch nuevo, invalidación de tokens
+  anteriores, conciliación WORM/manifiestos/eventos/referencias y bloqueo ante
+  lag/huecos. RTO objetivo <=30 min medido; la recuperación E1 no es esta prueba.
+- [ ] Verificar IAM/SQL/KMS efectivos, retención, claves, backups/PITR, alertas,
+  reconciliación y conservación de evidencia con sintéticos.
+- [ ] Probar juntos APK en Android: instalación, firma, actualización, cámara,
+  permisos, MFA/retorno OIDC, segundo plano/bloqueo, red intermitente y respuesta
+  perdida con el ID original. Publicar APK no prueba instalación.
+- [ ] Ejecutar ensayo presencial con personal y datos sintéticos, diferenciando
+  decisión digital, permiso vigente, entrega/no entrega e incidencia.
+- [ ] Comisionar producción aislada: configuración completa, presupuesto real,
+  OIDC, BD, WORM/KMS, Expo, firma estable y distribución privada autenticada.
+- [ ] Publicar el digest aprobado por el pipeline automático, con probes seguros.
+- [ ] Validar lote, contactos, vínculos, principal, sede/zona IANA, ventanas,
+  restricciones y canal urgente; activar la escuela mediante operación privada
+  aprobada solo después de cumplir todos los criterios.
+
+El responsable delegó la elección inicial de retención. La política seleccionada
+vive en [retention.json](infra/environments/retention.json); **no está aplicada ni
+acredita RFS17**. Faltan enforcement, ciclo automático permitido, denegaciones y
+restauración reales, además de comprobar coste y vigencia de la custodia. No se
+modifica la retención sintética de staging ni se cargan datos reales para ensayarla.
+
+## Integración, artefactos y promoción
+
+1. Ramas cortas y PR a `main`. Checks requeridos: lint/tipos, unitarias, contratos,
+   migraciones, PostgreSQL/RLS, negativas, secretos/dependencias e imagen/APK.
+2. Main repite checks del SHA integrado. Imagen inmutable construida una vez y
+   promovida por el mismo digest; API/templates/workers comparten revisión.
+3. Staging: migración aislada, SHA/digest real, TLS/red/callback, E1, E2, E3 y gates
+   adicionales de funciones habilitadas; verificación WORM hasta la última secuencia.
+4. Producción automática solo tras todos los gates y comisión E5; no aprobación
+   manual rutinaria de promoción. Destino incompleto informa BLOCKED, no éxito.
+5. Serializar despliegues/migraciones por entorno y descartar candidatos obsoletos
+   bajo exclusión mutua. No cancelar migraciones por un commit nuevo.
+6. Expand/contract y API compatible con APK instalados. Rollback solo de código
+   compatible; nunca borrar evidencia, restaurar BD o bajar esquema para revertir
+   una release. Recuperación de desastre es una operación diferente.
+
+Actions usa permisos mínimos, acciones por SHA y OIDC efímero con sujeto/audiencia
+exactos; no código de forks con secretos. Los cambios exclusivamente documentales
+pueden omitir builds/deploy solo con ancestro y diff permitidos verificados.
+
+Por indicación del responsable, CI/CD se inicia al final del trabajo local y se
+entregan enlaces/estado sin esperar ejecuciones largas. La siguiente sesión
+verifica sus resultados antes de integrar/promover y continúa la aceptación
+conjunta. No se omiten gates para evitar la espera.
+
+## Operación y continuidad
+
+- Fuentes por destino: `infra/environments/`. No inferir servicio activo a partir
+  de la aceptación de una fase ni de una URL temporal.
+- El gateway de staging es efímero. Usar origen observado del SHA/digest, con
+  callback exacto; sincronizar únicamente el callback existente cuando proceda.
+- Cohortes sintéticas de un solo uso. El selector comprueba disponibilidad; si se
+  agotan se reponen por operador. Nunca resetear usuarios, canjes, eventos o WORM.
+- Métricas y logs sin QR, credenciales, fotos, documentos completos ni payloads
+  remotos. Alertas de divergencia, archivo fuera de plazo, reintentos agotados,
+  reloj degradado y pendientes. Suspender el flujo afectado y añadir eventos.
+- Alta/baja, importación, cambio de principal, revocación, correcciones, rollback
+  y recuperación se operan mediante los runbooks; no mediante CRUD administrativo.
+- Contexto mínimo de reanudación: [PROGRESS](PROGRESS.md). Evidencia privada y anclas
+  confiables permanecen fuera del repositorio público.

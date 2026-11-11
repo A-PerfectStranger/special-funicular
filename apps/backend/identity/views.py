@@ -252,6 +252,12 @@ def portal(request: HttpRequest) -> HttpResponse:
     if account.channel != "web" or account.role not in {"ADMIN_ESCUELA", "ADMIN_SISTEMA"}:
         return error(403)
     if account.role == "ADMIN_ESCUELA":
+        from django.conf import settings
+
+        if settings.E4_OPERATIONS_ENABLED:
+            from pickup.records import school_page
+
+            return school_page(request)
         return render(request, "identity/school.html")
     records, next_cursor = read_access_records(request)
     return render(

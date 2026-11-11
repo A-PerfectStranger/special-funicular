@@ -1,0 +1,8 @@
+from pathlib import Path
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+    dependencies = [("notification_worker", "0002_commands")]
+    operations = [migrations.RunSQL(Path(__file__).with_suffix(".sql").read_text())]

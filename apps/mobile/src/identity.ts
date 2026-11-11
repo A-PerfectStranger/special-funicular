@@ -143,7 +143,9 @@ export class IdentityClient {
   }
 
   async familyRequest<T>(path: string, payload?: object, key?: string): Promise<T> {
-    if (!/^\/v1\/(students|caregivers|authorizations)(\/|$)/.test(path)) throw new Error('Invalid route');
+    const family = /^\/v1\/(students|caregivers|authorizations)(\/|$)/.test(path);
+    const ownOperations = /^\/v1\/me\/(pickups(?:\?[A-Za-z0-9_%=&:.-]+)?|notification-device)$/.test(path);
+    if (!family && !ownOperations) throw new Error('Invalid route');
     await this.check();
     const generation = this.generation;
     const response = await this.dependencies.request(`${this.dependencies.apiUrl}${path}`, {

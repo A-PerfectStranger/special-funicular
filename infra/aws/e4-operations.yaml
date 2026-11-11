@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private staging APK distribution and the confirmed technical alert channel. No school activation.
+Parameters:
+  ExistingOperationsKeyArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '(|arn:aws:kms:us-east-1:028364485203:key/[0-9a-f-]{36})'
+    Description: Explicit retained operations key after rollback; remains in operator custody.
+  AlertEmail:
+    Type: String
+    NoEcho: true
+    AllowedPattern: '[^\s@]+@[^\s@]+\.[^\s@]+'
+Conditions:
+  CreateOperationsKey: !Equals [!Ref ExistingOperationsKeyArn, '']
+Resources:
+  OperationsKey:
+    Type: AWS::KMS::Key
+    Condition: CreateOperationsKey
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Internal mobile artifacts and operational alerts; separate from student evidence keys.
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AccountAdministration
+            Effect: Allow
+            Principal: {AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'}
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: ProtectFromApplicationAdministration
+            Effect: Deny
+            Principal: '*'
+            Action: [kms:DisableKey, kms:ScheduleKeyDeletion, kms:PutKeyPolicy, kms:CreateGrant]
+            Resource: '*'
+            Condition:
+              ArnLike: {aws:PrincipalArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/retiro-staging-*'}
+          - Sid: EncryptedCloudWatchAlerts
+            Effect: Allow
+            Principal: {Service: cloudwatch.amazonaws.com}
+            Action: ['kms:GenerateDataKey*', 'kms:Decrypt']
+            Resource: '*'
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+      Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: staging}]
+  MobileBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'retiro-internal-mobile-${AWS::AccountId}-${AWS::Region}'
+      OwnershipControls: {Rules: [{ObjectOwnership: BucketOwnerEnforced}]}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration: {Status: Enabled}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !If [CreateOperationsKey, !GetAtt OperationsKey.Arn, !Ref ExistingOperationsKeyArn]
+            BucketKeyEnabled: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: StagingArtifactsOnly
+            Status: Enabled
+            Prefix: staging/
+            ExpirationInDays: 7
+            NoncurrentVersionExpiration: {NoncurrentDays: 1}
+            AbortIncompleteMultipartUpload: {DaysAfterInitiation: 1}
+      Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: staging}, {Key: Data, Value: internal-apk}]
+  MobileBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MobileBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt MobileBucket.Arn, !Sub '${MobileBucket.Arn}/*']
+            Condition: {Bool: {aws:SecureTransport: false}}
+          - Sid: RequireTLS13ForUsers
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt MobileBucket.Arn, !Sub '${MobileBucket.Arn}/*']
+            Condition:
+              NumericLessThan: {s3:TlsVersion: '1.3'}
+              Bool: {aws:PrincipalIsAWSService: false}
+          - Sid: NoBearerDownloadLinks
+            Effect: Deny
+            Principal: '*'
+            Action: [s3:GetObject, s3:GetObjectVersion]
+            Resource: !Sub '${MobileBucket.Arn}/*'
+            Condition: {StringEquals: {s3:authType: REST-QUERY-STRING}}
+          - Sid: WriteOnceArtifactNames
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${MobileBucket.Arn}/staging/*'
+            Condition: {StringNotEquals: {s3:if-none-match: '*'}}
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: retiro-staging-operations-alerts
+      KmsMasterKeyId: !If [CreateOperationsKey, !GetAtt OperationsKey.Arn, !Ref ExistingOperationsKeyArn]
+      Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: staging}]
+  AlertSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+      TopicArn: !Ref AlertTopic
+  AlertTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref AlertTopic]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AccountOwner
+            Effect: Allow
+            Principal: {AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'}
+            # SNS topic policies accept explicit topic actions, not sns:*.
+            Action: [sns:GetTopicAttributes, sns:SetTopicAttributes, sns:AddPermission, sns:RemovePermission, sns:DeleteTopic, sns:Subscribe, sns:ListSubscriptionsByTopic, sns:Publish]
+            Resource: !Ref AlertTopic
+          - Sid: OnlyProjectCloudWatchAlarms
+            Effect: Allow
+            Principal: {Service: cloudwatch.amazonaws.com}
+            Action: sns:Publish
+            Resource: !Ref AlertTopic
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+              ArnLike: {aws:SourceArn: !Sub 'arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:retiro-staging-e4-*'}
+  MobilePublisher:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-MobilePublisher
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Federated: !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'}
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: 'repo:A-PerfectStranger@144553443/special-funicular@1449067177:ref:refs/heads/main'
+      Policies:
+        - PolicyName: OnlyPrivateStagingArtifacts
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: cloudformation:DescribeStacks
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-operations/*'
+              - Effect: Allow
+                Action: [s3:GetBucketPublicAccessBlock, s3:GetEncryptionConfiguration, s3:GetBucketVersioning, s3:GetBucketPolicyStatus, s3:GetBucketPolicy, s3:GetBucketTagging]
+                Resource: !GetAtt MobileBucket.Arn
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject, s3:GetObjectVersion]
+                Resource: !Sub '${MobileBucket.Arn}/staging/*'
+              - Effect: Allow
+                Action: [kms:GenerateDataKey, kms:Decrypt]
+                Resource: !If [CreateOperationsKey, !GetAtt OperationsKey.Arn, !Ref ExistingOperationsKeyArn]
+                Condition: {StringEquals: {kms:ViaService: !Sub 's3.${AWS::Region}.amazonaws.com'}}
+Outputs:
+  MobileBucket: {Value: !Ref MobileBucket}
+  MobileEncryptionKeyArn:
+    Value: !If [CreateOperationsKey, !GetAtt OperationsKey.Arn, !Ref ExistingOperationsKeyArn]
+  MobilePublisherArn: {Value: !GetAtt MobilePublisher.Arn}
+  OperatorAlertTopicArn: {Value: !Ref AlertTopic}

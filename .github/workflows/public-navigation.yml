@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with: {node-version-file: .node-version}
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: bash scripts/install_ci_chromium.sh
       - run: node tests/staging/public-navigation.mjs
         env: {STAGING_RELEASE_ORIGIN: '${{ inputs.origin }}'}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

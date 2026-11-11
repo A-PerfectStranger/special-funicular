@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
-  title: Retiro seguro - identidad, familia y retiro sintético
-  version: 0.4.0
+  title: Retiro seguro - identidad, familia, retiro y avisos sintéticos
+  version: 0.5.0
   description: E1/E2 keep their compatible capabilities. E3 requires E3_PICKUP_ENABLED and is synthetic-only;
     /v1/pickup/capabilities discovers it. Production commissioning remains blocked. No response or receipt
-    authorizes offline handover.
+    authorizes offline handover. E2 permits own device enrollment; E4 separately gates history/school queries and notification commissioning.
 paths:
   /health/live:
     get:
@@ -1156,7 +1156,116 @@ paths:
                     const: true
                   synthetic_only:
                     const: true
+  /v1/operations/capabilities:
+    get:
+      operationId: operationsCapabilities
+      responses:
+        '200':
+          description: E4 discovery; no identity data or handover permission
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [operations_enabled]
+                properties:
+                  operations_enabled: {const: true}
+  /v1/me/notification-device:
+    post:
+      operationId: registerOwnNotificationDevice
+      description: Available with E2 for parent mobile sessions, including device enrollment before E4 notification commissioning. Derives account on server; does not accept recipients. Expo receipts are pulled over HTTPS; no public provider callback exists.
+      security: [{MobileBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, enabled]
+              properties:
+                token: {type: string, maxLength: 255, pattern: '^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]{10,200}\]$'}
+                enabled: {type: boolean}
+      responses:
+        '200':
+          description: Device preference stored; not a promise of reception
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [registered]
+                properties:
+                  registered: {type: boolean}
+        '400': {description: Invalid input}
+        '401': {description: Missing or revoked session}
+        '403': {description: Wrong role or channel}
+        '429': {description: Actor device-registration rate limit}
+        '503': {description: Dependency unavailable}
+  /v1/school/pickup-records:
+    get:
+      operationId: schoolPickupRecords
+      description: School derived from online web session, isolated reader and audited query. No writes or bulk export. Dates refer to the site local date; preserves original report and linked corrections.
+      security: [{DjangoSession: []}]
+      parameters:
+        - {$ref: '#/components/parameters/RecordLimit'}
+        - {$ref: '#/components/parameters/RecordCursor'}
+        - {$ref: '#/components/parameters/RecordStudent'}
+        - {$ref: '#/components/parameters/RecordFrom'}
+        - {$ref: '#/components/parameters/RecordTo'}
+      responses:
+        '200':
+          description: School-scoped page
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecordPage'}
+        '400': {description: Invalid filters or pagination}
+        '401': {description: Missing or revoked session}
+        '403': {description: Wrong role or channel}
+        '503': {description: Dependency unavailable}
+  /v1/me/pickups:
+    get:
+      operationId: ownPickupRecords
+      description: Active linked parents including secondary; no caregiver document, photo, QR or other parents. Notification states concern only this parent. Corrections are additional interpretations, never handover permissions.
+      security: [{MobileBearer: []}]
+      parameters:
+        - {$ref: '#/components/parameters/RecordLimit'}
+        - {$ref: '#/components/parameters/RecordCursor'}
+        - {$ref: '#/components/parameters/RecordStudent'}
+        - {$ref: '#/components/parameters/RecordFrom'}
+        - {$ref: '#/components/parameters/RecordTo'}
+      responses:
+        '200':
+          description: Family-scoped page
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecordPage'}
+        '400': {description: Invalid filters or pagination}
+        '401': {description: Missing or revoked session}
+        '403': {description: Wrong role or channel}
+        '503': {description: Dependency unavailable}
 components:
+  parameters:
+    RecordLimit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+    RecordCursor:
+      name: before
+      in: query
+      schema: {type: integer, minimum: 1}
+    RecordStudent:
+      name: student
+      in: query
+      schema: {type: string, format: uuid}
+    RecordFrom:
+      name: from
+      in: query
+      schema: {type: string, format: date}
+    RecordTo:
+      name: to
+      in: query
+      schema: {type: string, format: date}
   schemas:
     Error:
       type: object
@@ -1779,6 +1888,58 @@ components:
           - CLOSED
           - RESCHEDULE_REQUIRED
           - INVALID_WINDOW
+    RecordPage:
+      type: object
+      additionalProperties: false
+      required: [records, next_cursor]
+      properties:
+        next_cursor: {type: [integer, 'null'], minimum: 1}
+        records:
+          type: array
+          maxItems: 100
+          items: {$ref: '#/components/schemas/PickupRecord'}
+    PickupRecord:
+      type: object
+      additionalProperties: false
+      required: [sequence, operation_id, student_id, student_name, local_date, timezone, decision_at, state, incident_reason, report_result, report_at, report_protected, correction_count, corrections, notification_states]
+      properties:
+        sequence: {type: integer, minimum: 1}
+        operation_id: {type: string, format: uuid}
+        student_id: {type: string, format: uuid}
+        student_name: {type: string}
+        local_date: {type: string, format: date}
+        timezone: {type: string}
+        decision_at: {type: string, format: date-time}
+        state: {enum: [PENDIENTE_ARCHIVO, HABILITADA, INCIDENCIA, ENTREGA_REPORTADA]}
+        incident_reason: {type: string}
+        report_result: {enum: ['', DELIVERED, NOT_DELIVERED]}
+        report_at: {type: [string, 'null'], format: date-time}
+        report_protected: {type: boolean}
+        correction_count: {type: integer, minimum: 0}
+        corrections:
+          type: array
+          maxItems: 25
+          description: Most recent 25 interpretations in sequence order; original fact remains separate.
+          items:
+            type: object
+            additionalProperties: false
+            required: [event_id, related_event_id, occurred_at, outcome, protected]
+            properties:
+              event_id: {type: string, format: uuid}
+              related_event_id: {type: string, format: uuid}
+              occurred_at: {type: string, format: date-time}
+              outcome: {enum: [DELIVERED, NOT_DELIVERED, UNRESOLVED]}
+              protected: {type: boolean}
+        notification_states:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            additionalProperties: false
+            required: [state, count]
+            properties:
+              state: {enum: [PENDING, PENDING_DEVICE, PENDING_REVIEW, PROVIDER_ACCEPTED, PROVIDER_RECEIPT, SUPPRESSED]}
+              count: {type: integer, minimum: 1}
   securitySchemes:
     MobileBearer:
       type: http
