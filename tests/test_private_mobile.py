@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+import boto3
 import pytest
 from botocore.exceptions import ClientError
+from botocore.stub import Stubber
 
 from scripts import private_mobile as mobile
 
@@ -75,7 +77,7 @@ class Store:
             "ServerSideEncryptionConfiguration": {
                 "Rules": [
                     {
-                        "ServerSideEncryptionByDefault": {
+                        "ApplyServerSideEncryptionByDefault": {
                             "SSEAlgorithm": "aws:kms",
                             "KMSMasterKeyID": self.encryption,
                         }
@@ -187,6 +189,117 @@ def test_policy_sid_alone_does_not_prove_protection(
     store.policy["Statement"][0]["Resource"] = "arn:aws:s3:::other/*"
     with pytest.raises(RuntimeError, match="policy required"):
         mobile.destination(store)
+
+
+@pytest.mark.parametrize("blocked_sse_c", [False, True])
+def test_destination_accepts_the_real_s3_sdk_schema_including_additional_protection(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, blocked_sse_c: bool
+) -> None:
+    store = configure(monkeypatch, tmp_path)
+    client = boto3.client(
+        "s3",
+        region_name="us-east-1",
+        aws_access_key_id="synthetic",
+        aws_secret_access_key="synthetic",
+    )
+    args = {"Bucket": mobile.BUCKET, "ExpectedBucketOwner": mobile.ACCOUNT}
+    rule: dict[str, Any] = {
+        # API field from GetBucketEncryption, not CloudFormation's property name.
+        "ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "aws:kms", "KMSMasterKeyID": KEY},
+        "BucketKeyEnabled": True,
+    }
+    if blocked_sse_c:
+        rule["BlockedEncryptionTypes"] = {"EncryptionType": ["SSE-C"]}
+    with Stubber(client) as stub:
+        # Stubber validates all responses against the pinned botocore service
+        # model. A hand-written fake using the CFN field would be rejected here.
+        stub.add_response("get_public_access_block", store.get_public_access_block(), args)
+        stub.add_response("get_bucket_policy_status", store.get_bucket_policy_status(), args)
+        stub.add_response(
+            "get_bucket_encryption", {"ServerSideEncryptionConfiguration": {"Rules": [rule]}}, args
+        )
+        stub.add_response("get_bucket_versioning", {"Status": "Enabled"}, args)
+        stub.add_response("get_bucket_tagging", store.get_bucket_tagging(), args)
+        stub.add_response("get_bucket_policy", store.get_bucket_policy(), args)
+        assert mobile.destination(client) == (mobile.BUCKET, KEY)
+        stub.assert_no_pending_responses()
+
+
+@pytest.mark.parametrize(
+    "error,expected",
+    [
+        (
+            RuntimeError("BLOCKED: exact encryption and versioning required"),
+            {"stage": "encryption", "code": "ENCRYPTION_OR_VERSIONING_MISMATCH"},
+        ),
+        (
+            ClientError(
+                {"Error": {"Code": "AccessDenied", "Message": "private-token@example.invalid"}},
+                "PutObject",
+            ),
+            {"stage": "aws", "code": "AccessDenied", "operation": "PutObject"},
+        ),
+        (
+            ClientError(
+                {"Error": {"Code": "private-token", "Message": "private@example.invalid"}},
+                "private-operation",
+            ),
+            {"stage": "aws", "code": "AWS_REQUEST_FAILED", "operation": "AwsRequest"},
+        ),
+        (
+            RuntimeError("cloudformation.describe-stacks: AccessDeniedException"),
+            {
+                "stage": "aws",
+                "code": "AccessDeniedException",
+                "operation": "cloudformation.describe-stacks",
+            },
+        ),
+        (
+            ValueError("private-token@example.invalid"),
+            {"stage": "private_transfer", "code": "LOCAL_OR_RESPONSE_ERROR"},
+        ),
+    ],
+)
+def test_cli_failures_report_only_fixed_categories_and_safe_aws_codes(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    error: Exception,
+    expected: dict[str, str],
+) -> None:
+    def fail() -> int:
+        raise error
+
+    monkeypatch.setattr(mobile, "main", fail)
+    assert mobile.cli() == 2
+    raw = capsys.readouterr().out
+    assert json.loads(raw) == {"status": "BLOCKED", **expected}
+    assert "private-token" not in raw and "example.invalid" not in raw
+
+
+def test_private_write_retains_safe_aws_error_details_without_printing_remote_payloads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    store = Store()
+    path = tmp_path / "candidate.apk"
+    path.write_bytes(b"synthetic apk")
+
+    def denied(**kwargs: Any) -> dict[str, Any]:
+        raise ClientError(
+            {"Error": {"Code": "AccessDenied", "Message": "private-token"}}, "PutObject"
+        )
+
+    monkeypatch.setattr(store, "put_object", denied)
+
+    def publish() -> int:
+        mobile.publish_object(store, mobile.BUCKET, KEY, "staging/candidate.apk", path)
+        return 0
+
+    monkeypatch.setattr(mobile, "main", publish)
+    assert mobile.cli() == 2
+    raw = capsys.readouterr().out
+    assert json.loads(raw)["operation"] == "PutObject"
+    assert json.loads(raw)["code"] == "AccessDenied" and "private-token" not in raw
+    assert not store.objects
 
 
 def test_publish_retry_is_read_back_and_never_overwrites_a_conflict(tmp_path: Path) -> None:
