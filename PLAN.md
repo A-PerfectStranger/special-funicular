@@ -86,6 +86,9 @@ suscripción SNS confirmada al correo autorizado. Su preflight de presupuesto/
 créditos pasó. Los CI de [PR](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43058956704)
 y [push](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43058945198)
 del candidato están aprobados; el SHA integrado requiere su propio CI/CD.
+El CI de main `4db7653` está aprobado; su CD publicó la imagen y aplicó las
+migraciones. El callback del origen observado está sincronizado por operador;
+staging y los gates funcionales deben repetirse para acreditar ese candidato.
 Esto acredita la preparación operativa, no publicación del APK, entrega de una
 alarma ni aceptación E4. Faltan publicación/lectura/checksum y descarga reales,
 Android 13, allowlist y comisión del notificador. Registrar el equipo antes de

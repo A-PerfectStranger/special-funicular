@@ -9,7 +9,8 @@ No cargar datos reales ni activar retiros, invitaciones o avisos a familias real
 
 Código del incremento integrado en main mediante PR #32:
 `4db76539ab6e46d2847bdce5360e13bd2cbcc038`, basado en el candidato aprobado
-`3ccf3f6`. Su CI/CD y publicación del APK están pendientes de verificar. Implementa
+`3ccf3f6`. Su CI de main está aprobado; CD y publicación del APK siguen
+pendientes de aceptación. Implementa
 notificador Expo, dispositivos por padre, historial mínimo, consultas escolares
 con lector separado y correcciones/reintentos técnicos por eventos vinculados.
 Migraciones nuevas: pickup 0008–0009 y notification_worker 0001–0004; no modificar
@@ -46,6 +47,17 @@ descargar el APK, probar la alarma y completar los ensayos siguen pendientes.
 La comisión del notificador `retiro-staging-e4` es otra operación; falta la
 allowlist del equipo y el gate integrado E4 antes de habilitarlo.
 
+CD vigente: [43064147478](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43064147478),
+del SHA integrado anterior. Imagen publicada y migraciones aprobadas. Digest
+`sha256:404aaf338a4b1db73fa2fe46f451d6a5b8d9ceb1fe67ddc88d724b2b6a49ddd9`.
+El reporte confirma digest en ejecución, red privada y probes TLS; solo bootstrap,
+con identidad/familia/retiro/avisos deshabilitados. El operador confirmó el cambio
+limitado al callback del WebClient existente para el origen observado
+`https://re-ce5a11fd975b4c8f9a0063c8dc78cc33.ecs.us-east-1.on.aws`.
+Callback comprobado y recursos persistentes conservados; falta repetir staging
+y gates del mismo candidato. Ese hostname es efímero: usar el nuevo reporte si
+la pasarela vuelve a retirarse; no asumir vigente esta URL por estar documentada.
+
 ## Decisiones y configuración externa
 
 - AWS actual `028364485203`, región `us-east-1`, techo USD 150, URL administrada sin
@@ -69,8 +81,9 @@ allowlist del equipo y el gate integrado E4 antes de habilitarlo.
 
 ## Trabajo siguiente
 
-1. Verificar CI de main/CD del SHA integrado indicado arriba al volver, sin
-   esperar ejecuciones largas dentro de esta conversación.
+1. Reanudar los jobs fallidos/dependientes del CD indicado arriba, con callback
+   sincronizado y el mismo SHA/digest; verificar staging, E1/E2/E3/WORM y APK
+   configurado al volver, sin esperar ejecuciones largas en esta conversación.
    La actualización documental no debe adelantar main durante ese despliegue:
    los adaptadores rechazan candidatos obsoletos. Integrarla después del CD.
 2. Tras CD y custodia privada verificados, descargar el APK con `private_mobile
