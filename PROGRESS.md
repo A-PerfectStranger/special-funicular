@@ -19,11 +19,11 @@ portal Chromium, tipos/lint/bundle/migraciones y auditorías de dependencias. Lo
 adaptadores/recibos de estas pruebas son simulados. Consultar CI del nuevo commit;
 no atribuirle los resultados de E3 ni afirmar imagen/APK/AWS aprobados sin sus jobs.
 La preparación de Chromium es compartida por CI y ensayos de staging mediante
-`scripts/install_ci_chromium.sh`: repositorios oficiales Ubuntu HTTPS, claves
-APT conservadas y errores/reintentos de red acotados. Configuración y propagación
-de fallos verificadas en Ubuntu 24.04; diez pruebas Chromium y 16 de infraestructura
-aprobadas localmente. La descarga completa de dependencias debe acreditarse en
-Actions: el proxy del entorno local rechazó esos repositorios con HTTP 403.
+`scripts/install_ci_chromium.sh`: descarga la revisión fijada por Playwright y
+exige arranque e interacción reales con las bibliotecas nativas del runner.
+No requiere APT ni modifica sus repositorios. Descarga desde caché vacía y arranque
+verificados localmente; los resultados del nuevo CI y sus artefactos siguen
+pendientes en Actions. Un navegador no operativo sigue bloqueando el job.
 
 ## Decisiones y configuración externa
 
