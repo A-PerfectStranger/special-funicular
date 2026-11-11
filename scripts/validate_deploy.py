@@ -58,6 +58,8 @@ def validate(config: dict[str, Any]) -> list[str]:
         or config.get("e2_enabled") is not True
     ):
         errors.append("E3 requires synthetic staging and E1/E2 gates")
+    if config.get("e4_enabled") is True and config.get("e3_enabled") is not True:
+        errors.append("E4 requires the E3 protected physical-report gate")
     return errors
 
 

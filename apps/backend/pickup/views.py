@@ -10,6 +10,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Any
 
+import psycopg
 from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError, transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -31,8 +32,8 @@ def endpoint(function: Callable[..., HttpResponse]) -> Callable[..., HttpRespons
             return error(403)
         except (ValueError, TypeError, KeyError, OverflowError):
             return error(400)
-        except DatabaseError as exc:
-            code = getattr(exc.__cause__, "sqlstate", None)
+        except (DatabaseError, psycopg.Error) as exc:
+            code = getattr(exc, "sqlstate", None) or getattr(exc.__cause__, "sqlstate", None)
             return error(403 if code == "42501" else 400 if code in {"22023", "22P02"} else 503)
 
     return guarded

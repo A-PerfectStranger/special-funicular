@@ -24,5 +24,6 @@
   "e1_enabled": true,
   "synthetic_only": true,
   "e2_enabled": true,
-  "e3_enabled": true
+  "e3_enabled": true,
+  "e4_enabled": false
 }

@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "evidence",
     "authorization",
     "pickup",
+    "notification_worker",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -121,3 +122,10 @@ if E2_FAMILY_ENABLED and not E1_IDENTITY_ENABLED:
 E3_PICKUP_ENABLED = os.environ.get("E3_PICKUP_ENABLED", "false") == "true"
 if E3_PICKUP_ENABLED and (not E2_FAMILY_ENABLED or APP_ENV == "production"):
     raise ImproperlyConfigured("E3 requires E2 and synthetic commissioning")
+
+E4_OPERATIONS_ENABLED = os.environ.get("E4_OPERATIONS_ENABLED", "false") == "true"
+if E4_OPERATIONS_ENABLED and (
+    not E3_PICKUP_ENABLED
+    or not (os.environ.get("SCHOOL_READ_DATABASE_URL") or os.environ.get("SCHOOL_READ_PASSWORD"))
+):
+    raise ImproperlyConfigured("E4 requires E3 and an isolated school reader")

@@ -240,7 +240,9 @@ def test_identity_contract_and_isolated_system_date_filter() -> None:
         os.environ,
         {
             "SYSTEM_READ_DATABASE_URL": (
-                "postgresql://retiro_system_read:synthetic-system-read-only@127.0.0.1:5432/"
+                "postgresql://retiro_system_read:synthetic-system-read-only@127.0.0.1:"
+                + os.environ.get("PGPORT", "5432")
+                + "/"
                 + os.environ.get("PGDATABASE", "retiro")
             )
         },

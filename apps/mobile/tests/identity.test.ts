@@ -140,3 +140,21 @@ test('family commands preserve the provided idempotency key and require online i
   await assert.rejects(client.familyRequest('/v1/students'));
   await assert.rejects(client.familyRequest('https://other.example/v1/students'));
 });
+
+test('E4 history pagination and own device use the online session without opening other routes', async () => {
+  const { client, calls } = harness();
+  await client.login();
+  await client.familyRequest('/v1/me/pickups?limit=25&before=123');
+  assert.equal(calls.at(-1)?.path, '/v1/me/pickups');
+  assert.equal((calls.at(-1)?.headers as Record<string, string>).Authorization, `Bearer ${access}`);
+  await client.familyRequest('/v1/me/notification-device', { token: 'synthetic', enabled: true });
+  assert.equal(calls.at(-1)?.path, '/v1/me/notification-device');
+  for (const path of ['/v1/system/school-access-records', '/v1/me/notifications/callback',
+    'https://other.example/v1/me/pickups', '/v1/me/pickups/../auth/refresh']) {
+    const before = calls.length;
+    await assert.rejects(client.familyRequest(path));
+    assert.equal(calls.length, before);
+  }
+  await client.logout();
+  await assert.rejects(client.familyRequest('/v1/me/pickups?limit=25'));
+});

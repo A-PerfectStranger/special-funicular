@@ -1,6 +1,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 
@@ -29,6 +30,11 @@ def main() -> None:
         "oci_digest": args.digest,
         "pickup_enabled": False,
         "distribution": "private-development-only",
+        "firebase_config_sha256": hashlib.sha256(
+            Path(os.environ["ANDROID_GOOGLE_SERVICES_FILE"]).read_bytes()
+        ).hexdigest()
+        if os.environ.get("ANDROID_GOOGLE_SERVICES_FILE")
+        else None,
     }
     args.artifact.with_suffix(args.artifact.suffix + ".json").write_text(
         json.dumps(data, indent=2) + "\n"

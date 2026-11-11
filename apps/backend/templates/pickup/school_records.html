@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Salidas e incidencias · Retiro seguro</title></head>
+<body><main>
+<h1>Portal escolar</h1><h2>Salidas e incidencias</h2>
+<p>Consulta de su escuela. Una decisión digital no acredita entrega física. Un reporte pendiente de protección no está confirmado por el archivo.</p>
+<form method="get">
+  <label>Desde <input type="date" name="from" value="{{ filters.from }}"></label>
+  <label>Hasta <input type="date" name="to" value="{{ filters.to }}"></label>
+  <label>Estudiante <select name="student"><option value="">Todos</option>{% for id, name in students.items %}<option value="{{ id }}"{% if filters.student == id %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  <button>Consultar</button>
+</form>
+<table><caption>Registros en orden de decisión, del más reciente al más antiguo</caption>
+<thead><tr><th>Estudiante</th><th>Fecha de sede</th><th>Decisión</th><th>Hecho físico reportado</th><th>Evidencia del reporte</th><th>Incidencia</th><th>Correcciones vinculadas</th><th>Avisos</th></tr></thead>
+<tbody>{% for record in records %}
+<tr><td>{{ record.student_name }}</td><td>{{ record.local_date }} · {{ record.timezone }}</td><td>{% if record.state == 'PENDIENTE_ARCHIVO' %}Decisión pendiente de protección{% elif record.state == 'HABILITADA' %}Permiso digital emitido{% elif record.state == 'INCIDENCIA' %}Incidencia{% else %}Reporte registrado{% endif %}</td>
+<td>{% if record.report_result == 'DELIVERED' %}Entrega reportada{% elif record.report_result == 'NOT_DELIVERED' %}No entrega reportada{% else %}Sin reporte físico{% endif %}</td>
+<td>{% if not record.report_result %}No disponible{% elif record.report_protected %}Protegida{% else %}Pendiente de protección{% endif %}</td>
+<td>{% if record.incident_reason == 'EVIDENCE_TIMEOUT' %}Archivo fuera de plazo{% elif record.incident_reason == 'PERMISSION_EXPIRED' %}Permiso vencido{% elif record.incident_reason == 'LATE_PHYSICAL_REPORT' %}Reporte fuera del permiso{% elif record.incident_reason %}Validación pendiente de revisión{% else %}—{% endif %}</td>
+<td>{% for correction in record.corrections %}<p>{{ correction.occurred_at }} · {% if correction.outcome == 'DELIVERED' %}Entrega reportada{% elif correction.outcome == 'NOT_DELIVERED' %}No entrega{% else %}En revisión{% endif %} · {% if correction.protected %}Protegida{% else %}Pendiente de protección{% endif %}</p>{% empty %}Sin correcciones{% endfor %}</td>
+<td>{% for notice in record.notification_states %}<p>{{ notice.count }}: {% if notice.state == 'PROVIDER_RECEIPT' %}Transferido al servicio del teléfono{% elif notice.state == 'PROVIDER_ACCEPTED' %}Aceptado por el proveedor{% elif notice.state == 'SUPPRESSED' %}Suspendido por cambio de vínculo o cuenta{% else %}Pendiente{% endif %}</p>{% empty %}Sin aviso de entrega{% endfor %}</td></tr>
+{% empty %}<tr><td colspan="8">Sin registros para estos filtros.</td></tr>{% endfor %}</tbody></table>
+<p>Los estados de aviso no acreditan recepción ni lectura. Se muestran hasta 25 correcciones por registro conservando el hecho original.</p>
+{% if next_cursor %}<a href="?{{ next_query }}">Siguiente página</a>{% endif %}
+<form method="post" action="{% url 'identity-logout' %}">{% csrf_token %}<button>Cerrar sesión</button></form>
+<form method="post" action="{% url 'identity-login' %}">{% csrf_token %}<input type="hidden" name="purpose" value="reauth"><button>Reautenticar con MFA</button></form>
+</main></body></html>

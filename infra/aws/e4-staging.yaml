@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: E4 synthetic notification execution, isolated SQL, school reader and actionable alert.
+Parameters:
+  SchoolReadPasswordArn:
+    Type: String
+    AllowedPattern: 'arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/e1/SchoolReadPassword-.+'
+  NotifierPasswordArn:
+    Type: String
+    AllowedPattern: 'arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/e1/NotifierPassword-.+'
+  ExpoAccessTokenSecretArn:
+    Type: String
+    AllowedPattern: 'arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/e4/ExpoAccessToken-.+'
+  AllowedDevicesSecretArn:
+    Type: String
+    AllowedPattern: 'arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-staging/e4/AllowedDeviceHashes-.+'
+  ExistingLogsArn:
+    Type: String
+  ExistingLogsName:
+    Type: String
+  OperatorAlertTopicArn:
+    Type: String
+    AllowedPattern: 'arn:aws:sns:us-east-1:028364485203:.+'
+Resources:
+  NotifierTask:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-E4NotifierTask
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+              ArnLike: {aws:SourceArn: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:*'}
+  NotifierExecution:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-staging-E4NotifierExecution
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+              ArnLike: {aws:SourceArn: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:*'}
+      Policies:
+        - PolicyName: PullLogAndNotifierSecrets
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: 'ecr:GetAuthorizationToken', Resource: '*'}
+              - Effect: Allow
+                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
+                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/retiro-staging/backend'
+              - {Effect: Allow, Action: [logs:CreateLogStream, logs:PutLogEvents], Resource: !Ref ExistingLogsArn}
+              - Effect: Allow
+                Action: 'secretsmanager:GetSecretValue'
+                Resource: [!Ref NotifierPasswordArn, !Ref ExpoAccessTokenSecretArn, !Ref AllowedDevicesSecretArn]
+  SchoolReader:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: E4SchoolReaderCredential
+      Roles: [retiro-staging-ApiExecution]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - {Effect: Allow, Action: 'secretsmanager:GetSecretValue', Resource: !Ref SchoolReadPasswordArn}
+  DeployNotifier:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: E4BoundedNotifierTask
+      Roles: [retiro-staging-Deploy]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: cloudformation:DescribeStacks
+            Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-staging-e4/*'
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource: [!GetAtt NotifierTask.Arn, !GetAtt NotifierExecution.Arn]
+            Condition: {StringEquals: {iam:PassedToService: ecs-tasks.amazonaws.com}}
+          - Effect: Allow
+            Action: ecs:RunTask
+            Resource: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/retiro-staging-notifications:*'
+            Condition: {ArnEquals: {ecs:cluster: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/retiro-staging'}}
+  PendingMetric:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref ExistingLogsName
+      FilterPattern: '{ $.escalated > 0 }'
+      MetricTransformations:
+        - MetricNamespace: RetiroSeguro/Staging
+          MetricName: NotificationsEscalated
+          MetricValue: '$.escalated'
+          DefaultValue: 0
+  PendingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Pending notifications require technical reconciliation; never a new handover.
+      Namespace: RetiroSeguro/Staging
+      MetricName: NotificationsEscalated
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OperatorAlertTopicArn]
+Outputs:
+  NotifierTaskArn: {Value: !GetAtt NotifierTask.Arn}
+  NotifierExecutionArn: {Value: !GetAtt NotifierExecution.Arn}
+  ExpoAccessTokenSecret: {Value: !Ref ExpoAccessTokenSecretArn}
+  AllowedDevicesSecret: {Value: !Ref AllowedDevicesSecretArn}

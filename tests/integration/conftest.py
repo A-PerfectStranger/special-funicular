@@ -11,7 +11,10 @@ import pytest
 def pytest_runtest_makereport(item: Any, call: Any) -> Generator[None, Any, None]:
     outcome = yield
     report = outcome.get_result()
-    if "test_e3_pickup.py" in str(item.fspath) and report.longrepr:
+    if (
+        any(name in str(item.fspath) for name in ["test_e3_pickup.py", "test_e4_"])
+        and report.longrepr
+    ):
         report.longrepr = re.sub(
             r"(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])",
             "[REDACTED]",

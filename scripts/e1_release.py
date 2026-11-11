@@ -47,10 +47,13 @@ def api_definition(
     sha: str,
     enable_family: bool = False,
     enable_pickup: bool = False,
+    enable_operations: bool = False,
 ) -> dict[str, Any]:
     require_configuration(config)
     if enable_pickup and not enable_family:
         raise RuntimeError("BLOCKED: E3 requires E2")
+    if enable_operations and (not enable_pickup or not config.get("SchoolReadPassword")):
+        raise RuntimeError("BLOCKED: E4 requires E3 and an isolated school reader")
     definition = copy.deepcopy(task_definition(base, image, sha, False))
     definition["taskRoleArn"] = config["ApiTaskArn"]
     container = definition["containerDefinitions"][0]
@@ -60,6 +63,7 @@ def api_definition(
             "E1_IDENTITY_ENABLED": "true",
             "E2_FAMILY_ENABLED": "true" if enable_family else "false",
             "E3_PICKUP_ENABLED": "true" if enable_pickup else "false",
+            "E4_OPERATIONS_ENABLED": "true" if enable_operations else "false",
             "AWS_REGION": "us-east-1",
             "OIDC_ISSUER": config["Issuer"],
             "OIDC_COGNITO_POOL_ID": config["PoolId"],
@@ -74,6 +78,10 @@ def api_definition(
     container["secrets"].append(
         {"name": "SYSTEM_READ_PASSWORD", "valueFrom": config["SystemReadPassword"]}
     )
+    if enable_operations:
+        container["secrets"].append(
+            {"name": "SCHOOL_READ_PASSWORD", "valueFrom": config["SchoolReadPassword"]}
+        )
     return definition
 
 
@@ -113,10 +121,14 @@ def archive_definition(
 
 def start_archive(base: dict[str, str], definition: str, digests: set[str]) -> str:
     """Verify the replacement before stopping only older archive-family tasks."""
+    return start_worker(base, definition, digests, "retiro-staging-archive")
+
+
+def start_worker(base: dict[str, str], definition: str, digests: set[str], family: str) -> str:
+    if family not in {"retiro-staging-archive", "retiro-staging-notifications"}:
+        raise RuntimeError("BLOCKED: unknown isolated worker family")
     cluster = base["Cluster"]
-    previous = aws("ecs", "list-tasks", "--cluster", cluster, "--family", "retiro-staging-archive")[
-        "taskArns"
-    ]
+    previous = aws("ecs", "list-tasks", "--cluster", cluster, "--family", family)["taskArns"]
     network = {
         "awsvpcConfiguration": {
             "subnets": [base["Public0"], base["Public1"]],

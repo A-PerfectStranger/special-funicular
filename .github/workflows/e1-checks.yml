@@ -11,6 +11,12 @@ on:
       release_digest:
         required: true
         type: string
+      enable_operations:
+        type: boolean
+        default: false
+    secrets:
+      STAGING_GOOGLE_SERVICES_JSON:
+        required: false
 permissions:
   contents: read
 env:
@@ -91,6 +97,15 @@ jobs:
         id: gradle
         env: {GH_TOKEN: '${{ github.token }}'}
         run: python3 scripts/gradle_archive.py download
+      - name: Require the registered Firebase Android configuration for E4
+        env:
+          ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.STAGING_GOOGLE_SERVICES_JSON }}
+          ANDROID_PACKAGE_ID: org.retiroseguro.staging
+          E4_CONFIG_REQUIRED: ${{ inputs.enable_operations }}
+        run: |
+          if [ -n "$ANDROID_GOOGLE_SERVICES_JSON" ] || [ "$E4_CONFIG_REQUIRED" = true ]; then
+            python3 scripts/mobile_push_config.py
+          fi
       - name: Build configured internal staging APK with development signing
         env:
           GIT_SHA: ${{ inputs.release_sha }}

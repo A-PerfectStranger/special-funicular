@@ -89,6 +89,7 @@ jobs:
       e1_enabled: ${{ steps.e1.outputs.enabled }}
       e2_enabled: ${{ steps.e1.outputs.family }}
       e3_enabled: ${{ steps.e1.outputs.pickup }}
+      e4_enabled: ${{ steps.e1.outputs.operations }}
       origin: ${{ steps.deployment.outputs.origin }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -104,12 +105,16 @@ jobs:
           enabled = configuration.get('e1_enabled') is True
           family = configuration.get('e2_enabled') is True
           pickup = configuration.get('e3_enabled') is True
+          operations = configuration.get('e4_enabled') is True
           if pickup and not family:
               raise SystemExit('BLOCKED: E3 requires E2')
+          if operations and not pickup:
+              raise SystemExit('BLOCKED: E4 requires E3')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write('enabled=' + str(enabled).lower() + '\n')
               stream.write('family=' + str(family).lower() + '\n')
               stream.write('pickup=' + str(pickup).lower() + '\n')
+              stream.write('operations=' + str(operations).lower() + '\n')
           PYCODE
       - name: Deploy, verify running digest and TLS probes
         id: deployment
@@ -129,7 +134,10 @@ jobs:
     if: needs.staging.outputs.e1_enabled == 'true'
     permissions: {contents: read, id-token: write}
     uses: ./.github/workflows/e1-checks.yml
+    secrets:
+      STAGING_GOOGLE_SERVICES_JSON: ${{ secrets.STAGING_GOOGLE_SERVICES_JSON }}
     with:
+      enable_operations: ${{ needs.staging.outputs.e4_enabled == 'true' }}
       release_sha: ${{ needs.publish.outputs.sha }}
       release_digest: ${{ needs.publish.outputs.digest }}
       release_origin: ${{ needs.staging.outputs.origin }}

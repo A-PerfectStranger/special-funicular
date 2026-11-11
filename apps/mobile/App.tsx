@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, Button, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Family } from './src/Family';
 import { Guard } from './src/Guard';
@@ -7,11 +7,16 @@ import type { IdentityClient, MobileRole } from './src/identity';
 import { createIdentityClient } from './src/identityRuntime';
 import { SessionVisibility } from './src/sessionVisibility';
 import { clearQrShares } from './src/qrShareRuntime';
+import { History } from './src/History';
+import { registerNotifications, unregisterNotifications } from './src/notificationRuntime';
+import Constants from 'expo-constants';
 
 export default function App() {
   const [status, setStatus] = useState('Sin comprobar conexión. Retiros deshabilitados.');
   const [familyEnabled, setFamilyEnabled] = useState(false);
   const [pickupEnabled, setPickupEnabled] = useState(false);
+  const [operationsEnabled, setOperationsEnabled] = useState(false);
+  const pushToken = useRef<string | null>(null);
   const [invitation, setInvitation] = useState('');
   const [pending, setPending] = useState(false);
   const [role, setRole] = useState<MobileRole | null>(null);
@@ -36,6 +41,11 @@ export default function App() {
     if (!configured) return;
     let active = true;
     const endpoint = process.env.EXPO_PUBLIC_API_URL;
+    if (endpoint) fetch(`${endpoint}/v1/operations/capabilities`, {
+      cache: 'no-store', credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(5000),
+    }).then(async response => response.ok ? response.json() : null).then(value => {
+      if (active) setOperationsEnabled(value?.operations_enabled === true);
+    }).catch(() => { if (active) setOperationsEnabled(false); });
     if (endpoint) fetch(`${endpoint}/v1/family/capabilities`, {
       cache: 'no-store', credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(5000),
     }).then(async response => response.ok ? response.json() : null).then(value => {
@@ -79,11 +89,25 @@ export default function App() {
     visibility.beginInteractive();
     setPending(true);
     try {
+      if (identity && pushToken.current) {
+        await unregisterNotifications(identity, pushToken.current).catch(() => undefined);
+      }
+      pushToken.current = null;
       const revoked = await identity?.logout();
       setStatus(revoked ? 'Sesión revocada y datos locales borrados.'
         : 'Datos locales borrados. Revocación en servidor sin confirmar.');
     } catch { setStatus('Acceso local bloqueado. No fue posible confirmar el cierre de sesión.'); }
     finally { visibility.finishInteractive(null); setPending(false); }
+  }
+
+  async function enableNotifications() {
+    if (!identity) return;
+    setPending(true);
+    try {
+      pushToken.current = await registerNotifications(identity);
+      setStatus('Dispositivo registrado para avisos genéricos. Su recepción depende de la conexión y del proveedor.');
+    } catch { setStatus('No se pudieron habilitar los avisos. Revisa permisos, conexión y configuración del servicio.'); }
+    finally { setPending(false); }
   }
 
   async function checkConnection() {
@@ -128,6 +152,12 @@ export default function App() {
         </>}
         {familyEnabled && role === 'PADRE' && identity && <Family identity={identity} pickupEnabled={pickupEnabled}
           photoActivity={select => visibility.photoActivity(select)} />}
+        {familyEnabled && Constants.expoConfig?.extra?.pushConfigured === true && role === 'PADRE' && identity &&
+          <Button title="Habilitar avisos en este Android" disabled={pending} onPress={enableNotifications} />
+        }
+        {operationsEnabled && role === 'PADRE' && identity && <>
+          <History identity={identity} />
+        </>}
         {pickupEnabled && role === 'GUARDIA' && identity && <Guard identity={identity} />}
         </View>
       </View>

@@ -16,6 +16,8 @@ Cada documento tiene un propósito único:
 | [Importación y familia](docs/runbooks/e2.md) | Comandos privados, esquema, activación y ensayo E2. |
 | [QR y puerta sintética](docs/runbooks/e3.md) | Emisión, escaneo, decisión, archivo, reporte y gate E3. |
 | [Identidad y evidencia](docs/runbooks/e1.md) | Comisión, ensayos y recuperación sintética de E1. |
+| [Avisos y consulta](docs/runbooks/e4.md) | Expo/FCM, dispositivos, notificador, consultas y comandos técnicos. |
+| [Aceptación y activación](docs/runbooks/e5.md) | Pruebas conjuntas Android, recuperación/carga y cierre productivo pendiente. |
 | [AWS](infra/aws/README.md) | Infraestructura, presupuesto y bootstrap. |
 
 La configuración de cada destino vive en [infra/environments](infra/environments).
@@ -114,7 +116,8 @@ OpenAPI: `tests/contracts/openapi.yaml`. Respuestas `no-store`, sin PII.
 Readiness técnico **no autoriza retiros**. `/admin/` no existe; las rutas E3 requieren su bandera sintética explícita.
 Sin seleccionar un handler, `python apps/backend/manage.py runworker --check` muestra cero
 handlers activos. E1 añade `runworker --archive` con configuración y credencial
-SQL propias; las notificaciones siguen pendientes de E4. La ejecución cloud
+SQL propias. E4 añade `--notifications` con credencial SQL y configuración Expo
+separadas; no seleccionar ambos handlers en un proceso. La ejecución cloud
 acotada usa `python -m archive_worker.runner --max-runtime-seconds 10800`.
 Operación: [runbook E1](docs/runbooks/e1.md); aceptación y pendientes: [plan](PLAN.md).
 
@@ -124,7 +127,7 @@ Con `E1_IDENTITY_ENABLED=true` y configuración completa, E1 añade `/auth/login
 `/v1/system/school-access-records`. No añade CRUD de roles/estudiantes/evidencias.
 Los callbacks de Cognito y el móvil deben coincidir exactamente por entorno;
 el cliente móvil recibe sesiones propias, nunca tokens del IdP. Las consultas
-escolares de salidas corresponden a E4 y los retiros a E3.
+escolares de salidas requieren la bandera E4 y los retiros la bandera E3.
 
 ## CI, artefactos y CD
 
@@ -176,4 +179,37 @@ El archivador observa hora autenticada de S3 y avanza vencimientos sin depender
 de un teléfono conectado. `runworker --archive --check` incluye métricas de puerta.
 CD exige el protocolo sintético E3 y verificación externa cuando `e3_enabled=true`.
 Comandos, recuperación por ID, inyección de archivo tardío y límites: [E3](docs/runbooks/e3.md).
-Avisos/consulta escolar son E4; pruebas físicas Android y activación real son E5.
+Avisos/consulta escolar se habilitan por E4; pruebas físicas Android y activación real son E5.
+
+
+## Avisos y consultas E4
+
+El registro del dispositivo del padre está disponible con E2 en
+`POST /v1/me/notification-device`; el APK debe incluir su configuración Firebase.
+No envía avisos por registrar un dispositivo. Para ello se requiere el notificador
+configurado, allowlist de ensayo y un reporte físico protegido.
+
+Con `E4_OPERATIONS_ENABLED=true`, E3 y lector escolar separados, aparecen
+`/v1/operations/capabilities`, `/v1/me/pickups`,
+`/v1/school/pickup-records` y la consulta de `/portal/`. Historial mínimo propio,
+filtros por fecha local/estudiante, paginación y correcciones vinculadas; sin CRUD
+administrativo. El administrador de sistema conserva solo accesos escolares.
+El estado de aceptación y la bandera de staging se consultan en PLAN/configuración.
+
+```bash
+python apps/backend/manage.py runworker --notifications --check
+python apps/backend/manage.py notification_ops --help
+python apps/backend/manage.py pickup_correction --help
+```
+
+El worker aislado usa `notification_worker.runner`; nunca recibe las credenciales
+SQL de migración/importación/archivo. Expo usa tickets y recibos HTTPS autenticados,
+no un callback público ni una señal de lectura del usuario. Una respuesta perdida
+puede duplicar un mensaje externo, conservando un único aviso y hecho lógicos.
+Operación, CLI privados, secretos, FCM y ensayos: [E4](docs/runbooks/e4.md).
+
+El proyecto Expo y el paquete de staging están fijados en app.config.ts. El build
+cloud recibe `STAGING_GOOGLE_SERVICES_JSON` por secret y valida su app/paquete;
+la cuenta FCM v1 se custodia en Expo. La firma actual sigue siendo de desarrollo.
+La comisión/aceptación E4 en AWS y la producción E5 no se acreditan por esta
+configuración ni por un bundle compilado.
