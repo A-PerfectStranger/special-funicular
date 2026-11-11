@@ -44,7 +44,8 @@ jobs:
           persist-credentials: false
       - name: Require commissioned staging
         run: python3 scripts/validate_deploy.py infra/environments/staging.json
-      - run: sudo apt-get update && sudo apt-get install -y skopeo
+      # ubuntu-24.04 includes Skopeo. Fail before federation if the runner drifts.
+      - run: command -v skopeo && skopeo --version
       - name: Publish approved immutable digest
         id: publish
         env:

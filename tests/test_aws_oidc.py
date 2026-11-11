@@ -36,7 +36,9 @@ def setup(monkeypatch: pytest.MonkeyPatch, role: str = "E1Acceptance") -> None:
     )
 
 
-@pytest.mark.parametrize("role", ["Deploy", "Migrate", "E1Verifier", "E1Acceptance"])
+@pytest.mark.parametrize(
+    "role", ["Deploy", "Migrate", "E1Verifier", "E1Acceptance", "MobilePublisher"]
+)
 def test_federates_once_and_fresh_sdk_children_work_without_the_jwt_file(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], role: str
 ) -> None:

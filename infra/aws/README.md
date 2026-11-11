@@ -57,6 +57,8 @@ no dejar NAT Gateway, réplicas o ingreso encendidos sin presupuesto.
 | `staging-base.json` | VPC, RDS, ECR, secretos base y roles Deploy/Migrate. |
 | `staging-lifecycle.yaml` | Retirada de API/ALB y guarda de RDS. |
 | `e1-staging.yaml` | Cognito, WORM/KMS, secretos e identidades separadas E1. |
+| `e4-operations.yaml` | APK privado, clave separada, OIDC MobilePublisher y SNS al correo técnico autorizado. |
+| `e4-staging.yaml` | Tarea notificador, permisos de secretos separados y alarma hacia SNS confirmado. |
 
 La base usa RDS PostgreSQL 17 privado y cifrado, db.t4g.micro/20 GB, backup
 sintético de un día y protección contra borrado. Aurora Express exige una pasarela
@@ -75,6 +77,14 @@ Si cambia el repositorio o su personalización OIDC, contrastar metadatos y ajus
 plantillas/pruebas; no sustituir por wildcard. Deploy publica/despliega y Migrate
 migra con identidad SQL separada. El bootstrap SQL queda en tareas privadas;
 CI/runtime no reciben la credencial raíz. No usar claves permanentes.
+
+`MobilePublisher` solo escribe/lee `staging/` del bucket interno, consulta su
+protección y usa su clave mediante S3. No recibe secretos ni acceso a BD/ECS o
+evidencias. APK sintéticos: lifecycle de siete días; las versiones no actuales
+expiran después de un día. No es la retención institucional. Bucket y clave se
+retienen al eliminar el stack; su retirada requiere comprobar referencias y
+costes. El preflight de comisión incluye la reserva incremental de USD 5 y la
+base retenida de USD 27; no acredita el presupuesto de producción.
 
 ## Bootstrap con operador CloudShell
 

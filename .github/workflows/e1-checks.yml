@@ -72,7 +72,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   staging-apk:
-    permissions: {contents: read}
+    permissions: {contents: read, id-token: write}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -97,15 +97,11 @@ jobs:
         id: gradle
         env: {GH_TOKEN: '${{ github.token }}'}
         run: python3 scripts/gradle_archive.py download
-      - name: Require the registered Firebase Android configuration for E4
+      - name: Require the registered Firebase Android configuration for the team APK
         env:
           ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.STAGING_GOOGLE_SERVICES_JSON }}
           ANDROID_PACKAGE_ID: org.retiroseguro.staging
-          E4_CONFIG_REQUIRED: ${{ inputs.enable_operations }}
-        run: |
-          if [ -n "$ANDROID_GOOGLE_SERVICES_JSON" ] || [ "$E4_CONFIG_REQUIRED" = true ]; then
-            python3 scripts/mobile_push_config.py
-          fi
+        run: python3 scripts/mobile_push_config.py
       - name: Build configured internal staging APK with development signing
         env:
           GIT_SHA: ${{ inputs.release_sha }}
@@ -117,20 +113,19 @@ jobs:
         run: bash scripts/build-apk.sh
       - name: Verify APK signature
         run: '"$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose work/artifacts/*.apk'
+      - run: python3 -m pip install --target work/e1-sdk --require-hashes -r infra/aws/e1-ops.txt
+      - name: Publish and read back the configured APK in authenticated private custody
+        env:
+          PYTHONPATH: work/e1-sdk
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: python3 scripts/aws_oidc.py --role MobilePublisher -- python3 -m scripts.private_mobile publish --sha "$RELEASE_SHA"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: staging-apk-manifest-${{ inputs.release_sha }}
           path: work/artifacts/*.json
           if-no-files-found: error
           retention-days: 7
-      # An internal APK is never uploaded as a public artifact.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: github.event.repository.private
-        with:
-          name: staging-apk-${{ inputs.release_sha }}
-          path: work/artifacts/*.apk
-          if-no-files-found: error
-          retention-days: 3
+      # APK bytes go only to the authenticated S3 bucket, never GitHub artifacts.
   archive-drill:
     needs: [browser, cloud]
     permissions: {contents: read, id-token: write}

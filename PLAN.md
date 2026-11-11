@@ -16,7 +16,7 @@ anterior a una imagen, APK o despliegue posterior.
 | E2 | Aceptada con sintéticos | Bulk privado, activación/contacto verificado, principal único, cuidadores/fotos, autorizaciones y revocación. Una familia pertenece a una sola escuela. |
 | E3 | Aceptada con sintéticos | QR diferido, decisión única, archivo antes del permiso de 30 s, reporte físico, incidencias e idempotencia. |
 | E4 | Candidato implementado y verificado localmente; aceptación AWS pendiente | Notificador Expo Push, historial familiar, consulta escolar y correcciones técnicas. La bandera de staging sigue apagada. |
-| E5 | Pendiente | Producción, recuperación integral/carga, Android físico, distribución privada y activación escolar. |
+| E5 | Pendiente | Producción, recuperación integral/carga, Android físico y activación escolar. Distribución privada implementada; falta comisión y ensayo real. |
 
 No hay producción comisionada ni uso real autorizado. `pickup_enabled=false` y
 `synthetic_only=true` siguen en la configuración de ambos destinos. E3 se descubre
@@ -73,12 +73,20 @@ CA-S02/11/12/14/18/21/22/23; AT02/05/07; AB02/10/12/14/16/23.
 | Correcciones | Comando importer privado, aprobación/motivo/operador, evento vinculado, replay/conflicto; conserva bytes, estado original y token consumido. | Corrección y ancla WORM independientes del candidato en staging. |
 | Integración | Migraciones aditivas, contratos/tipos, worker aislado, definición de tarea y plantilla IAM/alarma. | Comisionar recursos, habilitar bandera revisada y completar gate integrado E4 antes de declararla aceptada. |
 
-Verificación local del candidato: 357 pruebas Python con PostgreSQL y roles reales,
+Verificación local del candidato: 386 pruebas Python con PostgreSQL y roles reales,
 27 JavaScript, diez pruebas Chromium/recuperación/diagnóstico, portal escolar en
 Chromium, tipos/lint, bundle Android, migraciones desde cero y auditorías de
 paquetes. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
 acreditan AWS, Expo/FCM ni dispositivo físico. CI, builds de imagen/APK y CD del
 nuevo SHA requieren sus propios resultados.
+
+La preparación operativa incluye SNS al correo del presupuesto autorizado y
+custodia S3 privada del APK mediante OIDC limitado a artefactos, con publicación
+condicional, lectura/checksum y descarga autenticada. Falta aplicar el stack,
+confirmar la suscripción y verificar publicación/descarga reales. El inventario
+AWS del operador confirma presupuesto/créditos y access token vigente; aún no
+hay tópico SNS, bucket interno ni allowlist de dispositivos. Android disponible:
+versión 13. Registrar el equipo antes de comisionar el notificador.
 
 Orden: cerrar persistencia/permisos → transporte/worker/vistas → regresiones y
 contrato → comisión y ensayo AWS/Expo → verificador externo. Procedimientos y

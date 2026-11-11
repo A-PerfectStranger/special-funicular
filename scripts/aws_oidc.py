@@ -13,7 +13,9 @@ from urllib.request import Request, urlopen
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--role", choices=["Deploy", "Migrate", "E1Verifier", "E1Acceptance"], required=True
+        "--role",
+        choices=["Deploy", "Migrate", "E1Verifier", "E1Acceptance", "MobilePublisher"],
+        required=True,
     )
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()

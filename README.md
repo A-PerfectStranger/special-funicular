@@ -142,9 +142,18 @@ exige calidad y ambos builds. Las pruebas locales E1 incluyen roles/familias y R
 con PostgreSQL real. El [plan](PLAN.md) delimita la aceptación funcional de cada
 entrega; pasar los probes técnicos no acredita funciones pendientes.
 
-El repositorio es público. El APK interno no se sube como artefacto público:
-se conserva el checksum; el binario solo se sube automáticamente si el repositorio
-es privado. Para distribución interna en este repositorio falta conectar un destino privado.
+El repositorio es público. El APK interno de staging se publica mediante el rol
+OIDC `MobilePublisher` en S3 privado cifrado/versionado, después de verificar firma,
+origen y Firebase. Se comprueba por lectura y checksum; Actions conserva solo los
+manifiestos. Requiere comisionar `retiro-staging-operations`; si falta, el job falla.
+La descarga usa identidad AWS de operador, sin enlaces públicos ni prefirmados:
+
+```bash
+python3 -m scripts.private_mobile download --sha SHA_COMPLETO_DESPLEGADO \
+  --expected-sha256 CHECKSUM_DE_ACTIONS
+```
+
+Preparación y transferencia al Android: [E4](docs/runbooks/e4.md).
 No hay código privilegiado ejecutado desde forks ni `pull_request_target`.
 
 La URL temporal de staging se obtiene del reporte de despliegue verificado por

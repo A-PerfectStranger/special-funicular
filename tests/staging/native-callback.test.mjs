@@ -20,18 +20,22 @@ async function exercise(target, check, scriptRedirect = false) {
     }
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  const browser = await chromium.launch({
-    ...(process.env.E1_CHROMIUM_PATH ? { executablePath: process.env.E1_CHROMIUM_PATH } : {}),
-    headless: true,
-  });
+  let browser;
   try {
+    browser = await chromium.launch({
+      ...(process.env.E1_CHROMIUM_PATH ? { executablePath: process.env.E1_CHROMIUM_PATH } : {}),
+      headless: true,
+    });
     const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await check(page);
   } finally {
-    await browser.close();
-    server.closeAllConnections();
-    await new Promise(resolve => server.close(resolve));
+    try {
+      await browser?.close();
+    } finally {
+      server.closeAllConnections();
+      await new Promise(resolve => server.close(resolve));
+    }
   }
 }
 

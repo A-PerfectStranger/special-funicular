@@ -14,22 +14,32 @@ Migraciones nuevas: pickup 0008–0009 y notification_worker 0001–0004; no mod
 migraciones E1/E2/E3 ya desplegadas. `e4_enabled=false` en staging; los controles
 productivos siguen bloqueando identidad/retiros/archivo sin comisión E5.
 
-Verificación local: 357 Python con PostgreSQL real, 27 JavaScript, diez navegador,
+Verificación local: 386 Python con PostgreSQL real, 27 JavaScript, diez navegador,
 portal Chromium, tipos/lint/bundle/migraciones y auditorías de dependencias. Los
 adaptadores/recibos de estas pruebas son simulados. Consultar CI del nuevo commit;
 no atribuirle los resultados de E3 ni afirmar imagen/APK/AWS aprobados sin sus jobs.
-La preparación de Chromium es compartida por CI y ensayos de staging mediante
-`scripts/install_ci_chromium.sh`: descarga la revisión fijada por Playwright y
-exige arranque e interacción reales con las bibliotecas nativas del runner.
-No requiere APT ni modifica sus repositorios. Descarga desde caché vacía y arranque
-verificados localmente; los resultados del nuevo CI y sus artefactos siguen
-pendientes en Actions. Un navegador no operativo sigue bloqueando el job.
+Chromium usa `scripts/install_ci_chromium.sh`, con descarga fijada y arranque/
+interacción obligatorios sin APT. El candidato base `a830355` pasó ambos CI,
+incluidos quality, imagen y APK. Los cambios posteriores de preparación operativa
+requieren sus propios checks por SHA. Los runners Ubuntu 24.04 ya incluyen Skopeo;
+su presencia se exige antes de federar, sin reinstalarlo mediante APT.
+El helper de pruebas nativas cierra su servidor también si Chromium no arranca;
+se comprueba el fallo negativo sin dejar la ejecución colgada.
+
+Preparación operativa implementada: `e4-operations.yaml`,
+`commission_e4_operations.py` y `private_mobile.py`. Stack separado para SNS,
+clave y APK interno con OIDC MobilePublisher. Publicación condicional con lectura
+posterior, descarga AWS autenticada y checksum independiente de Actions; sin APK público ni enlace
+prefirmado. **No se ha aplicado ni verificado en AWS.** Comisionarlo antes de
+integrar para que CD pueda entregar el APK configurado de staging.
 
 ## Decisiones y configuración externa
 
 - AWS actual `028364485203`, región `us-east-1`, techo USD 150, URL administrada sin
   dominio propio. El operador confirmó el preflight de comisión sintética de presupuesto/créditos;
-  no acredita cobertura de retención productiva ni comisión E4/E5.
+  no acredita cobertura de retención productiva ni comisión E4/E5. El inventario
+  del operador no tiene SNS ni bucket interno ni AllowedDeviceHashes. El access
+  token Expo está vigente y sin eliminación pendiente.
 - Expo `43s1r/retiro-seguro`, proyecto `8d55d0cb-2d9f-4a73-bac3-6ad7cab1f04f`.
   Firebase `retiro-seguro-2ab03`; app Android `org.retiroseguro.staging` creada.
   Firma staging de desarrollo; no usarla como firma productiva.
@@ -39,20 +49,26 @@ pendientes en Actions. Un navegador no operativo sigue bloqueando el job.
   y el secreto `retiro-staging/e4/ExpoAccessToken` en Secrets Manager. Falta
   verificar su inyección/funcionamiento, la allowlist del equipo y el aviso/recibo
   en dispositivo.
-- Android físico disponible; objetivo: preparar activación escolar. Continuar paso
+- Android físico disponible, Android 13; objetivo: preparar activación escolar. Continuar paso
   a paso con el responsable, sin sustituir la prueba física por unitarias.
 - Retención inicial delegada: política seleccionada en retention.json; aplicación,
   coste, denegaciones, ciclo automático y recuperación pendientes de E5.
 
 ## Trabajo siguiente
 
-1. Verificar CI/checks del candidato antes de integrar; CI/CD se deja al final de
-   cada entrega y no se espera durante horas. Tras integración, revisar CD por SHA.
-2. Completar Expo/Firebase, comisión E4, bandera y ensayo integrado real según
+1. Verificar los checks del nuevo SHA. El responsable autorizó expresamente usar
+   el mismo correo del presupuesto para SNS. Desde CloudShell ejecutar
+   `commission_e4_operations --expected-sha SHA --use-budget-alert-email`,
+   aceptar el correo de confirmación y revisar su JSON sin publicar la dirección.
+2. Con el stack listo y checks aprobados, integrar y verificar CD por SHA.
+   Descargar el APK con `private_mobile download`, transferirlo de forma privada
+   al Android e iniciar el ensayo conjunto por instalación/login/registro.
+   Obtener hashes auditados del equipo para AllowedDeviceHashes; no inventarlos.
+3. Completar Expo/Firebase, comisión E4, bandera y ensayo integrado real según
    [E4](docs/runbooks/e4.md), incluidas alertas, fallos/reintentos y lector WORM.
    El gate automático E4 y su incorporación a promoción siguen pendientes; no
    habilitar producción ni declarar E4 terminada solo por la suite local.
-3. Ejecutar [E5](docs/runbooks/e5.md): Android/personal, recuperación integral con
+4. Ejecutar [E5](docs/runbooks/e5.md): Android/personal, recuperación integral con
    epoch y referencias, carga/RTO, retención, firma/distribución, producción y lote.
 
 ## Invariantes operativas
