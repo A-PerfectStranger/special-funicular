@@ -16,7 +16,7 @@ anterior a una imagen, APK o despliegue posterior.
 | E2 | Aceptada con sintéticos | Bulk privado, activación/contacto verificado, principal único, cuidadores/fotos, autorizaciones y revocación. Una familia pertenece a una sola escuela. |
 | E3 | Aceptada con sintéticos | QR diferido, decisión única, archivo antes del permiso de 30 s, reporte físico, incidencias e idempotencia. |
 | E4 | Candidato implementado y verificado localmente; aceptación AWS pendiente | Notificador Expo Push, historial familiar, consulta escolar y correcciones técnicas. La bandera de staging sigue apagada. |
-| E5 | Pendiente | Producción, recuperación integral/carga, Android físico y activación escolar. Distribución privada implementada; falta comisión y ensayo real. |
+| E5 | Pendiente | Producción, recuperación integral/carga, Android físico y activación escolar. Custodia privada de staging comisionada; publicación del APK, instalación y distribución productiva pendientes. |
 
 No hay producción comisionada ni uso real autorizado. `pickup_enabled=false` y
 `synthetic_only=true` siguen en la configuración de ambos destinos. E3 se descubre
@@ -80,15 +80,16 @@ paquetes. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
 acreditan AWS, Expo/FCM ni dispositivo físico. CI, builds de imagen/APK y CD del
 nuevo SHA requieren sus propios resultados.
 
-La preparación operativa incluye SNS al correo del presupuesto autorizado y
-custodia S3 privada del APK mediante OIDC limitado a artefactos, con publicación
-condicional, lectura/checksum y descarga autenticada. Falta aplicar el stack,
-confirmar la suscripción y verificar publicación/descarga reales. La comisión
-está en `ROLLBACK_COMPLETE`: SNS rechazó `sns:*`; el candidato corregido usa
-acciones explícitas y recuperación que conserva la clave retenida. El inventario
-AWS confirma presupuesto/créditos y access token vigente; los recursos SNS se
-revirtieron, el bucket no tiene identificador físico y falta la allowlist. Android disponible:
-versión 13. Registrar el equipo antes de comisionar el notificador.
+El operador confirmó la comisión de `retiro-staging-operations` con fuente
+`3ccf3f6`: bucket interno, rol OIDC MobilePublisher, clave KMS conservada y
+suscripción SNS confirmada al correo autorizado. Su preflight de presupuesto/
+créditos pasó. Los CI de [PR](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43058956704)
+y [push](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43058945198)
+del candidato están aprobados; el SHA integrado requiere su propio CI/CD.
+Esto acredita la preparación operativa, no publicación del APK, entrega de una
+alarma ni aceptación E4. Faltan publicación/lectura/checksum y descarga reales,
+Android 13, allowlist y comisión del notificador. Registrar el equipo antes de
+habilitar avisos. Expo/FCM y sus recibos siguen pendientes de prueba real.
 
 Orden: cerrar persistencia/permisos → transporte/worker/vistas → regresiones y
 contrato → comisión y ensayo AWS/Expo → verificador externo. Procedimientos y

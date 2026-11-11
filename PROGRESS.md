@@ -7,7 +7,9 @@ No cargar datos reales ni activar retiros, invitaciones o avisos a familias real
 
 ## Candidato actual
 
-Rama `feat/e4-e5-production`, basada en `origin/main` `cfe5dc7`. Implementa
+Código del incremento integrado en main mediante PR #32:
+`4db76539ab6e46d2847bdce5360e13bd2cbcc038`, basado en el candidato aprobado
+`3ccf3f6`. Su CI/CD y publicación del APK están pendientes de verificar. Implementa
 notificador Expo, dispositivos por padre, historial mínimo, consultas escolares
 con lector separado y correcciones/reintentos técnicos por eventos vinculados.
 Migraciones nuevas: pickup 0008–0009 y notification_worker 0001–0004; no modificar
@@ -19,9 +21,9 @@ portal Chromium, tipos/lint/bundle/migraciones y auditorías de dependencias. Lo
 adaptadores/recibos de estas pruebas son simulados. Consultar CI del nuevo commit;
 no atribuirle los resultados de E3 ni afirmar imagen/APK/AWS aprobados sin sus jobs.
 Chromium usa `scripts/install_ci_chromium.sh`, con descarga fijada y arranque/
-interacción obligatorios sin APT. El candidato base `2d7d2ef` pasó ambos CI,
-incluidos quality, imagen y APK. Los cambios posteriores de preparación operativa
-requieren sus propios checks por SHA. Los runners Ubuntu 24.04 ya incluyen Skopeo;
+interacción obligatorios sin APT. El candidato `3ccf3f6` pasó ambos CI,
+incluidos quality, imagen y APK de desarrollo. El SHA integrado y el APK
+configurado de staging requieren sus propios checks/CD. Los runners Ubuntu 24.04 ya incluyen Skopeo;
 su presencia se exige antes de federar, sin reinstalarlo mediante APT.
 El helper de pruebas nativas cierra su servidor también si Chromium no arranca;
 se comprueba el fallo negativo sin dejar la ejecución colgada.
@@ -30,26 +32,26 @@ Preparación operativa implementada: `e4-operations.yaml`,
 `commission_e4_operations.py` y `private_mobile.py`. Stack separado para SNS,
 clave y APK interno con OIDC MobilePublisher. Publicación condicional con lectura
 posterior, descarga AWS autenticada y checksum independiente de Actions; sin APK público ni enlace
-prefirmado. **Comisión AWS bloqueada por rollback de SNS.** Recuperarla antes de
-integrar para que CD pueda entregar el APK configurado de staging.
+prefirmado. **El operador confirmó la comisión del stack `retiro-staging-operations`
+con fuente `3ccf3f69d566fb20d5ee093cc5ecbc4ed77db8e1`.** Presupuesto/créditos:
+todos los controles aprobados. Suscripción SNS confirmada y clave retenida
+reutilizada; no repetir la recuperación ni crear otra clave.
 
-CloudFormation `retiro-staging-operations`: `ROLLBACK_COMPLETE`. SNS rechazó
-`sns:*` en la política del tópico; el candidato corregido usa acciones admitidas
-explícitas y diagnóstico JSON por etapa/código. El inventario del operador
-confirma la clave `7f98c09f-49db-48f2-b2bd-72463fd7fbbe` en `DELETE_SKIPPED`,
-bucket sin identificador físico y recursos SNS eliminados. No asumir ausencia
-física del bucket: el modo de recuperación la verifica antes de cualquier cambio.
-Recuperar con `--recover-retained-key-id` y ese UUID. Se conserva la clave en
-custodia del operador mediante `ExistingOperationsKeyArn`; solo se retira el
-registro completamente revertido. La recuperación y la nueva suscripción aún
-requieren verificación AWS; no declarar stack comisionado ni E4/E5 aceptadas.
+Recursos comisionados: bucket `retiro-internal-mobile-028364485203-us-east-1`,
+rol `retiro-staging-MobilePublisher`, tópico `retiro-staging-operations-alerts`
+y clave `7f98c09f-49db-48f2-b2bd-72463fd7fbbe`. La clave permanece bajo custodia
+del operador mediante `ExistingOperationsKeyArn`. El JSON confirma
+`apk_published=false`, `e4_accepted=false` y `e5_accepted=false`: publicar/leer/
+descargar el APK, probar la alarma y completar los ensayos siguen pendientes.
+La comisión del notificador `retiro-staging-e4` es otra operación; falta la
+allowlist del equipo y el gate integrado E4 antes de habilitarlo.
 
 ## Decisiones y configuración externa
 
 - AWS actual `028364485203`, región `us-east-1`, techo USD 150, URL administrada sin
   dominio propio. El operador confirmó el preflight de comisión sintética de presupuesto/créditos;
-  no acredita cobertura de retención productiva ni comisión E4/E5. El inventario
-  del operador no tiene SNS ni bucket interno ni AllowedDeviceHashes. El access
+  no acredita cobertura de retención productiva ni aceptación E4/E5. SNS y el
+  bucket interno están comisionados; falta AllowedDeviceHashes. El access
   token Expo está vigente y sin eliminación pendiente.
 - Expo `43s1r/retiro-seguro`, proyecto `8d55d0cb-2d9f-4a73-bac3-6ad7cab1f04f`.
   Firebase `retiro-seguro-2ab03`; app Android `org.retiroseguro.staging` creada.
@@ -67,13 +69,12 @@ requieren verificación AWS; no declarar stack comisionado ni E4/E5 aceptadas.
 
 ## Trabajo siguiente
 
-1. Verificar los checks del nuevo SHA. El responsable autorizó expresamente usar
-   el mismo correo del presupuesto para SNS. Desde CloudShell ejecutar
-   `commission_e4_operations --expected-sha SHA --use-budget-alert-email`
-   con el modo de recuperación y UUID retenido descritos arriba,
-   aceptar el correo de confirmación y revisar su JSON sin publicar la dirección.
-2. Con el stack listo y checks aprobados, integrar y verificar CD por SHA.
-   Descargar el APK con `private_mobile download`, transferirlo de forma privada
+1. Verificar CI de main/CD del SHA integrado indicado arriba al volver, sin
+   esperar ejecuciones largas dentro de esta conversación.
+   La actualización documental no debe adelantar main durante ese despliegue:
+   los adaptadores rechazan candidatos obsoletos. Integrarla después del CD.
+2. Tras CD y custodia privada verificados, descargar el APK con `private_mobile
+   download --sha SHA_DESPLEGADO --expected-sha256 CHECKSUM_DE_ACTIONS`, transferirlo de forma privada
    al Android e iniciar el ensayo conjunto por instalación/login/registro.
    Obtener hashes auditados del equipo para AllowedDeviceHashes; no inventarlos.
 3. Completar Expo/Firebase, comisión E4, bandera y ensayo integrado real según
