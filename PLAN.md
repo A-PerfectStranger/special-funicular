@@ -73,7 +73,7 @@ CA-S02/11/12/14/18/21/22/23; AT02/05/07; AB02/10/12/14/16/23.
 | Correcciones | Comando importer privado, aprobación/motivo/operador, evento vinculado, replay/conflicto; conserva bytes, estado original y token consumido. | Corrección y ancla WORM independientes del candidato en staging. |
 | Integración | Migraciones aditivas, contratos/tipos, worker aislado, definición de tarea y plantilla IAM/alarma. | Comisionar recursos, habilitar bandera revisada y completar gate integrado E4 antes de declararla aceptada. |
 
-Verificación local del candidato: 415 pruebas Python con PostgreSQL y roles reales,
+Verificación local del candidato: 423 pruebas Python con PostgreSQL y roles reales,
 27 JavaScript, diez pruebas Chromium/recuperación/diagnóstico, portal escolar en
 Chromium, tipos/lint, bundle Android, migraciones desde cero y auditorías de
 paquetes. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
@@ -86,9 +86,13 @@ suscripción SNS confirmada al correo autorizado. Su preflight de presupuesto/
 créditos pasó. Los CI de [PR](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43058956704)
 y [push](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43058945198)
 del candidato están aprobados; el SHA integrado requiere su propio CI/CD.
-El CI de main `4db7653` está aprobado; su CD publicó la imagen y aplicó las
-migraciones. El callback del origen observado está sincronizado por operador;
-staging y los gates funcionales deben repetirse para acreditar ese candidato.
+El CI de main `4db7653` está aprobado; su CD publicó la imagen, aplicó las
+migraciones y aprobó staging tras sincronizar el callback. Browser y verificación
+cloud E1 pasaron; los demás gates requieren su resultado. El APK configurado
+compiló y pasó inspección/firma, pero su publicación se bloqueó en el validador
+S3: este debe leer `ApplyServerSideEncryptionByDefault`, el campo real del SDK.
+La corrección está verificada con respuestas validadas por botocore; requiere
+CI, integración y publicación reales. La configuración KMS del bucket es la esperada.
 Esto acredita la preparación operativa, no publicación del APK, entrega de una
 alarma ni aceptación E4. Faltan publicación/lectura/checksum y descarga reales,
 Android 13, allowlist y comisión del notificador. Registrar el equipo antes de

@@ -17,7 +17,7 @@ Migraciones nuevas: pickup 0008–0009 y notification_worker 0001–0004; no mod
 migraciones E1/E2/E3 ya desplegadas. `e4_enabled=false` en staging; los controles
 productivos siguen bloqueando identidad/retiros/archivo sin comisión E5.
 
-Verificación local: 415 Python con PostgreSQL real, 27 JavaScript, diez navegador,
+Verificación local: 423 Python con PostgreSQL real, 27 JavaScript, diez navegador,
 portal Chromium, tipos/lint/bundle/migraciones y auditorías de dependencias. Los
 adaptadores/recibos de estas pruebas son simulados. Consultar CI del nuevo commit;
 no atribuirle los resultados de E3 ni afirmar imagen/APK/AWS aprobados sin sus jobs.
@@ -48,15 +48,25 @@ La comisión del notificador `retiro-staging-e4` es otra operación; falta la
 allowlist del equipo y el gate integrado E4 antes de habilitarlo.
 
 CD vigente: [43064147478](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43064147478),
-del SHA integrado anterior. Imagen publicada y migraciones aprobadas. Digest
+del SHA integrado anterior. Imagen, migraciones y staging aprobados. Digest
 `sha256:404aaf338a4b1db73fa2fe46f451d6a5b8d9ceb1fe67ddc88d724b2b6a49ddd9`.
-El reporte confirma digest en ejecución, red privada y probes TLS; solo bootstrap,
-con identidad/familia/retiro/avisos deshabilitados. El operador confirmó el cambio
-limitado al callback del WebClient existente para el origen observado
+Browser y verificación cloud E1 aprobados; archivo/recuperación y E2/E3 necesitan
+sus resultados completos. El operador confirmó la sincronización limitada al
+callback del WebClient existente para el origen observado
 `https://re-ce5a11fd975b4c8f9a0063c8dc78cc33.ecs.us-east-1.on.aws`.
-Callback comprobado y recursos persistentes conservados; falta repetir staging
-y gates del mismo candidato. Ese hostname es efímero: usar el nuevo reporte si
+Callback comprobado y recursos persistentes conservados. Ese hostname es efímero: usar el nuevo reporte si
 la pasarela vuelve a retirarse; no asumir vigente esta URL por estar documentada.
+
+El APK de staging del SHA integrado compiló y pasó inspección de Firebase,
+paquete, origen/callback y firma de desarrollo. La publicación falló antes de
+escribir objetos: el validador confundía la propiedad de CloudFormation con
+`ApplyServerSideEncryptionByDefault` de S3. El diagnóstico del operador confirma
+KMS esperado y prefijo vacío. La corrección en `feat/private-apk-sdk-response`
+usa el campo API y respuestas comprobadas por el modelo botocore; mantiene los
+controles de destino, cifrado, versionado, política privada y checksum.
+El CLI informa errores mediante códigos seguros y operación AWS, sin mensajes
+remotos. La corrección requiere sus propios CI, integración y publicación;
+no repetir el publicador antiguo ni declarar distribuido el APK compilado.
 
 ## Decisiones y configuración externa
 
@@ -69,8 +79,9 @@ la pasarela vuelve a retirarse; no asumir vigente esta URL por estar documentada
   Firebase `retiro-seguro-2ab03`; app Android `org.retiroseguro.staging` creada.
   Firma staging de desarrollo; no usarla como firma productiva.
 - El responsable confirmó el identificador Android y FCM v1 con la cuenta
-  `retiro-push` en Expo, y guardó `STAGING_GOOGLE_SERVICES_JSON` en GitHub. La carga
-  se verificará en el build/ensayo real. También confirmó enhanced push security
+  `retiro-push` en Expo, y guardó `STAGING_GOOGLE_SERVICES_JSON` en GitHub. La
+  configuración Firebase quedó comprobada en el APK compilado de staging;
+  falta probar Expo/FCM en el teléfono. También confirmó enhanced push security
   y el secreto `retiro-staging/e4/ExpoAccessToken` en Secrets Manager. Falta
   verificar su inyección/funcionamiento, la allowlist del equipo y el aviso/recibo
   en dispositivo.
@@ -81,11 +92,10 @@ la pasarela vuelve a retirarse; no asumir vigente esta URL por estar documentada
 
 ## Trabajo siguiente
 
-1. Reanudar los jobs fallidos/dependientes del CD indicado arriba, con callback
-   sincronizado y el mismo SHA/digest; verificar staging, E1/E2/E3/WORM y APK
-   configurado al volver, sin esperar ejecuciones largas en esta conversación.
-   La actualización documental no debe adelantar main durante ese despliegue:
-   los adaptadores rechazan candidatos obsoletos. Integrarla después del CD.
+1. Verificar los checks de la corrección del SDK. Antes de integrar, comprobar
+   que termine el CD actual y que su archivador quede recuperado. Integrar solo
+   con checks aprobados y observar CI/CD del nuevo SHA. Conservar el resultado
+   de los gates anteriores; no cancelar recuperación ni reiniciar cohortes.
 2. Tras CD y custodia privada verificados, descargar el APK con `private_mobile
    download --sha SHA_DESPLEGADO --expected-sha256 CHECKSUM_DE_ACTIONS`, transferirlo de forma privada
    al Android e iniciar el ensayo conjunto por instalación/login/registro.

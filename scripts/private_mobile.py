@@ -67,7 +67,7 @@ def destination(s3: Any) -> tuple[str, str]:
     rules = s3.get_bucket_encryption(**args)["ServerSideEncryptionConfiguration"]["Rules"]
     if (
         len(rules) != 1
-        or rules[0].get("ServerSideEncryptionByDefault")
+        or rules[0].get("ApplyServerSideEncryptionByDefault")
         != {"SSEAlgorithm": "aws:kms", "KMSMasterKeyID": key}
         or s3.get_bucket_versioning(**args).get("Status") != "Enabled"
     ):
@@ -143,7 +143,7 @@ def publish_object(s3: Any, bucket: str, encryption: str, key: str, path: Path) 
             )
         except ClientError as error:
             if error.response.get("Error", {}).get("Code") != "PreconditionFailed":
-                raise RuntimeError("BLOCKED: private artifact write failed") from None
+                raise
             # Safe retry: an existing name must have exactly the same bytes.
     body, version = read_object(s3, bucket, key, encryption)
     try:
@@ -257,9 +257,110 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
+def failure_report(error: Exception) -> dict[str, str]:
+    """Return fixed diagnostics; exception messages and remote payloads stay private."""
+    known = {
+        "BLOCKED: clean exact trusted main source required": ("source", "SOURCE_NOT_REVIEWED"),
+        "BLOCKED: isolated MobilePublisher identity required": ("identity", "PUBLISHER_REQUIRED"),
+        "BLOCKED: exact Firebase-configured staging APK manifest required": (
+            "manifest",
+            "CONFIGURED_MANIFEST_REQUIRED",
+        ),
+        "BLOCKED: local APK does not match its manifest": ("local_integrity", "CHECKSUM_MISMATCH"),
+        "BLOCKED: unexpected private mobile destination": ("storage", "DESTINATION_MISMATCH"),
+        "BLOCKED: bucket public access protection required": (
+            "public_access",
+            "PROTECTION_REQUIRED",
+        ),
+        "BLOCKED: exact encryption and versioning required": (
+            "encryption",
+            "ENCRYPTION_OR_VERSIONING_MISMATCH",
+        ),
+        "BLOCKED: internal staging bucket tags required": ("storage_tags", "TAGS_MISMATCH"),
+        "BLOCKED: authenticated immutable artifact policy required": (
+            "storage_policy",
+            "POLICY_MISMATCH",
+        ),
+        "BLOCKED: object version/encryption not proven": ("object_metadata", "CUSTODY_NOT_PROVEN"),
+        "BLOCKED: artifact name conflict or readback checksum mismatch": (
+            "readback",
+            "ARTIFACT_CONFLICT_OR_CHECKSUM_MISMATCH",
+        ),
+        "BLOCKED: exact release SHA and trusted Actions checksum required": (
+            "download_source",
+            "TRUSTED_SOURCE_REQUIRED",
+        ),
+        "BLOCKED: oversized artifact manifest": ("download_manifest", "MANIFEST_TOO_LARGE"),
+        "BLOCKED: stored manifest differs from trusted Actions checksum": (
+            "download_manifest",
+            "TRUSTED_CHECKSUM_MISMATCH",
+        ),
+        "BLOCKED: downloaded APK checksum mismatch": ("download_integrity", "CHECKSUM_MISMATCH"),
+    }
+    stage, code = known.get(str(error), ("private_transfer", "LOCAL_OR_RESPONSE_ERROR"))
+    report = {"status": "BLOCKED", "stage": stage, "code": code}
+    aws_codes = {
+        "AccessDenied",
+        "AccessDeniedException",
+        "ExpiredToken",
+        "ExpiredTokenException",
+        "InvalidAccessKeyId",
+        "SignatureDoesNotMatch",
+        "NoSuchBucket",
+        "NoSuchKey",
+        "NoSuchBucketPolicy",
+        "NoSuchTagSet",
+        "PreconditionFailed",
+        "ConditionalRequestConflict",
+        "InvalidArgument",
+        "ValidationError",
+        "ResourceNotFoundException",
+        "ThrottlingException",
+        "SlowDown",
+        "InternalError",
+        "ServiceUnavailable",
+        "KMS.DisabledException",
+        "KMS.NotFoundException",
+        "KMS.AccessDeniedException",
+        "CliRequestFailed",
+    }
+    if isinstance(error, ClientError):
+        aws_code = error.response.get("Error", {}).get("Code", "")
+        report.update(stage="aws", code=aws_code if aws_code in aws_codes else "AWS_REQUEST_FAILED")
+        operations = {
+            "GetPublicAccessBlock",
+            "GetBucketPolicyStatus",
+            "GetBucketEncryption",
+            "GetBucketVersioning",
+            "GetBucketTagging",
+            "GetBucketPolicy",
+            "PutObject",
+            "GetObject",
+        }
+        report["operation"] = (
+            error.operation_name if error.operation_name in operations else "AwsRequest"
+        )
+    elif isinstance(error, RuntimeError):
+        match = re.fullmatch(
+            r"(sts\.get-caller-identity|cloudformation\.describe-stacks): ([A-Za-z0-9_]{1,64})",
+            str(error),
+        )
+        if match:
+            report.update(
+                stage="aws",
+                operation=match[1],
+                code=match[2] if match[2] in aws_codes else "AWS_REQUEST_FAILED",
+            )
+    return report
+
+
+def cli() -> int:
     try:
-        raise SystemExit(main())
-    except Exception:
-        print("BLOCKED: private APK transfer rejected; inspect configuration privately")
-        raise SystemExit(2) from None
+        return main()
+    except Exception as error:
+        print(json.dumps(failure_report(error)))
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli())
