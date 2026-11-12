@@ -60,6 +60,16 @@ def validate(config: dict[str, Any]) -> list[str]:
         errors.append("E3 requires synthetic staging and E1/E2 gates")
     if config.get("e4_enabled") is True and config.get("e3_enabled") is not True:
         errors.append("E4 requires the E3 protected physical-report gate")
+    if config.get("environment") == "production" and (
+        config.get("commissioning_mode") != "technical_only"
+        or any(
+            config.get(flag) is not False
+            for flag in ["e1_enabled", "e2_enabled", "e3_enabled", "e4_enabled", "pickup_enabled"]
+        )
+    ):
+        errors.append(
+            "production currently supports technical commissioning with business disabled"
+        )
     return errors
 
 

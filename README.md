@@ -18,6 +18,7 @@ Cada documento tiene un propósito único:
 | [Identidad y evidencia](docs/runbooks/e1.md) | Comisión, ensayos y recuperación sintética de E1. |
 | [Avisos y consulta](docs/runbooks/e4.md) | Expo/FCM, dispositivos, notificador, consultas y comandos técnicos. |
 | [Aceptación y activación](docs/runbooks/e5.md) | Pruebas conjuntas Android, recuperación/carga y cierre productivo pendiente. |
+| [Comisión productiva](docs/runbooks/production.md) | Preflight de gasto/custodia, infraestructura aislada y primera ventana técnica con negocio deshabilitado. |
 | [AWS](infra/aws/README.md) | Infraestructura, presupuesto y bootstrap. |
 
 La configuración de cada destino vive en [infra/environments](infra/environments).
@@ -166,6 +167,14 @@ recrear Express puede cambiarla. Los ensayos y el APK reciben el origen verifica
 mediante `STAGING_RELEASE_ORIGIN`, después de comprobar el callback. Ventanas, retirada y costes:
 [runbook](docs/runbooks/deployment.md) y [AWS](infra/aws/README.md).
 CI valida también las plantillas de infraestructura.
+
+La primera ventana técnica de producción usa `production-base.json` y
+`production-lifecycle.yaml`, roles OIDC/SQL propios y el mismo digest de staging.
+CD encadena preflight real → migración aislada → despliegue/TLS, con reversión
+compatible verificada. La comisión inicial y la configuración observada requieren
+operador CloudShell según el [procedimiento](docs/runbooks/production.md).
+Mientras falten recursos/valores reales el destino sigue BLOCKED; esta etapa
+mantiene identidad/familia/retiros/avisos apagados y no acredita E5 ni uso escolar.
 
 
 Con `E2_FAMILY_ENABLED=true` y E1 configurada, se añaden las rutas familiares

@@ -1,4 +1,4 @@
-# AWS — infraestructura y operación de staging
+# AWS — infraestructura y operación
 
 AWS `us-east-1`, perfil humano `aesir`. Parámetros del destino en
 [staging.json](../environments/staging.json) y
@@ -59,6 +59,15 @@ no dejar NAT Gateway, réplicas o ingreso encendidos sin presupuesto.
 | `e1-staging.yaml` | Cognito, WORM/KMS, secretos e identidades separadas E1. |
 | `e4-operations.yaml` | APK privado, clave separada, OIDC MobilePublisher y SNS al correo técnico autorizado. |
 | `e4-staging.yaml` | Tarea notificador, permisos de secretos separados y alarma hacia SNS confirmado. |
+| `production-base.json` | VPC/RDS privados aislados, TLS obligatorio, KMS y backup de siete días; secretos y roles productivos separados. |
+| `production-lifecycle.yaml` | Primera ventana técnica de tres horas, retirada de API y guarda RDS; permisos mínimos para preflight/CD. |
+
+La comisión técnica de producción se ejecuta con operador desde el
+[runbook productivo](../../docs/runbooks/production.md), sin habilitar negocio.
+Su preflight exige precios revisados, coste bruto y reservas financiadas hasta
+la custodia, manteniendo USD 150 totales. El artefacto OCI se comparte por digest;
+las identidades productivas no acceden a datos ni secretos de staging. No aplicar
+el bootstrap de staging a producción ni confundir la ventana técnica con E5.
 
 La base usa RDS PostgreSQL 17 privado y cifrado, db.t4g.micro/20 GB, backup
 sintético de un día y protección contra borrado. Aurora Express exige una pasarela

@@ -152,18 +152,73 @@ jobs:
       release_sha: ${{ needs.publish.outputs.sha }}
       release_digest: ${{ needs.publish.outputs.digest }}
       release_origin: ${{ needs.staging.outputs.origin }}
-  production:
+  production-prepare:
     needs: [publish, staging, e1-acceptance, e2-acceptance]
     if: always() && needs.staging.result == 'success' && (needs.e1-acceptance.result == 'success' || (needs.e1-acceptance.result == 'skipped' && needs.staging.outputs.e1_enabled != 'true')) && (needs.e2-acceptance.result == 'success' || (needs.e2-acceptance.result == 'skipped' && needs.staging.outputs.e2_enabled != 'true'))
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    permissions: {contents: read, id-token: write}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: ${{ needs.publish.outputs.sha }}
           persist-credentials: false
-      - name: Production remains blocked until E5 commissioning
-        run: |
-          python3 scripts/validate_deploy.py infra/environments/production.json
-          echo '::error::BLOCKED: production adapter and E5 acceptance are not commissioned.'
-          exit 2
+      - name: Require observed production configuration
+        run: python3 scripts/validate_deploy.py infra/environments/production.json
+      - name: Check live budget and arm the bounded private production window
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+          RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
+        run: python3 scripts/aws_oidc.py --environment production --role Deploy -- python3 -m scripts.deploy_production --mode prepare --sha "$RELEASE_SHA" --digest "$RELEASE_DIGEST"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: production-preflight-${{ needs.publish.outputs.sha }}
+          path: work/production-*.json
+          if-no-files-found: warn
+          retention-days: 7
+  production-migrate:
+    needs: [publish, production-prepare]
+    permissions: {contents: read, id-token: write}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.publish.outputs.sha }}
+          persist-credentials: false
+      - name: Migrate production using its isolated SQL and AWS identities
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+          RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
+        run: python3 scripts/aws_oidc.py --environment production --role Migrate -- python3 -m scripts.deploy_production --mode migrate --sha "$RELEASE_SHA" --digest "$RELEASE_DIGEST"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: production-migration-${{ needs.publish.outputs.sha }}
+          path: work/production-*.json
+          if-no-files-found: warn
+          retention-days: 7
+  production:
+    needs: [publish, staging, e1-acceptance, e2-acceptance, production-migrate]
+    if: always() && needs.production-migrate.result == 'success' && needs.publish.result == 'success' && needs.staging.result == 'success' && (needs.e1-acceptance.result == 'success' || (needs.e1-acceptance.result == 'skipped' && needs.staging.outputs.e1_enabled != 'true')) && (needs.e2-acceptance.result == 'success' || (needs.e2-acceptance.result == 'skipped' && needs.staging.outputs.e2_enabled != 'true'))
+    permissions: {contents: read, id-token: write}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.publish.outputs.sha }}
+          persist-credentials: false
+      - name: Deploy the same approved digest and verify production TLS and health
+        env:
+          RELEASE_SHA: ${{ needs.publish.outputs.sha }}
+          RELEASE_DIGEST: ${{ needs.publish.outputs.digest }}
+        run: python3 scripts/aws_oidc.py --environment production --role Deploy -- python3 -m scripts.deploy_production --mode deploy --sha "$RELEASE_SHA" --digest "$RELEASE_DIGEST"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: production-deployment-${{ needs.publish.outputs.sha }}
+          path: work/production-*.json
+          if-no-files-found: warn
+          retention-days: 7

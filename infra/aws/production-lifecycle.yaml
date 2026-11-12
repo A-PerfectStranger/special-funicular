@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Technical production expiry and narrowly scoped lifecycle permissions
+Parameters:
+  WindowExpiryAt:
+    Type: String
+    Description: UTC end of the technical API window
+    AllowedPattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$'
+  StopNotBefore:
+    Type: String
+    Description: UTC ISO8601 end of initial active production window, including milliseconds
+    AllowedPattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$'
+Resources:
+  Expiry:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: retiro-production-expiry
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: scheduler.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                aws:SourceArn: !Sub arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule-group/default
+      Policies:
+        - PolicyName: DeleteOnlyTechnicalStaging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ecs:DeleteExpressGatewayService
+                Resource: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/retiro-production/retiro-api
+              - Effect: Allow
+                Action: rds:StopDBInstance
+                Resource: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:retiro-production
+      Tags: [{Key: Project, Value: retiro-seguro}, {Key: Environment, Value: production}]
+  DatabaseIdleGuard:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: retiro-production-db-idle-guard
+      ScheduleExpression: rate(1 hour)
+      ScheduleExpressionTimezone: UTC
+      StartDate: !Ref StopNotBefore
+      FlexibleTimeWindow: {Mode: 'OFF'}
+      Target:
+        Arn: arn:aws:scheduler:::aws-sdk:rds:stopDBInstance
+        RoleArn: !GetAtt Expiry.Arn
+        Input: '{"DbInstanceIdentifier":"retiro-production"}'
+        RetryPolicy: {MaximumEventAgeInSeconds: 60, MaximumRetryAttempts: 0}
+  ApiExpiry:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: retiro-production-expiry-api
+      ScheduleExpression: !Sub 'at(${WindowExpiryAt})'
+      ScheduleExpressionTimezone: UTC
+      FlexibleTimeWindow: {Mode: 'OFF'}
+      Target:
+        Arn: arn:aws:scheduler:::aws-sdk:ecs:deleteExpressGatewayService
+        RoleArn: !GetAtt Expiry.Arn
+        Input: !Sub '{"ServiceArn":"arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/retiro-production/retiro-api"}'
+        RetryPolicy: {MaximumEventAgeInSeconds: 3600, MaximumRetryAttempts: 2}
+  LifecyclePermissions:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: TechnicalStagingLifecycle
+      Roles: [retiro-production-Deploy]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: ecs:CreateExpressGatewayService
+            Resource: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/retiro-production/*
+            Condition:
+              StringEquals: {aws:RequestTag/Project: retiro-seguro}
+          - Effect: Allow
+            Action: ecs:TagResource
+            Resource: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/retiro-production/retiro-api
+            Condition:
+              StringEquals:
+                ecs:CreateAction: CreateExpressGatewayService
+                aws:RequestTag/Project: retiro-seguro
+                aws:RequestTag/Environment: production
+              ForAllValues:StringEquals:
+                aws:TagKeys: [Project, Environment]
+          - Effect: Allow
+            Action: [scheduler:CreateSchedule, scheduler:GetSchedule, scheduler:UpdateSchedule, scheduler:DeleteSchedule]
+            Resource: !Sub arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/retiro-production-expiry-*
+          - Effect: Allow
+            Action: [scheduler:GetSchedule, scheduler:UpdateSchedule]
+            Resource: !Sub arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/retiro-production-db-idle-guard
+          - Effect: Allow
+            Action: [rds:DescribeDBInstances, rds:StartDBInstance]
+            Resource: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:retiro-production
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource: !GetAtt Expiry.Arn
+            Condition:
+              StringEquals: {iam:PassedToService: scheduler.amazonaws.com}
+          - Effect: Allow
+            Action: [ecs:DescribeServiceRevisions, ec2:DescribeSecurityGroups, elasticloadbalancing:DescribeTargetGroups, elasticloadbalancing:DescribeLoadBalancers]
+            Resource: '*'
+            Condition:
+              StringEquals: {aws:RequestedRegion: us-east-1}
+          - Effect: Allow
+            Action: cloudformation:DescribeStacks
+            Resource: !Sub arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/retiro-production-lifecycle/*
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/retiro-production/cost-plan
+          - Effect: Allow
+            Action: [budgets:ViewBudget, ce:GetCostAndUsage, freetier:GetAccountPlanState]
+            Resource: '*'
+Outputs:
+  ExpiryRoleArn:
+    Value: !GetAtt Expiry.Arn
