@@ -17,8 +17,11 @@ def main() -> int:
         choices=["Deploy", "Migrate", "E1Verifier", "E1Acceptance", "MobilePublisher"],
         required=True,
     )
+    parser.add_argument("--environment", choices=["staging", "production"], default="staging")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    if args.environment == "production" and args.role not in {"Deploy", "Migrate"}:
+        raise SystemExit("BLOCKED: production accepts deployment and migration identities only")
     if (
         os.environ.get("GITHUB_REF") != "refs/heads/main"
         or os.environ.get("GITHUB_REPOSITORY") != "A-PerfectStranger/special-funicular"
@@ -69,7 +72,7 @@ def main() -> int:
                 "sts",
                 "assume-role-with-web-identity",
                 "--role-arn",
-                f"arn:aws:iam::028364485203:role/retiro-staging-{args.role}",
+                f"arn:aws:iam::028364485203:role/retiro-{args.environment}-{args.role}",
                 "--role-session-name",
                 "retiro-github-" + args.role.lower(),
                 "--web-identity-token",

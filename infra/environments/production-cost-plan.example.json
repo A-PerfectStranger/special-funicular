@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "operator_verified_official_prices": false,
+  "pricing_checked_at": null,
+  "custody_until": null,
+  "window_hours": 3,
+  "new_resources_and_custody_reserve_usd": 40,
+  "existing_retained_reserve_usd": 27,
+  "contingency_reserve_usd": 30
+}

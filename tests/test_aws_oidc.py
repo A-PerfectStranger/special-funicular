@@ -12,8 +12,13 @@ import pytest
 from scripts import aws_oidc
 
 
-def setup(monkeypatch: pytest.MonkeyPatch, role: str = "E1Acceptance") -> None:
-    monkeypatch.setattr("sys.argv", ["aws_oidc", "--role", role, "--", "synthetic-child"])
+def setup(
+    monkeypatch: pytest.MonkeyPatch, role: str = "E1Acceptance", environment: str = "staging"
+) -> None:
+    monkeypatch.setattr(
+        "sys.argv",
+        ["aws_oidc", "--environment", environment, "--role", role, "--", "synthetic-child"],
+    )
     for name, value in {
         "GITHUB_REPOSITORY": "A-PerfectStranger/special-funicular",
         "GITHUB_REF": "refs/heads/main",
@@ -37,12 +42,17 @@ def setup(monkeypatch: pytest.MonkeyPatch, role: str = "E1Acceptance") -> None:
 
 
 @pytest.mark.parametrize(
-    "role", ["Deploy", "Migrate", "E1Verifier", "E1Acceptance", "MobilePublisher"]
+    "role,environment",
+    [
+        (role, "staging")
+        for role in ["Deploy", "Migrate", "E1Verifier", "E1Acceptance", "MobilePublisher"]
+    ]
+    + [("Deploy", "production"), ("Migrate", "production")],
 )
 def test_federates_once_and_fresh_sdk_children_work_without_the_jwt_file(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], role: str
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], role: str, environment: str
 ) -> None:
-    setup(monkeypatch, role)
+    setup(monkeypatch, role, environment)
     token_paths = []
     credentials = {
         "AccessKeyId": "temporary-key",
@@ -53,7 +63,7 @@ def test_federates_once_and_fresh_sdk_children_work_without_the_jwt_file(
     def exchange(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         assert args[:3] == ["aws", "sts", "assume-role-with-web-identity"]
         assert args[args.index("--role-arn") + 1] == (
-            "arn:aws:iam::028364485203:role/retiro-staging-" + role
+            f"arn:aws:iam::028364485203:role/retiro-{environment}-" + role
         )
         assert args[args.index("--duration-seconds") + 1] == "3600"
         assert "--no-sign-request" in args
@@ -105,6 +115,16 @@ def test_federates_once_and_fresh_sdk_children_work_without_the_jwt_file(
     assert aws_oidc.main() == 17
     assert len(token_paths) == 1
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("role", ["E1Verifier", "E1Acceptance", "MobilePublisher"])
+def test_production_rejects_uncommissioned_federation_roles(
+    role: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    setup(monkeypatch, role, "production")
+    monkeypatch.setattr(aws_oidc, "urlopen", lambda *a, **kw: pytest.fail("must not federate"))
+    with pytest.raises(SystemExit, match="production accepts"):
+        aws_oidc.main()
 
 
 @pytest.mark.parametrize("ref", ["refs/heads/feature", "refs/pull/1/merge"])

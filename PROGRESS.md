@@ -1,89 +1,61 @@
 # Continuidad
 
-[PLAN](PLAN.md) concentra aceptación; [README](README.md) y los runbooks contienen
-comandos. E0–E3 están aceptadas con sintéticos. **E4, E5 y producción siguen
-pendientes.** Solo dispositivos del equipo y datos sintéticos; la escuela real
-requiere activación privada aprobada tras todos los gates.
+[PLAN](PLAN.md) contiene criterios y aceptación; [README](README.md) y runbooks,
+comandos. E0–E3 están aceptadas con sintéticos. **E4/E5 y producción real siguen
+pendientes.** No hubo datos ni avisos reales, activación escolar ni pruebas físicas.
 
-## Código y verificación
+## Base verificada
 
-Main: `561520f125c0035ec09d112f8712b6adcfb9a472`, con CI aprobado. Incluye E4
-notificador Expo, registro propio de dispositivos, historial familiar, consulta
-escolar aislada y correcciones técnicas por eventos vinculados. Migraciones:
-pickup 0008–0009 y notification_worker 0001–0004, aditivas. `e4_enabled=false`,
-`pickup_enabled=false` y `synthetic_only=true`; producción permanece bloqueada.
+Main de referencia: `ac21cef9cb6a8ea4f2b5477565111cffd799400f`.
+[CI 43147560038](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43147560038)
+aprobado; [CD 43148696923](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43148696923)
+aprobó publicación, migración, staging, E1/E2/E3, APK privado y WORM independiente
+hasta 1.637 eventos. Solo producción quedó BLOCKED/NOT_CONFIGURED.
+Digest/checksum y alcance en PLAN; la pasarela se revalida contra ECS al descargar.
+No atribuir estas aceptaciones a commits posteriores.
 
-Rama de corrección: `feat/bounded-cloud-verification`. Verificación local:
-461 Python con PostgreSQL/roles reales, tipos, lint y plantillas. Las pruebas
-incluyen 1.427 eventos con firmas RSA-PSS, comparación secuencial/paralela,
-concurrencia y cola acotadas, alteraciones, deadline y rechazo de cadenas
-parciales; el proveedor/almacén local son SIMULATED. CI/CD del nuevo SHA y duración
-AWS pendientes; no trasladar al nuevo candidato aceptaciones anteriores.
+## Implementación que continúa
 
-El verificador cloud usa cuatro lectores y hasta ocho trabajos pendientes;
-conserva cada firma KMS, versión/retención/hash y reduce la cadena en orden.
-Deadline interno 480 s y SDK acotado; publica progreso numérico y un informe de
-fallo al vencer. El APK usa `staging/<SHA>/<SHA256_APK>/`, manifiesto con origen
-y descarga contra ECS/ECR activos; conserva variantes sin sobrescribirlas.
+`feat/production-commissioning` prepara la primera ventana técnica productiva:
+VPC/BD/KMS/secretos/roles separados, bootstrap SQL, preflight de gasto/custodia,
+migración aislada y CD del mismo digest, con salud/TLS y rollback compatible
+verificado. Todas las rutas de negocio permanecen apagadas. Configuración
+productiva todavía sin valores observados; no se aprovisionó producción.
+Regresión local: 491 Python, con PostgreSQL/TLS/roles reales; 27 JavaScript;
+diez Chromium/recuperación/diagnóstico; tipos/lint/plantillas/checks Django,
+compatibilidad Expo y auditorías de dependencias/secretos aprobados. CI del PR y
+CD del futuro main se verifican por sus propios resultados antes de continuar.
 
-## Estado AWS observado
+## Siguiente operación
 
-Cuenta `028364485203`, `us-east-1`, techo USD 150, sin dominio propio. El operador
-confirmó nuevamente todos los controles de gasto/crédito/reserva de comisión
-sintética. No acredita coste ni custodia productiva. Inventario: 1.427 checkpoints;
-no borrar, compactar ni reiniciar evidencia para acelerar la verificación.
+1. Recibir resultados CI del PR, corregir si falla e integrar solo con checks
+   requeridos aprobados. El responsable pide iniciar CI/CD al final y cerrar el
+   turno sin esperar ejecuciones largas; no omitir gates.
+2. El responsable tiene operador CloudShell en `028364485203`, `us-east-1`, y
+   confirmó mantener USD 150 totales. Preparar revisión privada de precios,
+   gasto/crédito y custodia; ejecutar primero el preflight de
+   [producción](docs/runbooks/production.md). No pedir secretos por chat.
+3. Desde main aprobado: foundation → commission. Contrastar propuesta
+   `work/production-configuration.json` con AWS e incorporarla mediante PR.
+   CD automático verifica staging completo antes de producción. Los recursos
+   y el origen productivos no se inventan para completar el JSON.
+4. Continuar E4 y aceptación [E5](docs/runbooks/e5.md) paso a paso con el responsable.
+   Android 13 disponible, **sin APK instalado**. Primer paso: descargar candidato
+   vigente por canal privado y comprobar instalación; no darlo por probado.
+5. E4: registro propio del Android, hashes auditados/allowlist, comisión del
+   notificador, aviso/recibo Expo reales, fallo/recuperación, alarma y p95,
+   consultas/corrección y verificador final. E5 conserva IdP/WORM/retención y firma
+   productivos, recuperación integral/epoch, carga/RTO y ensayo presencial.
 
-CD [43088089855](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43088089855)
-del main actual: imagen/migraciones y primera ejecución de staging/browser E1
-aprobadas; APK privado publicado y leído con checksum. El verificador cloud
-agotó diez minutos; E2/E3 no están aceptados para este candidato. Los reintentos
-con otra pasarela quedaron cerrados en bootstrap por callback diferente. El
-operador confirmó la sincronización exclusiva del WebClient existente al origen
-`https://re-af9d1110292c4b379ea6b1076277426c.ecs.us-east-1.on.aws`.
-Es una observación efímera: revisar ECS y el reporte del próximo despliegue antes
-de usarla. El APK publicado incorpora la URL anterior; falta un APK vigente.
+## Controles que se conservan
 
-`retiro-staging-operations` está comisionado: bucket
-`retiro-internal-mobile-028364485203-us-east-1`, rol
-`retiro-staging-MobilePublisher`, tópico `retiro-staging-operations-alerts` con
-suscripción confirmada y clave `7f98c09f-49db-48f2-b2bd-72463fd7fbbe` reutilizada,
-bajo custodia del operador mediante ExistingOperationsKeyArn. Mantener recursos;
-no repetir comisión/recuperación para continuar. La alarma debe probarse realmente.
-
-Expo `43s1r/retiro-seguro`, proyecto `8d55d0cb-2d9f-4a73-bac3-6ad7cab1f04f`;
-Firebase `retiro-seguro-2ab03`, Android `org.retiroseguro.staging`. Configuración
-Firebase, paquete, callback y firma de desarrollo comprobados en el APK compilado.
-El responsable confirmó FCM v1 y enhanced push security; access token en
-`retiro-staging/e4/ExpoAccessToken`. Falta AllowedDeviceHashes tras registrar el
-Android 13 del equipo. Nunca pedir tokens, TOTP, contraseñas o claves por chat.
-
-## Siguiente trabajo
-
-1. Verificar CI de la corrección; integrar solo con checks aprobados y sin
-   recuperación/migración anterior pendiente. Iniciar CI/CD al final y terminar
-   la conversación sin esperar ejecuciones largas. Verificar su resultado al volver.
-2. Si cambia la pasarela, sincronizar únicamente el callback existente con el
-   comando de [despliegue](docs/runbooks/deployment.md), desde main aprobado.
-   Reintentar fallidos/dependientes dentro de la ventana, conservando digest y
-   evidencia. No rehacer Cognito ni resetear cohortes. Comprobar todos los gates.
-3. Obtener el manifiesto del APK vigente de Actions y descargar con operador:
-   `private_mobile download --sha SHA --expected-sha256 CHECKSUM_DE_ACTIONS`.
-   Transferir por canal privado y probar Android paso a paso según [E5](docs/runbooks/e5.md).
-4. Registrar el equipo, obtener hashes auditados y completar allowlist, comisión
-   del notificador y gate integrado E4. Solo entonces habilitar avisos. Faltan
-   fallo/recuperación Expo, alarma, p95, recibo real y verificador externo final.
-5. E5: recuperación integral de retiros/epoch/referencias, carga/RTO, retención
-   aplicada, firma/distribución productivas, infraestructura y lote escolar. La
-   política seleccionada en retention.json no está aplicada ni acredita RFS17.
-
-## Entorno local
-
-Contenedor `retiro-e4-db`, puerto 5433. Bases `retiro`, `retiro_e4_verify` y
-`retiro_bounded_verify` conservadas. Esta última se creó aislada y migró desde cero
-para la regresión actual: la base anterior acumuló más de 5.000 eventos y activó
-el límite previsto del exportador sintético. Mantener ese control y todas las
-bases; no limpiar evidencia ni cambiar .env para apuntar a cloud. Credenciales
-locales sintéticas de infra/local; work/ contiene scratch, no aceptación AWS.
-
-Chromium local funciona con el helper fijado; el navegador compartido falló al
-iniciar. No confundir pruebas locales con acceso a consolas o teléfono físico.
+- `e4_enabled=false` en staging; producción técnica mantiene E1–E4 apagadas.
+  `pickup_enabled=false`, `synthetic_only=true`. No habilitar negocio por desplegar.
+- Cuenta/techo/custodia, retención seleccionada y recursos existentes en PLAN y
+  runbooks. No recomisionar Cognito/SNS/KMS ni reutilizar/resetear cohortes para
+  continuar. Datos/eventos/recibos/WORM/keys/backups se conservan.
+- El gateway es efímero. Callback existente de staging solo se sincroniza contra
+  origen/SHA/digest observados con el comando restringido documentado.
+- Docker local conserva PostgreSQL de desarrollo y contenedores de ensayo
+  productivo aislados, detenidos tras las pruebas. `work/` guarda scratch privado
+  y certificados sintéticos; no es aceptación AWS ni se publica al repositorio.

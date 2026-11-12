@@ -16,5 +16,10 @@
   "budget_verified": false,
   "credit_ceiling_usd": 150,
   "pickup_enabled": false,
-  "synthetic_only": true
+  "synthetic_only": true,
+  "commissioning_mode": "technical_only",
+  "e1_enabled": false,
+  "e2_enabled": false,
+  "e3_enabled": false,
+  "e4_enabled": false
 }

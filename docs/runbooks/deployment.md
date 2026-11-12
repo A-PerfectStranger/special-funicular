@@ -38,8 +38,12 @@ fallido bloquea el comando, sin recurrir a otra identidad.
    resultados y artefactos del commit en Actions, sin copiar reportes al repositorio.
 7. Si E2 está habilitada, exigir su activación/permisos familiares; con E3, exigir
    también retiro sintético y WORM independiente hasta la secuencia final.
-8. Producción solo se habilita tras configuración/aceptación E5. No añadir una
-   aprobación humana rutinaria de promoción. cancel-in-progress=false en CD.
+8. Con producción comisionada, ejecutar preflight real y ventana acotada,
+   migración con identidad separada y despliegue del mismo digest con probes y
+   rollback compatible verificado. La [primera comisión](production.md) mantiene
+   todo negocio deshabilitado; el uso escolar requiere aceptación E5 completa.
+   No añadir aprobación humana rutinaria de promoción. cancel-in-progress=false
+   en CD; un destino incompleto permanece BLOCKED.
 
 ```bash
 python3 scripts/validate_deploy.py infra/environments/staging.json

@@ -16,7 +16,7 @@ anterior a una imagen, APK o despliegue posterior.
 | E2 | Aceptada con sintéticos | Bulk privado, activación/contacto verificado, principal único, cuidadores/fotos, autorizaciones y revocación. Una familia pertenece a una sola escuela. |
 | E3 | Aceptada con sintéticos | QR diferido, decisión única, archivo antes del permiso de 30 s, reporte físico, incidencias e idempotencia. |
 | E4 | Candidato implementado y verificado localmente; aceptación AWS pendiente | Notificador Expo Push, historial familiar, consulta escolar y correcciones técnicas. La bandera de staging sigue apagada. |
-| E5 | Pendiente | Producción, recuperación integral/carga, Android físico y activación escolar. Publicación privada probada; falta APK vigente para el origen activo, instalación y distribución productiva. |
+| E5 | Pendiente | Adaptador de comisión técnica productiva preparado; falta ejecución AWS. Recuperación integral/carga, instalación Android, firma/distribución productivas y activación escolar pendientes. |
 
 No hay producción comisionada ni uso real autorizado. `pickup_enabled=false` y
 `synthetic_only=true` siguen en la configuración de ambos destinos. E3 se descubre
@@ -73,29 +73,29 @@ CA-S02/11/12/14/18/21/22/23; AT02/05/07; AB02/10/12/14/16/23.
 | Correcciones | Comando importer privado, aprobación/motivo/operador, evento vinculado, replay/conflicto; conserva bytes, estado original y token consumido. | Corrección y ancla WORM independientes del candidato en staging. |
 | Integración | Migraciones aditivas, contratos/tipos, worker aislado, definición de tarea y plantilla IAM/alarma. | Comisionar recursos, habilitar bandera revisada y completar gate integrado E4 antes de declararla aceptada. |
 
-Verificación local del candidato: 461 pruebas Python con PostgreSQL y roles reales,
-27 JavaScript, diez pruebas Chromium/recuperación/diagnóstico, portal escolar en
-Chromium, tipos/lint, bundle Android, migraciones desde cero y auditorías de
+Regresión local: 491 pruebas Python con PostgreSQL/TLS y roles reales,
+27 JavaScript, diez pruebas Chromium/recuperación/diagnóstico, tipos/lint,
+checks Django/Expo, bundle Android, migraciones desde cero y auditorías de
 paquetes. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
 acreditan AWS, Expo/FCM ni dispositivo físico. CI, builds de imagen/APK y CD del
 nuevo SHA requieren sus propios resultados.
 
 `retiro-staging-operations` está comisionado: bucket interno, rol OIDC
-MobilePublisher, clave KMS conservada y suscripción SNS confirmada. El operador
-renovó el preflight de presupuesto/créditos y confirmó 1.427 checkpoints. El
-código integrado `561520f` pasó CI, staging, browser E1 y publicación/lectura
-privada del APK. Su verificador cloud agotó diez minutos; E2/E3 siguen pendientes
-para ese candidato. La pasarela cambió de URL y el operador sincronizó su callback
-existente; el APK publicado conserva el origen anterior y requiere sustituto.
-
-La corrección en preparación verifica todos los registros con concurrencia
-acotada, progreso y deadline interno, y conserva variantes del APK por commit/
-checksum con origen autenticado. Regresiones locales incluyen 1.427 eventos
-con firmas reales simulando AWS, comparación secuencial/paralela, alteraciones,
-deadline y reintentos de publicación sin sobrescritura. CI/CD y medición AWS
-del nuevo SHA siguen pendientes; estas pruebas no acreditan E4/E5.
-Faltan APK vigente, Android 13, alarma técnica probada, allowlist y comisión del
-notificador. Expo/FCM y sus recibos siguen pendientes de prueba real.
+MobilePublisher, clave KMS conservada y suscripción SNS confirmada.
+Base integrada `ac21cef9cb6a8ea4f2b5477565111cffd799400f`:
+[CI 43147560038](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43147560038)
+aprobado y [CD 43148696923](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43148696923)
+con publicación, migración, staging, E1/browser/cloud/archive-drill, E2/E3 y APK
+privado aprobados. Solo producción terminó BLOCKED por falta de configuración.
+El lector independiente verificó 1.637 eventos en 172 s; conserva firmas KMS,
+versiones/retención/hash, orden de cadena y deadline de 480 s con cuatro lectores.
+Digest: `sha256:b169e5104fa7da859e813af65c2d7fb89dbb8df086204bcac9c95b92f5dec56e`.
+APK staging: `89eb2cd2cbdb5196799bdba3b46c3b0ac4c480f7709fa539c28e1fcf086be0f8`,
+almacenado por SHA/checksum/origen, sin sobrescritura. La validez de la pasarela
+se revalida al descargar; estos resultados no se trasladan a otro candidato.
+Android 13 está disponible y no tiene APK instalado. Faltan instalación conjunta,
+alarma técnica probada, allowlist y comisión del notificador; Expo/FCM y recibos
+reales siguen sin acreditar E4/E5.
 
 Orden: cerrar persistencia/permisos → transporte/worker/vistas → regresiones y
 contrato → comisión y ensayo AWS/Expo → verificador externo. Procedimientos y
@@ -135,6 +135,24 @@ vive en [retention.json](infra/environments/retention.json); **no está aplicada
 acredita RFS17**. Faltan enforcement, ciclo automático permitido, denegaciones y
 restauración reales, además de comprobar coste y vigencia de la custodia. No se
 modifica la retención sintética de staging ni se cargan datos reales para ensayarla.
+
+### Primera ventana técnica productiva
+
+El responsable confirmó operador CloudShell y el techo total de USD 150.
+Implementación en `feat/production-commissioning`: infraestructura aislada,
+preflight de gasto/crédito/custodia, roles SQL seguros, migración aislada,
+promoción del mismo digest, probes y rollback de código compatible verificado.
+Ventana de tres horas con retirada de API y guarda RDS; negocio deshabilitado.
+Procedimiento: [producción](docs/runbooks/production.md). No se crearon recursos
+productivos ni se completó su configuración observada desde esta sesión.
+
+| Criterio de esta etapa | Verificación requerida |
+| --- | --- |
+| Presupuesto | Preflight real con precios revisados, gasto bruto, crédito vigente y financiación de custodia. Sin datos/plan válido, BLOCKED antes de aprovisionar. |
+| Aislamiento | VPC/BD/KMS/secretos/roles productivos separados; TLS SQL obligatorio, RLS y runtime sin DDL/escritor. Plantillas y PostgreSQL local no acreditan IAM/AWS efectivos. |
+| Publicación | Main aprobado, mismo SHA/digest que staging, migración serializada y verificación de imagen/red/TLS/salud; reversión de código verificada ante fallo. |
+| Operación acotada | Retirada real de API/ALB y parada de RDS, sin borrar datos, claves, backups ni evidencia. |
+| Alcance | Identidad/familia/retiros/avisos apagados. CI/CD, comisión/configuración AWS y pruebas conjuntas pendientes; la etapa no acredita E4/E5 ni activación escolar. |
 
 ## Integración, artefactos y promoción
 
