@@ -217,7 +217,7 @@ def retained_parameters(plan: dict[str, Any]) -> list[str]:
 
 
 def remove_failed_record(expected: dict[str, Any]) -> None:
-    """Caller must verify source, paid plan and live budget before this mutation."""
+    """Caller must verify source, free plan and live budget before this mutation."""
     observed = inspect()
     if observed != expected:
         raise RuntimeError("BLOCKED: production recovery plan drift; nothing removed")

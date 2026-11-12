@@ -226,7 +226,7 @@ def test_inspector_writes_only_private_plan(
     assert json.loads(destination.read_text())["database_absent"] is True
 
 
-def test_paid_and_financial_gate_precedes_failed_record_removal(
+def test_free_plan_and_financial_gate_precedes_failed_record_removal(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     plan = tmp_path / "plan.json"

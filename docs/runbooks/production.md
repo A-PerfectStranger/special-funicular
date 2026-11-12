@@ -9,7 +9,9 @@ para convertir un despliegue técnico en aceptación funcional.
 
 - Cuenta `028364485203`, `us-east-1`; VPC `10.62.0.0/16`, cluster/BD/secretos
   `retiro-production`, separados de staging. PostgreSQL 17 privado, TLS obligatorio,
-  KMS propio, backup/PITR de siete días y protección contra borrado.
+  KMS propio, backup/PITR de **un día** y protección contra borrado.
+  Es la retención aprobada por el responsable para mantener el plan gratuito;
+  restaurar un estado anterior a esa ventana requiere otro respaldo disponible.
 - Se consume **el mismo digest** del registro inmutable `retiro-staging/backend`.
   Solo se comparte el artefacto: producción no puede leer secretos ni BD de staging,
   y sus roles de promoción no escriben en el registro. No reconstruir la imagen.
@@ -25,10 +27,10 @@ para convertir un despliegue técnico en aceptación funcional.
 ## Preflight de operador, sin crear recursos
 
 CloudShell necesita AWS CLI, Git y Python 3, con identidad humana de la cuenta.
-El plan de cuenta debe ser `PAID`: AWS rechaza los siete días de backup RDS bajo
-el plan gratuito. No reducir la retención para superar ese límite. Cambiar el
-plan requiere decisión expresa del titular: el plan de pago permite cargos no
-cubiertos por créditos; el presupuesto USD 150 es una alerta, no un corte de gasto.
+El plan debe permanecer `FREE` y `ACTIVE`. La retención RDS de un día coincide
+con la base staging disponible; una restricción adicional de AWS bloquea la
+comisión, nunca se solventa cambiando a PAID. El techo total sigue en USD 150,
+con preflight de gasto bruto más reservas antes de cada operación.
 Consultar [planes AWS](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html).
 El preflight nunca cambia el plan de cuenta.
 El código de comisión debe ser un checkout limpio del **main aprobado por CI**;
@@ -52,13 +54,10 @@ no ejecutar bootstrap privilegiado desde una rama pendiente de checks.
    dejar margen para las siguientes ejecuciones. Confirmar
    `operator_verified_official_prices` solo después de contrastar los precios
    [oficiales](../../infra/aws/README.md#presupuesto-y-costes-retenidos) y el
-   inventario retenido. En Billing, comprobar también la fecha de vencimiento
-   de los créditos que cubren **todas** las reservas y completar
-   `credit_expires_at`, `credit_verified_at` y `operator_verified_credit_expiry`.
-   Si hay varios créditos, usar la fecha más temprana entre los necesarios.
-   No inferir esa fecha de `accountPlanExpirationDate`: AWS documenta ese campo
-   como caducidad del plan, no de los créditos. Revisión de crédito de menos de
-   24 horas; un dato ausente bloquea. Los importes de ejemplo son **reservas máximas de trabajo**,
+   inventario retenido. Las reservas iniciales son USD 40 nuevos + 50 retenidos
+   + 30 contingencia, total USD 120 antes del gasto ya incurrido; deben seguir
+   cabiendo en USD 150. No reducirlas para forzar un resultado aprobado.
+   Los importes de ejemplo son **reservas de trabajo**,
    no una cotización ni saldo observado. Incluir aprovisionamiento, ventana,
    RDS/almacenamiento/backups, KMS, secretos, ECR, logs, IPv4/ALB y custodia.
 
@@ -66,9 +65,14 @@ no ejecutar bootstrap privilegiado desde una rama pendiente de checks.
    python3 -m scripts.production_preflight --cost-plan work/production-cost-plan.json
    ```
 
-   Lee STS, Budgets, Cost Explorer y crédito/vigencia. Exige coste bruto sin
-   créditos/reembolsos, resultados completos, gasto más reservas <= USD 150 y
-   crédito suficiente hasta la custodia financiada. Resultado público: solo
+   Lee STS, Budgets, Cost Explorer y el estado FREE. Exige plan activo durante
+   **toda** la custodia, coste bruto sin créditos/reembolsos, resultados completos,
+   gasto más reservas <= USD 150 y crédito restante suficiente para las reservas.
+   Usa el vencimiento del plan gratuito como límite conservador de continuidad;
+   no lo presenta como la fecha real de vencimiento del crédito. AWS documenta
+   [seis meses de plan y doce de crédito](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-FAQ.html).
+   Si el plan caduca antes de la custodia, bloquea; no cambia a PAID ni acorta
+   las retenciones de evidencia para superar el control. Resultado público: solo
    booleanos en `work/production-preflight.json`. Un dato ausente o un preflight
    fallido bloquean, no equivalen a gasto cero. No publicar balances ni el plan privado.
 
@@ -139,7 +143,7 @@ rotación y política KMS. Una BD existente, permisos insuficientes, un recurso
 superviviente inesperado o deriva bloquean. No borrar BD, claves, secretos ni
 evidencias para superar el bloqueo.
 
-Una vez autorizado y observado el plan PAID, crédito/custodia revisados, main CI
+Con plan FREE activo durante toda la custodia, financiación revisada, main CI
 y staging aprobados, y sin otra operación activa:
 
 ```bash

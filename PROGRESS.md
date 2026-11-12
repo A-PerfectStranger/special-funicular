@@ -13,42 +13,54 @@ publicó imagen y APK privado, pasó migración/staging/E1; E2 terminó bloquead
 `E2_COHORT_POOL_EXHAUSTED`. E3 y producción omitidos: este candidato no tiene
 aceptación E2/E3. Añadir cohortes sintéticas mediante operador sin reutilizar ni
 resetear las usadas. Runbook E2 contiene el refill; no repetir CD antes de resolverlo.
+Se entregó al operador un bloque de refill de cuatro cohortes nuevas, con
+preflight financiero y FREE antes de mutar, trial_id privado persistido para
+reanudar, main aprobado y mensajes suprimidos. **Resultado AWS aún pendiente**;
+no darlo por repuesto ni reejecutar CD sin confirmarlo.
 Digest publicado: `sha256:9aa7cf6637f0706208016d0a8c4f7d0ccb931ebd6c78eba36b89edbed776c3a3`.
 
 ## Estado AWS que condiciona la continuación
 
 Cuenta `028364485203`, `us-east-1`, operador CloudShell; techo total USD 150.
 El operador confirmó preflight financiero con reservas USD 40 nuevas + 50
-retenidas + 30 contingencia. Ese resultado no acreditó compatibilidad del plan
-de cuenta ni la nueva comprobación independiente de caducidad del crédito.
+retenidas + 30 contingencia. Debe revalidarse antes de nuevas operaciones: gasto
+bruto más reservas <= USD 150, crédito suficiente y FREE activo durante toda la
+custodia. El resultado previo no acreditó compatibilidad del backup de siete días.
 Inventario observado previo: diez secretos con prefijo, tres CMK, RDS staging
 20 GiB/backup un día y cero snapshots manuales. No usarlo como inventario posterior
-al fallo. Plan privado en `$production_checkout/work/production-cost-plan.json`.
+al fallo. El checkout temporal y su variable ya no aparecen en CloudShell.
+El bloque entregado usa `$HOME/retiro-operador-3bb3056` de forma persistente,
+reconstituye el plan privado con la revisión real conservada (sin fingir una
+revisión nueva) y ejecuta preflight actual antes de mutar. Trial reanudable en
+`work/e2-refill-trial-id`; plan en `work/production-cost-plan.json`.
 
 Source check pasó. `retiro-production-base` está `ROLLBACK_COMPLETE`: RDS rechazó
 backup de siete días por límite del plan gratuito. `retiro-production-lifecycle`
 no existe. **Ausencia de BD y recursos retenidos aún no inspeccionados.**
-No repetir foundation ni eliminar recursos manualmente. Mantener siete días.
-Cambiar a PAID requiere decisión explícita del titular: permite cargos fuera del
-crédito; Budgets no impone un corte USD 150. Esa decisión sigue pendiente.
+No repetir foundation ni eliminar recursos manualmente. El responsable rechazó
+PAID y autorizó backup de un día para conservar FREE y el techo USD 150.
+Evidencia 90 días y custodia mínima de claves 97 días se mantienen. El código
+no cambia el plan; si FREE o sus créditos no cubren la custodia, bloquea.
 
 ## Corrección preparada
 
-`feat/production-diagnostics` añade etapas/errores saneados, guardia PAID, revisión
-separada de vencimiento de créditos y recuperación restringida. El inspector
-solo lee metadatos; exige BD ausente y retención/identidad KMS-secretos correctas.
+`feat/production-diagnostics` añade etapas/errores saneados, guardia FREE activo
+durante toda la custodia y recuperación restringida. La plantilla y la
+verificación RDS exigen backup de un día, conforme a la política actualizada.
+El inspector solo lee metadatos; exige BD ausente y retención/identidad KMS-secretos correctas.
 La recuperación compara un plan privado con el estado actual, retira únicamente
 el registro CFN fallido y reutiliza los mismos recursos Retain. Estado desconocido
 o deriva bloquean. [Producción](docs/runbooks/production.md) contiene los comandos
 y la reanudación tras interrupción; no ejecutarlos desde una rama sin aprobar.
 
-Validación local pertinente: 56 pruebas Python, mypy de 166 archivos, lint/formato
-y plantilla CloudFormation aprobados. No equivalen a aceptación AWS de esta
-recuperación. Rama publicada para PR; CI queda pendiente de resultado y se
+Validación local de esta revisión: 73 pruebas pertinentes de producción/cohortes,
+mypy de 166 archivos, lint/formato, todas las plantillas CloudFormation, once
+bloques Bash y escaneo de secretos aprobados. No equivalen a aceptación AWS. [PR #37](https://github.com/A-PerfectStranger/special-funicular/pull/37) actualizado;
+CI queda pendiente de resultado y se
 consulta por SHA en Actions. Integrar solo tras checks verdes.
-No esperar ejecuciones largas. Después: decisión PAID, crédito real actualizado,
-inspección, reparación conservadora, refill E2, candidato aprobado, comisión,
-configuración observada por PR y aceptación E4/E5 conjunta.
+No esperar ejecuciones largas. Después: resultado de refill E2 desde CloudShell,
+finanzas/continuidad FREE actualizadas, inspección, reparación conservadora,
+candidato aprobado, comisión y configuración observada por PR y aceptación E4/E5 conjunta.
 
 ## Controles que se conservan
 

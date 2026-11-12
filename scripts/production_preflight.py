@@ -30,7 +30,7 @@ def cost_plan_checks(plan: dict[str, Any], now: datetime) -> dict[str, bool]:
             "custody_financed": until.tzinfo is not None and until >= now + timedelta(days=97),
             "reserves_within_allocations": valid
             and 0 < new <= 40
-            and retained >= 27
+            and retained >= 50
             and contingency >= 30
             and new + retained + contingency <= 150,
         }
@@ -42,19 +42,24 @@ def cost_plan_checks(plan: dict[str, Any], now: datetime) -> dict[str, bool]:
         }
 
 
-def credit_custody_verified(plan: dict[str, Any], now: datetime) -> bool:
-    """Plan expiry is not credit expiry; use the operator-reviewed Billing credit record."""
+def free_plan_custody_valid(
+    account_plan: dict[str, Any], cost_plan: dict[str, Any], now: datetime
+) -> bool:
+    """FREE ends within six months; its credits last twelve months from account creation.
+
+    Require the shorter FREE account lifetime to cover the whole custody period.
+    Plan expiry is not reported as the actual credit expiration date, and PAID
+    plans cannot use this conservative bound.
+    """
     try:
-        checked = datetime.fromisoformat(plan["credit_verified_at"])
-        expires = datetime.fromisoformat(plan["credit_expires_at"])
-        until = datetime.fromisoformat(plan["custody_until"])
+        expires = datetime.fromisoformat(account_plan["accountPlanExpirationDate"])
+        until = datetime.fromisoformat(cost_plan["custody_until"])
         return (
-            plan.get("operator_verified_credit_expiry") is True
-            and checked.tzinfo is not None
+            account_plan.get("accountPlanType") == "FREE"
+            and account_plan.get("accountPlanStatus") == "ACTIVE"
             and expires.tzinfo is not None
             and until.tzinfo is not None
-            and now - timedelta(days=1) <= checked <= now
-            and expires >= until
+            and expires >= until > now
         )
     except (KeyError, TypeError, ValueError):
         return False
@@ -68,9 +73,11 @@ def evaluate(
     now: datetime,
 ) -> dict[str, bool]:
     checks = cost_plan_checks(cost_plan, now)
-    # Financial headroom does not establish feature availability. AWS rejected
-    # production's seven-day RDS retention under the free account plan.
-    checks["production_account_plan_supported"] = credit_plan.get("accountPlanType") == "PAID"
+    # Owner requires FREE; never upgrade billing or accept a paid/unknown plan.
+    checks["free_account_plan_active"] = (
+        credit_plan.get("accountPlanType") == "FREE"
+        and credit_plan.get("accountPlanStatus") == "ACTIVE"
+    )
     if not all(checks.values()):
         return checks
     reserve = sum(
@@ -109,7 +116,7 @@ def evaluate(
             "credit_covers_reserves": credit.get("unit") == "USD"
             and valid_credit
             and credit_amount >= reserve,
-            "credit_valid_through_custody": credit_custody_verified(cost_plan, now),
+            "free_plan_valid_through_custody": free_plan_custody_valid(credit_plan, cost_plan, now),
             "budget_active": datetime.fromisoformat(budget["TimePeriod"]["Start"])
             <= now
             < datetime.fromisoformat(budget["TimePeriod"]["End"]),

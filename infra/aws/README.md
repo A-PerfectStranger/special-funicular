@@ -59,7 +59,7 @@ no dejar NAT Gateway, réplicas o ingreso encendidos sin presupuesto.
 | `e1-staging.yaml` | Cognito, WORM/KMS, secretos e identidades separadas E1. |
 | `e4-operations.yaml` | APK privado, clave separada, OIDC MobilePublisher y SNS al correo técnico autorizado. |
 | `e4-staging.yaml` | Tarea notificador, permisos de secretos separados y alarma hacia SNS confirmado. |
-| `production-base.json` | VPC/RDS privados aislados, TLS obligatorio, KMS y backup de siete días; secretos y roles productivos separados. |
+| `production-base.json` | VPC/RDS privados aislados, TLS obligatorio, KMS y backup de un día (plan FREE); secretos y roles productivos separados. |
 | `production-lifecycle.yaml` | Primera ventana técnica de tres horas, retirada de API y guarda RDS; permisos mínimos para preflight/CD. |
 
 La comisión técnica de producción se ejecuta con operador desde el
