@@ -102,3 +102,69 @@ def test_failure_remains_reportable_when_artifact_directory_is_unwritable(
     assert production.failure(RuntimeError("private")) == 2
     output = capsys.readouterr().out
     assert json.loads(output)["status"] == "BLOCKED" and "private" not in output
+
+
+@pytest.mark.parametrize(
+    "message,expected",
+    [
+        ("Wrong AWS account", "WRONG_ACCOUNT"),
+        ("Verified AWS operator identity required", "OPERATOR_IDENTITY_REQUIRED"),
+        ("CI/runtime roles are not provisioning operators", "CI_IDENTITY_REJECTED"),
+        ("BLOCKED: production CI/runtime identities are not operators", "CI_IDENTITY_REJECTED"),
+        (
+            "BLOCKED: unexpected failed production stack ownership/state",
+            "STACK_OWNERSHIP_OR_STATE",
+        ),
+        ("BLOCKED: unexpected resource in failed production stack", "RECOVERY_UNKNOWN_RESOURCE"),
+        ("BLOCKED: unexpected surviving production resource", "RECOVERY_UNEXPECTED_SURVIVOR"),
+        (
+            "BLOCKED: protected resource retention policy mismatch",
+            "RECOVERY_RETENTION_POLICY_DRIFT",
+        ),
+        ("BLOCKED: ambiguous retained production key", "RECOVERY_AMBIGUOUS_KEY"),
+        ("BLOCKED: ambiguous retained production secret", "RECOVERY_AMBIGUOUS_SECRET"),
+        ("BLOCKED: retained secret reference mismatch", "RETAINED_SECRET_REFERENCE_DRIFT"),
+        ("BLOCKED: retained secret metadata mismatch", "RETAINED_SECRET_METADATA_DRIFT"),
+    ],
+)
+def test_recovery_failures_have_fixed_actionable_codes(
+    message: str,
+    expected: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(RuntimeError) as raised, production.operation("RECOVERY_INSPECTION"):
+        raise RuntimeError(message)
+    assert production.failure(raised.value) == 2
+    result = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert result["code"] == expected and result["stage"] == "RECOVERY_INSPECTION"
+    assert result["business_enabled"] is False
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "cloudformation.list-stack-resources",
+        "cloudformation.get-template",
+        "rds.describe-db-instances",
+        "kms.describe-key",
+        "kms.list-resource-tags",
+        "kms.get-key-rotation-status",
+        "kms.get-key-policy",
+        "secretsmanager.describe-secret",
+    ],
+)
+def test_recovery_aws_failures_expose_only_allowed_operation_and_code(
+    operation: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    production.failure(RuntimeError(operation + ": AccessDeniedException"))
+    result = json.loads(capsys.readouterr().out)
+    assert result["operation"] == operation
+    assert result["aws_code"] == "AccessDeniedException"
+    assert result["code"] == "AWS_REQUEST_FAILED"
