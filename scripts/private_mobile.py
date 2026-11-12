@@ -15,6 +15,7 @@ from botocore.exceptions import ClientError
 
 from scripts.aws_cli import aws
 from scripts.commission_e1 import outputs, validate_operator
+from scripts.sync_staging_origin import gateway_origin, release_origin
 
 ACCOUNT = "028364485203"
 BUCKET = f"retiro-internal-mobile-{ACCOUNT}-us-east-1"
@@ -35,11 +36,63 @@ def validate_manifest(data: Any, sha: str) -> dict[str, Any]:
         or data.get("filename") != f"mobile-staging-{sha}.apk"
         or data.get("pickup_enabled") is not False
         or data.get("distribution") != "private-development-only"
+        or data.get("storage_layout") != "sha256-v1"
+        or not re.fullmatch(
+            r"https://[a-z0-9-]+\.ecs\.us-east-1\.on\.aws", str(data.get("release_origin", ""))
+        )
         or not re.fullmatch(r"[0-9a-f]{64}", str(data.get("sha256", "")))
         or not re.fullmatch(r"[0-9a-f]{64}", str(data.get("firebase_config_sha256", "")))
     ):
         raise RuntimeError("BLOCKED: exact Firebase-configured staging APK manifest required")
     return data
+
+
+def object_prefix(sha: str, digest: str) -> str:
+    # A recreated gateway or repeated native build can change the APK's bytes
+    # without changing the source commit. Keep every binary immutable by digest.
+    return f"staging/{sha}/{digest}/"
+
+
+def require_live_release(sha: str, origin: str) -> None:
+    """Operator-only read: reject an APK whose pinned endpoint was retired or replaced."""
+    service = aws(
+        "ecs",
+        "describe-express-gateway-service",
+        "--service-arn",
+        "arn:aws:ecs:us-east-1:028364485203:service/retiro-staging/retiro-api",
+    )["service"]
+    if gateway_origin(service) != origin:
+        raise RuntimeError("BLOCKED: APK does not match the live staging release")
+    task = aws(
+        "ecs",
+        "describe-task-definition",
+        "--task-definition",
+        service["activeConfigurations"][0]["taskDefinitionArn"],
+    )["taskDefinition"]
+    containers = task.get("containerDefinitions", [])
+    if len(containers) != 1:
+        raise RuntimeError("BLOCKED: APK does not match the live staging release")
+    env = {value["name"]: value["value"] for value in containers[0].get("environment", [])}
+    image = containers[0].get("image", "")
+    images = aws(
+        "ecr",
+        "describe-images",
+        "--repository-name",
+        "retiro-staging/backend",
+        "--image-ids",
+        "imageTag=" + sha,
+    ).get("imageDetails", [])
+    if (
+        env.get("GIT_SHA") != sha
+        or env.get("E1_IDENTITY_ENABLED") != "true"
+        or env.get("E2_FAMILY_ENABLED") != "true"
+        or len(images) != 1
+        or image
+        != "028364485203.dkr.ecr.us-east-1.amazonaws.com/retiro-staging/backend@"
+        + images[0].get("imageDigest", "")
+        or not re.fullmatch(r"sha256:[0-9a-f]{64}", images[0].get("imageDigest", ""))
+    ):
+        raise RuntimeError("BLOCKED: APK does not match the live staging release")
 
 
 def destination(s3: Any) -> tuple[str, str]:
@@ -171,17 +224,23 @@ def publish(s3: Any, sha: str) -> dict[str, Any]:
     apk = Path(f"work/artifacts/mobile-staging-{sha}.apk")
     manifest = apk.with_suffix(".apk.json")
     data = validate_manifest(json.loads(manifest.read_text()), sha)
+    if data["release_origin"] != release_origin():
+        raise RuntimeError("BLOCKED: APK manifest differs from the verified build origin")
     if checksum(apk) != data["sha256"]:
         raise RuntimeError("BLOCKED: local APK does not match its manifest")
     bucket, encryption = destination(s3)
+    prefix = object_prefix(sha, data["sha256"])
     versions = {
-        path.name: publish_object(s3, bucket, encryption, f"staging/{sha}/{path.name}", path)
+        path.name: publish_object(s3, bucket, encryption, prefix + path.name, path)
         for path in [apk, manifest]
     }
     return {
         "sha": sha,
         "bucket": bucket,
         "versions": versions,
+        "object_prefix": prefix,
+        "apk_sha256": data["sha256"],
+        "release_origin": data["release_origin"],
         "private_published": True,
         "installed_on_android": False,
         "e4_accepted": False,
@@ -197,7 +256,7 @@ def download(s3: Any, sha: str, expected_checksum: str) -> dict[str, Any]:
         raise RuntimeError("BLOCKED: exact release SHA and trusted Actions checksum required")
     bucket, encryption = destination(s3)
     name = f"mobile-staging-{sha}.apk"
-    prefix = f"staging/{sha}/"
+    prefix = object_prefix(sha, expected_checksum)
     body, _ = read_object(s3, bucket, prefix + name + ".json", encryption)
     try:
         raw_manifest = body.read(16385)
@@ -208,6 +267,7 @@ def download(s3: Any, sha: str, expected_checksum: str) -> dict[str, Any]:
     manifest = validate_manifest(json.loads(raw_manifest), sha)
     if manifest["sha256"] != expected_checksum:
         raise RuntimeError("BLOCKED: stored manifest differs from trusted Actions checksum")
+    require_live_release(sha, manifest["release_origin"])
     directory = Path("work/mobile-download")
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     directory.chmod(0o700)
@@ -233,6 +293,7 @@ def download(s3: Any, sha: str, expected_checksum: str) -> dict[str, Any]:
         "apk": str(path.resolve()),
         "sha256": manifest["sha256"],
         "version": version,
+        "release_origin": manifest["release_origin"],
         "installed_on_android": False,
     }
 
@@ -267,6 +328,16 @@ def failure_report(error: Exception) -> dict[str, str]:
             "CONFIGURED_MANIFEST_REQUIRED",
         ),
         "BLOCKED: local APK does not match its manifest": ("local_integrity", "CHECKSUM_MISMATCH"),
+        "BLOCKED: APK manifest differs from the verified build origin": (
+            "manifest",
+            "BUILD_ORIGIN_MISMATCH",
+        ),
+        "BLOCKED: APK does not match the live staging release": (
+            "release",
+            "LIVE_RELEASE_MISMATCH",
+        ),
+        "BLOCKED: active observed Express service required": ("release", "LIVE_GATEWAY_REQUIRED"),
+        "BLOCKED: single active gateway origin required": ("release", "LIVE_GATEWAY_REQUIRED"),
         "BLOCKED: unexpected private mobile destination": ("storage", "DESTINATION_MISMATCH"),
         "BLOCKED: bucket public access protection required": (
             "public_access",
@@ -342,7 +413,9 @@ def failure_report(error: Exception) -> dict[str, str]:
         )
     elif isinstance(error, RuntimeError):
         match = re.fullmatch(
-            r"(sts\.get-caller-identity|cloudformation\.describe-stacks): ([A-Za-z0-9_]{1,64})",
+            r"(sts\.get-caller-identity|cloudformation\.describe-stacks|"
+            r"ecs\.describe-express-gateway-service|ecs\.describe-task-definition|ecr\.describe-images)"
+            r": ([A-Za-z0-9_]{1,64})",
             str(error),
         )
         if match:

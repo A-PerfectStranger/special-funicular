@@ -145,7 +145,10 @@ entrega; pasar los probes técnicos no acredita funciones pendientes.
 El repositorio es público. El APK interno de staging se publica mediante el rol
 OIDC `MobilePublisher` en S3 privado cifrado/versionado, después de verificar firma,
 origen y Firebase. Se comprueba por lectura y checksum; Actions conserva solo los
-manifiestos. Requiere comisionar `retiro-staging-operations`; si falta, el job falla.
+manifiestos. El prefijo incluye commit y checksum del APK para conservar variantes
+de configuración del mismo SHA sin sobrescribirlas. La descarga contrasta origen,
+SHA e imagen activos antes de obtener el binario. Requiere comisionar
+`retiro-staging-operations`; si falta, el job falla.
 La descarga usa identidad AWS de operador, sin enlaces públicos ni prefirmados:
 
 ```bash
