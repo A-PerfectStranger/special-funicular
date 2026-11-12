@@ -9,7 +9,9 @@ para convertir un despliegue técnico en aceptación funcional.
 
 - Cuenta `028364485203`, `us-east-1`; VPC `10.62.0.0/16`, cluster/BD/secretos
   `retiro-production`, separados de staging. PostgreSQL 17 privado, TLS obligatorio,
-  KMS propio, backup/PITR de siete días y protección contra borrado.
+  KMS propio, backup/PITR de **un día** y protección contra borrado.
+  Es la retención aprobada por el responsable para mantener el plan gratuito;
+  restaurar un estado anterior a esa ventana requiere otro respaldo disponible.
 - Se consume **el mismo digest** del registro inmutable `retiro-staging/backend`.
   Solo se comparte el artefacto: producción no puede leer secretos ni BD de staging,
   y sus roles de promoción no escriben en el registro. No reconstruir la imagen.
@@ -25,6 +27,12 @@ para convertir un despliegue técnico en aceptación funcional.
 ## Preflight de operador, sin crear recursos
 
 CloudShell necesita AWS CLI, Git y Python 3, con identidad humana de la cuenta.
+El plan debe permanecer `FREE` y `ACTIVE`. La retención RDS de un día coincide
+con la base staging disponible; una restricción adicional de AWS bloquea la
+comisión, nunca se solventa cambiando a PAID. El techo total sigue en USD 150,
+con preflight de gasto bruto más reservas antes de cada operación.
+Consultar [planes AWS](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html).
+El preflight nunca cambia el plan de cuenta.
 El código de comisión debe ser un checkout limpio del **main aprobado por CI**;
 no ejecutar bootstrap privilegiado desde una rama pendiente de checks.
 
@@ -46,7 +54,10 @@ no ejecutar bootstrap privilegiado desde una rama pendiente de checks.
    dejar margen para las siguientes ejecuciones. Confirmar
    `operator_verified_official_prices` solo después de contrastar los precios
    [oficiales](../../infra/aws/README.md#presupuesto-y-costes-retenidos) y el
-   inventario retenido. Los importes de ejemplo son **reservas máximas de trabajo**,
+   inventario retenido. Las reservas iniciales son USD 40 nuevos + 50 retenidos
+   + 30 contingencia, total USD 120 antes del gasto ya incurrido; deben seguir
+   cabiendo en USD 150. No reducirlas para forzar un resultado aprobado.
+   Los importes de ejemplo son **reservas de trabajo**,
    no una cotización ni saldo observado. Incluir aprovisionamiento, ventana,
    RDS/almacenamiento/backups, KMS, secretos, ECR, logs, IPv4/ALB y custodia.
 
@@ -54,9 +65,14 @@ no ejecutar bootstrap privilegiado desde una rama pendiente de checks.
    python3 -m scripts.production_preflight --cost-plan work/production-cost-plan.json
    ```
 
-   Lee STS, Budgets, Cost Explorer y crédito/vigencia. Exige coste bruto sin
-   créditos/reembolsos, resultados completos, gasto más reservas <= USD 150 y
-   crédito suficiente hasta la custodia financiada. Resultado público: solo
+   Lee STS, Budgets, Cost Explorer y el estado FREE. Exige plan activo durante
+   **toda** la custodia, coste bruto sin créditos/reembolsos, resultados completos,
+   gasto más reservas <= USD 150 y crédito restante suficiente para las reservas.
+   Usa el vencimiento del plan gratuito como límite conservador de continuidad;
+   no lo presenta como la fecha real de vencimiento del crédito. AWS documenta
+   [seis meses de plan y doce de crédito](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-FAQ.html).
+   Si el plan caduca antes de la custodia, bloquea; no cambia a PAID ni acorta
+   las retenciones de evidencia para superar el control. Resultado público: solo
    booleanos en `work/production-preflight.json`. Un dato ausente o un preflight
    fallido bloquean, no equivalen a gasto cero. No publicar balances ni el plan privado.
 
@@ -76,8 +92,9 @@ python3 -m scripts.commission_production --step foundation \
 Repite el preflight antes de modificar AWS. Aplica `production-base.json` y
 `production-lifecycle.yaml` y almacena la revisión privada en SSM
 `/retiro-production/cost-plan` para que CD pueda comprobar presupuesto actualizado
-sin aprobación manual de promoción. Nunca elimina stacks fallidos ni recursos
-retenidos para reintentar; ante ROLLBACK/deriva inspeccionar eventos privados.
+sin aprobación manual de promoción. `foundation` nunca elimina stacks fallidos;
+ante ROLLBACK/deriva usar la inspección restringida siguiente. No repetir el
+comando sobre `ROLLBACK_COMPLETE` ni eliminar recursos manualmente.
 
 ```bash
 python3 -m scripts.commission_production --step commission \
@@ -108,6 +125,50 @@ La preparación arma la ventana; el despliegue no la prolonga para compensar una
 migración lenta. La retirada o cambio de pasarela bloquean el origen anterior:
 recomisionar el destino observado y revisar su configuración antes de repetir CD.
 No omitir las comprobaciones ni ampliar permisos para reutilizar una URL retirada.
+
+## Recuperación de foundation sin base de datos
+
+Ante `ROLLBACK_COMPLETE`, conservar logs privados y trabajar desde main limpio
+aprobado. Inspección **solo lectura**, sin leer valores de secretos:
+
+```bash
+python3 -m scripts.production_recovery --plan work/production-recovery-plan.json
+```
+
+El plan privado fija el StackId exacto, huella de recursos, clave y secretos.
+Exige ausencia de `retiro-production` mediante RDS; `CREATE_FAILED` no demuestra
+ausencia. Solo permite recursos eliminados o claves/secretos conocidos con
+`DELETE_SKIPPED` y políticas Retain verificadas. Comprueba cuenta, etiquetas,
+rotación y política KMS. Una BD existente, permisos insuficientes, un recurso
+superviviente inesperado o deriva bloquean. No borrar BD, claves, secretos ni
+evidencias para superar el bloqueo.
+
+Con plan FREE activo durante toda la custodia, financiación revisada, main CI
+y staging aprobados, y sin otra operación activa:
+
+```bash
+python3 -m scripts.commission_production --step recover-foundation \
+  --sha SHA_COMPLETO_APROBADO --digest sha256:DIGEST_APROBADO \
+  --cost-plan work/production-cost-plan.json \
+  --recovery-plan work/production-recovery-plan.json
+```
+
+Revalida fuente, presupuesto y plan; compara la inspección actual con la privada.
+Solo entonces elimina **el registro del stack fallido por su StackId exacto**,
+conservando los recursos Retain. Verifica su conservación y recompone foundation
+referenciando esa misma clave y secretos, sin crear otra CMK para sustituirlos.
+Este camino no recupera ni restaura datos y no acredita recuperación E5.
+
+Si se interrumpe después de eliminar el registro, comprobar que ese stack ya no
+existe y que no hay BD. Conservar el mismo plan privado; continuar con
+`--step foundation --recovery-plan work/production-recovery-plan.json` y los demás
+argumentos anteriores. No repetir `recover-foundation` contra un stack nuevo.
+Si ya existe una BD o el estado es ambiguo, detenerse e inspeccionar; no adoptar
+ni eliminar la BD automáticamente.
+
+Los fallos emiten etapa y códigos saneados en
+`work/production-operation-failure.json`; los detalles remotos permanecen en logs
+privados del operador. No publicar cuerpos de excepciones ni credenciales.
 
 ## Aceptación de esta etapa y siguiente paso
 

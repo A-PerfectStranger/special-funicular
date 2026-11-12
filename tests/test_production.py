@@ -58,6 +58,8 @@ def billing_data() -> tuple[dict, dict, dict, dict, datetime]:
         },
     }
     credit = {
+        "accountPlanType": "FREE",
+        "accountPlanStatus": "ACTIVE",
         "accountPlanRemainingCredits": {"unit": "USD", "amount": "120"},
         "accountPlanExpirationDate": (now + timedelta(days=150)).isoformat(),
     }
@@ -69,7 +71,7 @@ def billing_data() -> tuple[dict, dict, dict, dict, datetime]:
         "pricing_checked_at": now.isoformat(),
         "custody_until": (now + timedelta(days=100)).isoformat(),
         "new_resources_and_custody_reserve_usd": 40,
-        "existing_retained_reserve_usd": 27,
+        "existing_retained_reserve_usd": 50,
         "contingency_reserve_usd": 30,
     }
     return budget, credit, cost, plan, now
@@ -78,12 +80,23 @@ def billing_data() -> tuple[dict, dict, dict, dict, datetime]:
 def test_billing_reserves_include_gross_spend_and_entire_custody() -> None:
     budget, credit, cost, plan, now = billing_data()
     assert all(billing.evaluate(budget, credit, cost, plan, now).values())
-    for amount, expected in [("53", True), ("53.01", False)]:
+    for amount, expected in [("30", True), ("30.01", False)]:
         cost["ResultsByTime"][0]["Total"]["UnblendedCost"]["Amount"] = amount
         assert (
             billing.evaluate(budget, credit, cost, plan, now)["usage_and_reserves_within_ceiling"]
             is expected
         )
+
+
+@pytest.mark.parametrize("account_plan", ["PAID", None, "UNKNOWN"])
+def test_funded_paid_or_unknown_account_is_not_authorized(
+    account_plan: str | None,
+) -> None:
+    budget, credit, cost, plan, now = billing_data()
+    credit["accountPlanType"] = account_plan
+    checks = billing.evaluate(budget, credit, cost, plan, now)
+    assert checks["free_account_plan_active"] is False
+    assert not all(checks.values())
 
 
 @pytest.mark.parametrize(
@@ -95,6 +108,7 @@ def test_billing_reserves_include_gross_spend_and_entire_custody() -> None:
         ("pricing_checked_at", "2020-01-01T00:00:00+00:00"),
         ("new_resources_and_custody_reserve_usd", 41),
         ("existing_retained_reserve_usd", 0),
+        ("existing_retained_reserve_usd", "49.99"),
         ("contingency_reserve_usd", 0),
         ("new_resources_and_custody_reserve_usd", "NaN"),
     ],
@@ -110,8 +124,7 @@ def test_billing_missing_usage_pagination_credit_expiry_and_net_budget_block() -
     for modified in [{}, {**cost, "NextPageToken": "more"}]:
         assert not all(billing.evaluate(budget, credit, modified, plan, now).values())
     for modified in [
-        {**credit, "accountPlanRemainingCredits": {"unit": "USD", "amount": "96.99"}},
-        {**credit, "accountPlanExpirationDate": (now + timedelta(days=96)).isoformat()},
+        {**credit, "accountPlanRemainingCredits": {"unit": "USD", "amount": "119.99"}},
     ]:
         assert not all(billing.evaluate(budget, modified, cost, plan, now).values())
     budget["CostTypes"]["IncludeCredit"] = True
@@ -171,8 +184,14 @@ def test_production_infrastructure_is_separate_and_has_no_secret_read_in_deploy(
     r = template["Resources"]
     db = r["Database"]["Properties"]
     assert db["PubliclyAccessible"] is False and db["DeletionProtection"] is True
-    assert db["StorageEncrypted"] is True and db["BackupRetentionPeriod"] == 7
-    assert db["KmsKeyId"] == {"Fn::GetAtt": ["DatabaseKey", "Arn"]}
+    assert db["StorageEncrypted"] is True and db["BackupRetentionPeriod"] == 1
+    assert db["KmsKeyId"] == {
+        "Fn::If": [
+            "CreateDatabaseKey",
+            {"Fn::GetAtt": ["DatabaseKey", "Arn"]},
+            {"Ref": "ExistingDatabaseKeyArn"},
+        ]
+    }
     assert r["DatabaseParameters"]["Properties"]["Parameters"]["rds.force_ssl"] == "1"
     assert r["Vpc"]["Properties"]["CidrBlock"] == "10.62.0.0/16"
     assert r["Database"]["DeletionPolicy"] == r["DatabaseKey"]["DeletionPolicy"] == "Retain"
@@ -231,15 +250,18 @@ def test_database_key_privacy_and_backup_drift_blocks_before_start(
         "PubliclyAccessible": False,
         "StorageEncrypted": True,
         "KmsKeyId": b["DatabaseKeyArn"],
-        "BackupRetentionPeriod": 7,
+        "BackupRetentionPeriod": 1,
         "DeletionProtection": True,
         "Endpoint": {"Address": b["DbHost"]},
         "DBInstanceStatus": "available",
     }
+    monkeypatch.setattr(deploy, "aws", lambda *args: {"DBInstances": [db]})
+    deploy.wait_database(b)  # An observed private database with one-day backups is accepted.
     for field, value in [
         ("PubliclyAccessible", True),
         ("KmsKeyId", "other"),
-        ("BackupRetentionPeriod", 1),
+        ("BackupRetentionPeriod", 0),
+        ("BackupRetentionPeriod", 7),
     ]:
         calls = []
 
@@ -350,3 +372,37 @@ def test_production_pipeline_requires_full_staging_then_isolated_migration() -> 
     for key in ["production-prepare", "production-migrate", "production"]:
         assert jobs[key]["permissions"] == {"contents": "read", "id-token": "write"}
         assert "environment" not in jobs[key]  # no new manual promotion approval
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("accountPlanStatus", "EXPIRED"),
+        ("accountPlanStatus", "NOT_STARTED"),
+        ("accountPlanStatus", None),
+        ("accountPlanExpirationDate", None),
+        ("accountPlanExpirationDate", "2020-01-01T00:00:00+00:00"),
+        ("accountPlanExpirationDate", "2099-01-01T00:00:00"),
+    ],
+)
+def test_free_plan_must_cover_entire_custody(field: str, value: Any) -> None:
+    budget, credit, cost, plan, now = billing_data()
+    credit[field] = value
+    assert not all(billing.evaluate(budget, credit, cost, plan, now).values())
+
+
+def test_free_plan_ending_before_custody_blocks_even_with_sufficient_credit() -> None:
+    budget, credit, cost, plan, now = billing_data()
+    credit["accountPlanExpirationDate"] = (now + timedelta(days=99)).isoformat()
+    checks = billing.evaluate(budget, credit, cost, plan, now)
+    assert checks["credit_covers_reserves"]
+    assert not checks["free_plan_valid_through_custody"]
+
+
+def test_selected_backup_policy_template_and_runtime_agree() -> None:
+    policy = json.loads(Path("infra/environments/retention.json").read_text())
+    template = json.loads(Path("infra/aws/production-base.json").read_text())
+    assert policy["encrypted_backup_days"] == 1
+    assert template["Resources"]["Database"]["Properties"]["BackupRetentionPeriod"] == 1
+    assert policy["evidence_and_signed_manifests_days"] == 90
+    assert policy["minimum_key_custody_days_after_last_protected_write"] == 97

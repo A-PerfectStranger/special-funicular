@@ -3,9 +3,12 @@
 import json
 import re
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError
 
 from scripts.aws_cli import aws
 from scripts.commission_e1 import outputs
@@ -18,6 +21,56 @@ SOURCE_REPOSITORY = "retiro-staging/backend"
 IMAGE_REPOSITORY = f"{ACCOUNT}.dkr.ecr.us-east-1.amazonaws.com/{SOURCE_REPOSITORY}"
 CONFIG = Path("infra/environments/production.json")
 FLAGS = ["e1_enabled", "e2_enabled", "e3_enabled", "e4_enabled", "pickup_enabled"]
+STAGES = {
+    "PRODUCTION",
+    "SOURCE_APPROVAL",
+    "FOUNDATION",
+    "BILLING_PREFLIGHT",
+    "ECS_SERVICE_ROLE",
+    "RDS_ENGINE_SELECTION",
+    "RETAINED_SECRET_METADATA",
+    "CLOUDFORMATION_BASE",
+    "CLOUDFORMATION_LIFECYCLE",
+    "COST_PLAN_STORAGE",
+    "SERVICE_COMMISSION",
+    "PRODUCTION_PREPARE",
+    "PRODUCTION_MIGRATE",
+    "PRODUCTION_DEPLOY",
+    "RECOVERY_INSPECTION",
+    "RECOVERY_REMOVE_FAILED_RECORD",
+}
+AWS_ERROR_CODES = {
+    "AccessDenied",
+    "AccessDeniedException",
+    "ExpiredToken",
+    "ExpiredTokenException",
+    "ValidationError",
+    "ValidationException",
+    "ResourceNotFoundException",
+    "ImageNotFoundException",
+    "InsufficientCapabilitiesException",
+    "AlreadyExistsException",
+    "ThrottlingException",
+    "RequestLimitExceeded",
+    "LimitExceededException",
+    "CliRequestFailed",
+}
+
+
+@contextmanager
+def operation(stage: str) -> Iterator[None]:
+    if stage not in STAGES:
+        raise ValueError("Unknown production stage")
+    print(json.dumps({"stage": stage, "status": "STARTED"}), flush=True)
+    try:
+        yield
+    except Exception as error:
+        # Preserve the original exception for callers; only fixed diagnostics
+        # are serialized by failure(). Nested operations retain the deepest stage.
+        current = getattr(error, "production_stage", None)
+        if not isinstance(current, str) or current not in STAGES:
+            error.production_stage = stage  # type: ignore[attr-defined]
+        raise
 
 
 def technical_only(config: dict[str, Any]) -> None:
@@ -194,9 +247,70 @@ def report(name: str, data: dict[str, Any]) -> None:
     Path("work/" + name + ".json").write_text(json.dumps(data, indent=2) + "\n")
 
 
-def failure() -> int:
-    print(
-        '{"status":"BLOCKED","code":"PRODUCTION_OPERATION_FAILED",'
-        '"detail":"Inspect private operator logs; no business acceptance claimed"}'
-    )
+def failure(error: Exception | None = None) -> int:
+    stage = getattr(error, "production_stage", "PRODUCTION")
+    result: dict[str, Any] = {
+        "status": "BLOCKED",
+        "stage": stage if isinstance(stage, str) and stage in STAGES else "PRODUCTION",
+        "code": "PRODUCTION_OPERATION_FAILED",
+        "business_enabled": False,
+    }
+    codes = {
+        "BLOCKED: clean reviewed main source required": "SOURCE_NOT_CLEAN_OR_WRONG_SHA",
+        "OBSOLETE: candidate is not the latest main": "OBSOLETE_CANDIDATE",
+        "BLOCKED: approved source tag/digest mismatch": "SOURCE_DIGEST_MISMATCH",
+        "BLOCKED: approved main CI required before commissioning": "MAIN_CI_NOT_APPROVED",
+        "BLOCKED: production billing/custody preflight": "BILLING_PREFLIGHT_FAILED",
+        "BLOCKED: existing ECS service-linked role required": "ECS_SERVICE_ROLE_MISSING",
+        "BLOCKED: selected private PostgreSQL instance unavailable": "RDS_INSTANCE_UNAVAILABLE",
+        "BLOCKED: retained production secret ownership/state mismatch": "SECRET_METADATA_DRIFT",
+        "BLOCKED: production stack requires operator inspection; nothing deleted": (
+            "STACK_NOT_UPDATABLE"
+        ),
+        "BLOCKED: production CloudFormation failed; inspect private stack events": (
+            "CLOUDFORMATION_DEPLOY_FAILED"
+        ),
+        "BLOCKED: production database exists; automatic stack recovery prohibited": (
+            "RECOVERY_REQUIRES_DATABASE_ABSENCE"
+        ),
+        "BLOCKED: production recovery plan drift; nothing removed": "RECOVERY_PLAN_DRIFT",
+        "BLOCKED: retained production key metadata mismatch": "RETAINED_KEY_METADATA_DRIFT",
+        "BLOCKED: retained production key policy mismatch": "RETAINED_KEY_POLICY_DRIFT",
+    }
+    if isinstance(error, RuntimeError):
+        result["code"] = codes.get(str(error), result["code"])
+        match = re.fullmatch(
+            r"(sts\.get-caller-identity|ecr\.describe-images|ssm\.get-parameter|ssm\.put-parameter|"
+            r"budgets\.describe-budget|ce\.get-cost-and-usage|freetier\.get-account-plan-state|"
+            r"rds\.describe-db-engine-versions|rds\.describe-orderable-db-instance-options|"
+            r"cloudformation\.describe-stacks): ([A-Za-z0-9_]{1,64})",
+            str(error),
+        )
+        if match:
+            result.update(
+                code="AWS_REQUEST_FAILED",
+                operation=match[1],
+                aws_code=match[2] if match[2] in AWS_ERROR_CODES else "AWS_ERROR",
+            )
+    if isinstance(error, HTTPError):
+        result.update(code="HTTP_REQUEST_FAILED", http_status=error.code)
+    error_type = type(error).__name__
+    if error_type in {
+        "ValueError",
+        "KeyError",
+        "TypeError",
+        "FileNotFoundError",
+        "PermissionError",
+        "HTTPError",
+        "URLError",
+        "TimeoutError",
+        "JSONDecodeError",
+        "RuntimeError",
+    }:
+        result["error_type"] = error_type
+    try:
+        report("production-operation-failure", result)
+    except OSError:
+        pass
+    print(json.dumps(result), flush=True)
     return 2

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from scripts.aws_cli import aws
-from scripts.production import ACCOUNT, failure, report
+from scripts.production import ACCOUNT, failure, operation, report
 
 COST_PLAN_PARAMETER = "/retiro-production/cost-plan"
 
@@ -30,7 +30,7 @@ def cost_plan_checks(plan: dict[str, Any], now: datetime) -> dict[str, bool]:
             "custody_financed": until.tzinfo is not None and until >= now + timedelta(days=97),
             "reserves_within_allocations": valid
             and 0 < new <= 40
-            and retained >= 27
+            and retained >= 50
             and contingency >= 30
             and new + retained + contingency <= 150,
         }
@@ -42,6 +42,29 @@ def cost_plan_checks(plan: dict[str, Any], now: datetime) -> dict[str, bool]:
         }
 
 
+def free_plan_custody_valid(
+    account_plan: dict[str, Any], cost_plan: dict[str, Any], now: datetime
+) -> bool:
+    """FREE ends within six months; its credits last twelve months from account creation.
+
+    Require the shorter FREE account lifetime to cover the whole custody period.
+    Plan expiry is not reported as the actual credit expiration date, and PAID
+    plans cannot use this conservative bound.
+    """
+    try:
+        expires = datetime.fromisoformat(account_plan["accountPlanExpirationDate"])
+        until = datetime.fromisoformat(cost_plan["custody_until"])
+        return (
+            account_plan.get("accountPlanType") == "FREE"
+            and account_plan.get("accountPlanStatus") == "ACTIVE"
+            and expires.tzinfo is not None
+            and until.tzinfo is not None
+            and expires >= until > now
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def evaluate(
     budget: dict[str, Any],
     credit_plan: dict[str, Any],
@@ -50,6 +73,11 @@ def evaluate(
     now: datetime,
 ) -> dict[str, bool]:
     checks = cost_plan_checks(cost_plan, now)
+    # Owner requires FREE; never upgrade billing or accept a paid/unknown plan.
+    checks["free_account_plan_active"] = (
+        credit_plan.get("accountPlanType") == "FREE"
+        and credit_plan.get("accountPlanStatus") == "ACTIVE"
+    )
     if not all(checks.values()):
         return checks
     reserve = sum(
@@ -88,10 +116,7 @@ def evaluate(
             "credit_covers_reserves": credit.get("unit") == "USD"
             and valid_credit
             and credit_amount >= reserve,
-            "credit_valid_through_custody": datetime.fromisoformat(
-                credit_plan["accountPlanExpirationDate"]
-            )
-            >= datetime.fromisoformat(cost_plan["custody_until"]),
+            "free_plan_valid_through_custody": free_plan_custody_valid(credit_plan, cost_plan, now),
             "budget_active": datetime.fromisoformat(budget["TimePeriod"]["Start"])
             <= now
             < datetime.fromisoformat(budget["TimePeriod"]["End"]),
@@ -149,12 +174,13 @@ def main() -> int:
     parser.add_argument("--cost-plan", type=Path)
     args = parser.parse_args()
     plan = json.loads(args.cost_plan.read_text()) if args.cost_plan else None
-    print(json.dumps({"checks": preflight(plan), "passed": True}))
+    with operation("BILLING_PREFLIGHT"):
+        print(json.dumps({"checks": preflight(plan), "passed": True}))
     return 0
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception:
-        raise SystemExit(failure()) from None
+    except Exception as error:
+        raise SystemExit(failure(error)) from None

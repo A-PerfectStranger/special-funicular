@@ -46,7 +46,7 @@ def wait_database(base: dict[str, str]) -> None:
             db.get("PubliclyAccessible") is not False
             or db.get("StorageEncrypted") is not True
             or db.get("KmsKeyId") != base["DatabaseKeyArn"]
-            or db.get("BackupRetentionPeriod", 0) < 7
+            or db.get("BackupRetentionPeriod") != 1
             or db.get("DeletionProtection") is not True
             or db.get("Endpoint", {}).get("Address") != base["DbHost"]
         ):
@@ -233,5 +233,5 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception:
-        raise SystemExit(failure()) from None
+    except Exception as error:
+        raise SystemExit(failure(error)) from None

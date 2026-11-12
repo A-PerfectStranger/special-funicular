@@ -133,22 +133,31 @@ de unitarias. Procedimiento: [E5](docs/runbooks/e5.md).
 El responsable delegó la elección inicial de retención. La política seleccionada
 vive en [retention.json](infra/environments/retention.json); **no está aplicada ni
 acredita RFS17**. Faltan enforcement, ciclo automático permitido, denegaciones y
-restauración reales, además de comprobar coste y vigencia de la custodia. No se
+restauración reales, además de comprobar coste y vigencia de la custodia. El
+responsable autorizó backup de un día para conservar el plan FREE y USD 150;
+evidencias 90 días y custodia mínima 97 días se mantienen. No se
 modifica la retención sintética de staging ni se cargan datos reales para ensayarla.
 
 ### Primera ventana técnica productiva
 
 El responsable confirmó operador CloudShell y el techo total de USD 150.
-Implementación en `feat/production-commissioning`: infraestructura aislada,
+Implementación integrada en main: infraestructura aislada,
 preflight de gasto/crédito/custodia, roles SQL seguros, migración aislada,
 promoción del mismo digest, probes y rollback de código compatible verificado.
 Ventana de tres horas con retirada de API y guarda RDS; negocio deshabilitado.
-Procedimiento: [producción](docs/runbooks/production.md). No se crearon recursos
-productivos ni se completó su configuración observada desde esta sesión.
+Procedimiento: [producción](docs/runbooks/production.md). Foundation está en
+`ROLLBACK_COMPLETE`: AWS rechazó backup de siete días bajo el plan gratuito.
+Lifecycle no existe; falta inspeccionar recursos retenidos y confirmar ausencia
+de BD. El responsable descartó PAID y autorizó retención de backup de un día.
+La recuperación preserva claves/secretos y exige FREE activo durante toda la
+custodia, revisión financiera vigente y main aprobado. No cambia de plan.
+El CD del candidato main quedó bloqueado en E2 por pool sintético agotado.
+El operador confirmó la reposición de cuatro cohortes nuevas con MFA; falta
+repetir y aprobar los gates E2/E3. Las cohortes usadas se conservan.
 
 | Criterio de esta etapa | Verificación requerida |
 | --- | --- |
-| Presupuesto | Preflight real con precios revisados, gasto bruto, crédito vigente y financiación de custodia. Sin datos/plan válido, BLOCKED antes de aprovisionar. |
+| Presupuesto | FREE activo durante toda la custodia, precios revisados, crédito suficiente, gasto bruto más reservas <= USD 150. Sin datos/plan válido, BLOCKED antes de aprovisionar. |
 | Aislamiento | VPC/BD/KMS/secretos/roles productivos separados; TLS SQL obligatorio, RLS y runtime sin DDL/escritor. Plantillas y PostgreSQL local no acreditan IAM/AWS efectivos. |
 | Publicación | Main aprobado, mismo SHA/digest que staging, migración serializada y verificación de imagen/red/TLS/salud; reversión de código verificada ante fallo. |
 | Operación acotada | Retirada real de API/ALB y parada de RDS, sin borrar datos, claves, backups ni evidencia. |

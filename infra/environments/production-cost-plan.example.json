@@ -5,6 +5,6 @@
   "custody_until": null,
   "window_hours": 3,
   "new_resources_and_custody_reserve_usd": 40,
-  "existing_retained_reserve_usd": 27,
+  "existing_retained_reserve_usd": 50,
   "contingency_reserve_usd": 30
 }

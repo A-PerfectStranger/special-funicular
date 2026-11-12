@@ -20,6 +20,12 @@
       "Type": "String",
       "Default": "",
       "AllowedPattern": "^$|arn:aws:secretsmanager:us-east-1:028364485203:secret:retiro-production/.*"
+    },
+    "ExistingDatabaseKeyArn": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|arn:aws:kms:us-east-1:028364485203:key/[0-9a-f-]{36}",
+      "Description": "Verified retained production database key; never replace it during failed-stack recovery"
     }
   },
   "Resources": {
@@ -341,7 +347,7 @@
         "MasterUsername": "retiro_bootstrap",
         "ManageMasterUserPassword": true,
         "StorageEncrypted": true,
-        "BackupRetentionPeriod": 7,
+        "BackupRetentionPeriod": 1,
         "DeletionProtection": true,
         "PubliclyAccessible": false,
         "DBSubnetGroupName": {
@@ -363,9 +369,17 @@
           }
         ],
         "KmsKeyId": {
-          "Fn::GetAtt": [
-            "DatabaseKey",
-            "Arn"
+          "Fn::If": [
+            "CreateDatabaseKey",
+            {
+              "Fn::GetAtt": [
+                "DatabaseKey",
+                "Arn"
+              ]
+            },
+            {
+              "Ref": "ExistingDatabaseKeyArn"
+            }
           ]
         },
         "CopyTagsToSnapshot": true,
@@ -1097,7 +1111,8 @@
             "Value": "database-backups"
           }
         ]
-      }
+      },
+      "Condition": "CreateDatabaseKey"
     }
   },
   "Outputs": {
@@ -1236,9 +1251,17 @@
     },
     "DatabaseKeyArn": {
       "Value": {
-        "Fn::GetAtt": [
-          "DatabaseKey",
-          "Arn"
+        "Fn::If": [
+          "CreateDatabaseKey",
+          {
+            "Fn::GetAtt": [
+              "DatabaseKey",
+              "Arn"
+            ]
+          },
+          {
+            "Ref": "ExistingDatabaseKeyArn"
+          }
         ]
       }
     }
@@ -1264,6 +1287,14 @@
       "Fn::Equals": [
         {
           "Ref": "ExistingDjangoSecret"
+        },
+        ""
+      ]
+    },
+    "CreateDatabaseKey": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingDatabaseKeyArn"
         },
         ""
       ]
