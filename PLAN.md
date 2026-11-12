@@ -16,9 +16,10 @@ anterior a una imagen, APK o despliegue posterior.
 | E2 | Aceptada con sintéticos | Bulk privado, activación/contacto verificado, principal único, cuidadores/fotos, autorizaciones y revocación. Una familia pertenece a una sola escuela. |
 | E3 | Aceptada con sintéticos | QR diferido, decisión única, archivo antes del permiso de 30 s, reporte físico, incidencias e idempotencia. |
 | E4 | Candidato implementado y verificado localmente; aceptación AWS pendiente | Notificador Expo Push, historial familiar, consulta escolar y correcciones técnicas. La bandera de staging sigue apagada. |
-| E5 | Pendiente | Comisión técnica productiva sin ejecutar. Android con instalación/MFA/consulta y bloqueo parcial comprobados; registro de avisos fallido. Recuperación/carga, resto de pruebas físicas, firma/distribución productivas y activación escolar pendientes. |
+| E5 | Pendiente | Comisión técnica productiva verificada por operador; configuración observada preparada para CD. Android con instalación/MFA/consulta y bloqueo parcial comprobados; registro de avisos fallido. Recuperación/carga, resto de pruebas físicas, firma/distribución productivas y activación escolar pendientes. |
 
-No hay producción comisionada ni uso real autorizado. `pickup_enabled=false` y
+Producción tiene comisión técnica verificada; CD automático de esa configuración
+y retirada efectiva siguen pendientes. No hay uso escolar real autorizado. `pickup_enabled=false` y
 `synthetic_only=true` siguen en la configuración de ambos destinos. E3 se descubre
 por su endpoint separado, exclusivamente sintético. Health nunca concede entrega.
 
@@ -81,26 +82,31 @@ nuevo SHA requieren sus propios resultados.
 
 `retiro-staging-operations` está comisionado: bucket interno, rol OIDC
 MobilePublisher, clave KMS conservada y suscripción SNS confirmada.
-Base integrada `55263bd8a31e4954ff1acba5354e7f306894b994`:
-[CI 43165684917](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43165684917)
-aprobado y [CD 43167057252](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43167057252)
+Base integrada `ad4d9645e8e382059599406c34d67735e7af9964`:
+[CI 43181439878](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43181439878)
+aprobado y [CD 43182969257](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43182969257)
 con publicación, migración, staging, E1/browser/cloud/archive-drill, E2/E3 y APK
 privado aprobados. Solo producción terminó BLOCKED por falta de configuración.
-El lector independiente verificó 1.896 eventos en 61 s; conserva firmas KMS,
+El lector independiente verificó 2.109 eventos en 148 s; conserva firmas KMS,
 versiones/retención/hash, orden de cadena y deadline de 480 s con cuatro lectores.
-Digest: `sha256:d0efa19f27cce5d6c047b055b491077a86aca8c5f0d03f3f907f03308729053d`.
-APK staging: `18f8b34543b770b09c8f4444d328a6c54366d02277fe52e61c4d89ebd634249f`,
+Digest: `sha256:412e2debae5a29f3991c83aa05d6ca6d9c8de35e4ab1f8c93dfbde0cc78b11a9`.
+APK staging: `6d9521830b858c976f306eaa3921445987da882b1dc3beb3d494144f87436e7a`,
 almacenado por SHA/checksum/origen, sin sobrescritura. La validez de la pasarela
 se revalida al descargar; estos resultados no se trasladan a otro candidato.
-Descarga privada del APK confirmada por el operador: versión, origen activo y
-checksum coincidentes. En Redmi 10C/Android 13 el responsable confirmó instalación
+La descarga de este APK está bloqueada por `LIVE_GATEWAY_REQUIRED`: la pasarela
+de staging ya no está activa fuera de la ventana acotada. Requiere reactivación
+verificada y APK del origen vigente; no omitir la comprobación.
+
+Ensayo físico del APK anterior de `55263bd`, con descarga privada y checksum
+verificados: en Redmi 10C/Android 13 el responsable confirmó instalación
 tras corregir la extensión `.apk_` a `.apk`, conexión técnica, MFA y retorno nativo,
 rol PADRE, estudiantes sintéticos A1/A2 como principal y zona America/Bogota.
 Bloqueo/retorno descarta detalle y revalida; sin red oculta familia y exige conexión;
 con red recupera sesión/familia. La denegación del permiso de avisos se comprobó.
 Con permiso concedido, el registro falla con el mensaje genérico del APK actual:
-causa sin identificar. El candidato añade diagnóstico seguro por etapa y exige
-confirmación explícita del servidor; falta su build/CD y repetir el paso físico.
+causa sin identificar. `ad4d964` incorpora diagnóstico seguro por etapa y exige
+confirmación explícita del servidor; build/CD de staging aprobados, actualización
+e identificación del error en el teléfono pendientes.
 Estas observaciones no acreditan cámara, autorizaciones/retiro, recepción push,
 actualización, firma productiva ni los demás escenarios Android E5. Siguen
 pendientes alarma real, allowlist, comisión/gate del notificador y recibos Expo/FCM.
@@ -153,18 +159,30 @@ Implementación integrada en main: infraestructura aislada,
 preflight de gasto/crédito/custodia, roles SQL seguros, migración aislada,
 promoción del mismo digest, probes y rollback de código compatible verificado.
 Ventana de tres horas con retirada de API y guarda RDS; negocio deshabilitado.
-Procedimiento: [producción](docs/runbooks/production.md). Foundation está en
-`ROLLBACK_COMPLETE`: AWS rechazó backup de siete días bajo el plan gratuito.
-Lifecycle no existe. La inspección de solo lectura del operador confirmó ausencia
-de BD en RDS; CloudFormation registra `Database`, la clave y tres secretos como
-`DELETE_SKIPPED`, y los demás recursos como `DELETE_COMPLETE`. La inspección
-completa bloqueó porque el inspector no contemplaba ese estado de una BD ausente.
-La corrección exige ausencia independiente e identificador/políticas exactos;
-falta aprobarla por CI y repetir la inspección completa antes de recuperar.
+Procedimiento: [producción](docs/runbooks/production.md). Foundation y lifecycle
+aprovisionados mediante `recover-foundation` sobre `ad4d964`, confirmados por el
+operador con `passed=true`, `business_enabled=false`. Se reutilizaron una clave y
+tres secretos retenidos tras comprobar ausencia de BD; fuente, preflight FREE y
+financiación, recuperación, CFN base/lifecycle y almacenamiento del plan en SSM
+aprobados. No repetir la recuperación del stack anterior.
+
+Comisión técnica sobre `ad4d964`, confirmada por operador: bootstrap y migración
+aislados iniciados/terminados con exitCode 0; mismo digest aprobado en staging,
+ingreso de tareas solo desde ALB, VPC dedicada y probes TLS aprobados. Origen y
+roles/subredes/SG/task observados incorporados a la configuración pública de
+[producción](infra/environments/production.json), con todas las funciones de
+negocio apagadas. Comprobación adicional desde el workspace: readiness 200.
+Los reportes privados production-foundation/commission/migration/configuration
+permanecen en CloudShell, vinculados al SHA/digest; no son resultados de CD.
+
+Ventana observada: vence 2026-11-12 19:57:34 UTC (14:57:34 America/Bogota).
+No asumir disponibilidad después de ese instante. La promoción automática por
+OIDC del siguiente candidato, la retirada efectiva API/ALB/RDS y la reversión
+real ante fallo siguen sin acreditar. Una programación no prueba su ejecución.
 El responsable descartó PAID y autorizó retención de backup de un día.
 La recuperación preserva claves/secretos y exige FREE activo durante toda la
 custodia, revisión financiera vigente y main aprobado. No cambia de plan.
-El CD de `55263bd` aprobó E2/E3 con el pool repuesto. Las cohortes usadas se
+El CD de `ad4d964` aprobó E2/E3 con el pool repuesto. Las cohortes usadas se
 conservan; una release posterior necesita sus propios gates y cohorte disponible.
 
 | Criterio de esta etapa | Verificación requerida |
@@ -173,7 +191,7 @@ conservan; una release posterior necesita sus propios gates y cohorte disponible
 | Aislamiento | VPC/BD/KMS/secretos/roles productivos separados; TLS SQL obligatorio, RLS y runtime sin DDL/escritor. Plantillas y PostgreSQL local no acreditan IAM/AWS efectivos. |
 | Publicación | Main aprobado, mismo SHA/digest que staging, migración serializada y verificación de imagen/red/TLS/salud; reversión de código verificada ante fallo. |
 | Operación acotada | Retirada real de API/ALB y parada de RDS, sin borrar datos, claves, backups ni evidencia. |
-| Alcance | Identidad/familia/retiros/avisos apagados. CI/CD, comisión/configuración AWS y pruebas conjuntas pendientes; la etapa no acredita E4/E5 ni activación escolar. |
+| Alcance | Identidad/familia/retiros/avisos apagados. Comisión técnica acreditada; CI/CD de la configuración observada y pruebas conjuntas pendientes. La etapa no acredita E4/E5 ni activación escolar. |
 
 ## Integración, artefactos y promoción
 
