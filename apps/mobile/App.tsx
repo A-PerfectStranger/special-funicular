@@ -9,6 +9,7 @@ import { SessionVisibility } from './src/sessionVisibility';
 import { clearQrShares } from './src/qrShareRuntime';
 import { History } from './src/History';
 import { registerNotifications, unregisterNotifications } from './src/notificationRuntime';
+import { notificationRegistrationMessage } from './src/notificationRegistration';
 import Constants from 'expo-constants';
 
 export default function App() {
@@ -106,7 +107,7 @@ export default function App() {
     try {
       pushToken.current = await registerNotifications(identity);
       setStatus('Dispositivo registrado para avisos genéricos. Su recepción depende de la conexión y del proveedor.');
-    } catch { setStatus('No se pudieron habilitar los avisos. Revisa permisos, conexión y configuración del servicio.'); }
+    } catch (error) { setStatus(notificationRegistrationMessage(error)); }
     finally { setPending(false); }
   }
 

@@ -20,6 +20,11 @@ export class PickupRequestError extends Error {
   constructor(status: number) { super('Online pickup request failed'); this.status = status; }
 }
 
+export class FamilyRequestError extends Error {
+  readonly status: number;
+  constructor(status: number) { super('Online family request failed'); this.status = status; }
+}
+
 export class IdentityClient {
   private access: string | null = null;
   private generation = 0;
@@ -154,7 +159,8 @@ export class IdentityClient {
         ? { 'Content-Type': 'application/json', 'Idempotency-Key': key ?? '' } : {}) },
       ...(payload ? { body: JSON.stringify(payload) } : {}), signal: AbortSignal.timeout(10000),
     });
-    if (!response.ok || generation !== this.generation) throw new Error('Online family request failed');
+    if (generation !== this.generation) throw new Error('Session changed');
+    if (!response.ok) throw new FamilyRequestError(response.status);
     const result = await response.json();
     if (generation !== this.generation) throw new Error('Session changed');
     return result as T;

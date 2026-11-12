@@ -16,7 +16,7 @@ anterior a una imagen, APK o despliegue posterior.
 | E2 | Aceptada con sintéticos | Bulk privado, activación/contacto verificado, principal único, cuidadores/fotos, autorizaciones y revocación. Una familia pertenece a una sola escuela. |
 | E3 | Aceptada con sintéticos | QR diferido, decisión única, archivo antes del permiso de 30 s, reporte físico, incidencias e idempotencia. |
 | E4 | Candidato implementado y verificado localmente; aceptación AWS pendiente | Notificador Expo Push, historial familiar, consulta escolar y correcciones técnicas. La bandera de staging sigue apagada. |
-| E5 | Pendiente | Adaptador de comisión técnica productiva preparado; falta ejecución AWS. Recuperación integral/carga, instalación Android, firma/distribución productivas y activación escolar pendientes. |
+| E5 | Pendiente | Comisión técnica productiva sin ejecutar. Android con instalación/MFA/consulta y bloqueo parcial comprobados; registro de avisos fallido. Recuperación/carga, resto de pruebas físicas, firma/distribución productivas y activación escolar pendientes. |
 
 No hay producción comisionada ni uso real autorizado. `pickup_enabled=false` y
 `synthetic_only=true` siguen en la configuración de ambos destinos. E3 se descubre
@@ -74,7 +74,7 @@ CA-S02/11/12/14/18/21/22/23; AT02/05/07; AB02/10/12/14/16/23.
 | Integración | Migraciones aditivas, contratos/tipos, worker aislado, definición de tarea y plantilla IAM/alarma. | Comisionar recursos, habilitar bandera revisada y completar gate integrado E4 antes de declararla aceptada. |
 
 Regresión local vigente: 558 pruebas Python con PostgreSQL y roles reales,
-27 JavaScript, tipos/lint, checks Django/Expo, migraciones y auditorías de
+42 JavaScript, tipos/lint, checks Django/Expo, migraciones y auditorías de
 paquetes/secretos aprobados. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
 acreditan AWS, Expo/FCM ni dispositivo físico. CI, builds de imagen/APK y CD del
 nuevo SHA requieren sus propios resultados.
@@ -93,11 +93,17 @@ APK staging: `18f8b34543b770b09c8f4444d328a6c54366d02277fe52e61c4d89ebd634249f`,
 almacenado por SHA/checksum/origen, sin sobrescritura. La validez de la pasarela
 se revalida al descargar; estos resultados no se trasladan a otro candidato.
 Descarga privada del APK confirmada por el operador: versión, origen activo y
-checksum coincidentes. Instalación rechazada en Redmi 10C/Android 13 con
-«App no instalada»; causa pendiente de diagnóstico, sin ADB disponible.
-Faltan instalación/pruebas conjuntas, alarma técnica probada, allowlist y
-comisión del notificador; Expo/FCM y recibos
-reales siguen sin acreditar E4/E5.
+checksum coincidentes. En Redmi 10C/Android 13 el responsable confirmó instalación
+tras corregir la extensión `.apk_` a `.apk`, conexión técnica, MFA y retorno nativo,
+rol PADRE, estudiantes sintéticos A1/A2 como principal y zona America/Bogota.
+Bloqueo/retorno descarta detalle y revalida; sin red oculta familia y exige conexión;
+con red recupera sesión/familia. La denegación del permiso de avisos se comprobó.
+Con permiso concedido, el registro falla con el mensaje genérico del APK actual:
+causa sin identificar. El candidato añade diagnóstico seguro por etapa y exige
+confirmación explícita del servidor; falta su build/CD y repetir el paso físico.
+Estas observaciones no acreditan cámara, autorizaciones/retiro, recepción push,
+actualización, firma productiva ni los demás escenarios Android E5. Siguen
+pendientes alarma real, allowlist, comisión/gate del notificador y recibos Expo/FCM.
 
 Orden: cerrar persistencia/permisos → transporte/worker/vistas → regresiones y
 contrato → comisión y ensayo AWS/Expo → verificador externo. Procedimientos y

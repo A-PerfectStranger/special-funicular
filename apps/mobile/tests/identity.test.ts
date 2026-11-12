@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
-import { IdentityClient } from '../src/identity.ts';
+import { FamilyRequestError, IdentityClient } from '../src/identity.ts';
 import type { IdentityDependencies } from '../src/identity.ts';
 
 const access = 'a'.repeat(43), refresh = 'r'.repeat(43), state = 's'.repeat(43);
@@ -25,7 +25,7 @@ function harness(overrides: Partial<IdentityDependencies> = {}) {
       return new Response(JSON.stringify(data), { status: 200 });
     }, ...overrides,
   };
-  return { client: new IdentityClient(dependencies), calls, saved: () => saved };
+  return { client: new IdentityClient(dependencies), calls, saved: () => saved, dependencies };
 }
 
 test('PKCE browser login stores only refresh in OS storage and validates role online', async () => {
@@ -157,4 +157,25 @@ test('E4 history pagination and own device use the online session without openin
   }
   await client.logout();
   await assert.rejects(client.familyRequest('/v1/me/pickups?limit=25'));
+});
+
+test('device-registration HTTP rejection exposes only its status and never reads the private body', async () => {
+  const { client, dependencies } = harness();
+  await client.login();
+  const request = dependencies.request;
+  let bodyRead = false;
+  dependencies.request = async (url, options) => {
+    if (new URL(String(url)).pathname !== '/v1/me/notification-device') return request(url, options);
+    const response = new Response('synthetic-private-server-body', { status: 503 });
+    response.json = async () => { bodyRead = true; throw new Error('private'); };
+    response.text = async () => { bodyRead = true; return 'private'; };
+    return response;
+  };
+  await assert.rejects(client.familyRequest('/v1/me/notification-device', { token: 'synthetic', enabled: true }), error => {
+    assert(error instanceof FamilyRequestError);
+    assert.equal(error.status, 503);
+    assert(!error.message.includes('private'));
+    return true;
+  });
+  assert.equal(bodyRead, false);
 });
