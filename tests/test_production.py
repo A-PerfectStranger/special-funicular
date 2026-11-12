@@ -209,7 +209,8 @@ def test_production_infrastructure_is_separate_and_has_no_secret_read_in_deploy(
 
 def test_unconfigured_or_enabled_business_is_never_accepted_as_production() -> None:
     config = json.loads(production.CONFIG.read_text())
-    assert validate(config)  # real observed endpoints are still required
+    # Missing destinations must fail even after the observed target is commissioned.
+    assert "missing service" in validate({**config, "service": None})
     production.technical_only(config)
     for field in production.FLAGS:
         with pytest.raises(RuntimeError, match="cannot enable business"):
