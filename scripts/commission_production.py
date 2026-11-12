@@ -23,6 +23,7 @@ from scripts.production import (
     definition,
     failure,
     network,
+    operation,
     report,
     technical_only,
 )
@@ -112,68 +113,79 @@ def deploy_stack(name: str, template: Path, parameters: list[str]) -> None:
 
 
 def foundation(plan: dict[str, Any]) -> None:
-    preflight(plan)  # Before ANY provisioning mutation, including cost-plan storage.
-    if (
-        read("iam", "get-role", "--role-name", "AWSServiceRoleForECS", absent="NoSuchEntity")
-        is None
-    ):
-        raise RuntimeError("BLOCKED: existing ECS service-linked role required")
-    versions = aws("rds", "describe-db-engine-versions", "--engine", "postgres")["DBEngineVersions"]
-    version = max(
-        (v["EngineVersion"] for v in versions if v["EngineVersion"].startswith("17.")),
-        key=lambda v: tuple(int(n) for n in v.split(".")),
-    )
-    if not aws(
-        "rds",
-        "describe-orderable-db-instance-options",
-        "--engine",
-        "postgres",
-        "--engine-version",
-        version,
-        "--db-instance-class",
-        "db.t4g.micro",
-    ).get("OrderableDBInstanceOptions"):
-        raise RuntimeError("BLOCKED: selected private PostgreSQL instance unavailable")
-    params = ["EngineVersion=" + version]
-    for name in ["RuntimePassword", "MigrationPassword", "DjangoSecret"]:
-        secret = read(
-            "secretsmanager",
-            "describe-secret",
-            "--secret-id",
-            "retiro-production/" + name,
-            absent="ResourceNotFoundException",
+    with operation("BILLING_PREFLIGHT"):
+        preflight(plan)  # Before ANY provisioning mutation, including cost-plan storage.
+    with operation("ECS_SERVICE_ROLE"):
+        if (
+            read("iam", "get-role", "--role-name", "AWSServiceRoleForECS", absent="NoSuchEntity")
+            is None
+        ):
+            raise RuntimeError("BLOCKED: existing ECS service-linked role required")
+    with operation("RDS_ENGINE_SELECTION"):
+        versions = aws("rds", "describe-db-engine-versions", "--engine", "postgres")[
+            "DBEngineVersions"
+        ]
+        version = max(
+            (v["EngineVersion"] for v in versions if v["EngineVersion"].startswith("17.")),
+            key=lambda v: tuple(int(n) for n in v.split(".")),
         )
-        if secret:
-            tags = {tag["Key"]: tag["Value"] for tag in secret.get("Tags", [])}
-            if (
-                tags.get("Project") != "retiro-seguro"
-                or tags.get("Environment") != "production"
-                or secret.get("DeletedDate")
-            ):
-                raise RuntimeError("BLOCKED: retained production secret ownership/state mismatch")
-            params.append("Existing" + name + "=" + secret["ARN"])
-    deploy_stack("retiro-production-base", Path("infra/aws/production-base.json"), params)
+        if not aws(
+            "rds",
+            "describe-orderable-db-instance-options",
+            "--engine",
+            "postgres",
+            "--engine-version",
+            version,
+            "--db-instance-class",
+            "db.t4g.micro",
+        ).get("OrderableDBInstanceOptions"):
+            raise RuntimeError("BLOCKED: selected private PostgreSQL instance unavailable")
+    params = ["EngineVersion=" + version]
+    with operation("RETAINED_SECRET_METADATA"):
+        for name in ["RuntimePassword", "MigrationPassword", "DjangoSecret"]:
+            secret = read(
+                "secretsmanager",
+                "describe-secret",
+                "--secret-id",
+                "retiro-production/" + name,
+                absent="ResourceNotFoundException",
+            )
+            if secret:
+                tags = {tag["Key"]: tag["Value"] for tag in secret.get("Tags", [])}
+                if (
+                    tags.get("Project") != "retiro-seguro"
+                    or tags.get("Environment") != "production"
+                    or secret.get("DeletedDate")
+                ):
+                    raise RuntimeError(
+                        "BLOCKED: retained production secret ownership/state mismatch"
+                    )
+                params.append("Existing" + name + "=" + secret["ARN"])
+    with operation("CLOUDFORMATION_BASE"):
+        deploy_stack("retiro-production-base", Path("infra/aws/production-base.json"), params)
     end = datetime.now(UTC) + timedelta(hours=3)
-    deploy_stack(
-        "retiro-production-lifecycle",
-        Path("infra/aws/production-lifecycle.yaml"),
-        [
-            "StopNotBefore=" + end.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-            "WindowExpiryAt=" + end.strftime("%Y-%m-%dT%H:%M:%S"),
-        ],
-    )
+    with operation("CLOUDFORMATION_LIFECYCLE"):
+        deploy_stack(
+            "retiro-production-lifecycle",
+            Path("infra/aws/production-lifecycle.yaml"),
+            [
+                "StopNotBefore=" + end.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                "WindowExpiryAt=" + end.strftime("%Y-%m-%dT%H:%M:%S"),
+            ],
+        )
     # Private parameters contain price review/reserves, never IdP or domain secrets.
-    aws(
-        "ssm",
-        "put-parameter",
-        "--name",
-        COST_PLAN_PARAMETER,
-        "--type",
-        "String",
-        "--value",
-        json.dumps(plan),
-        "--overwrite",
-    )
+    with operation("COST_PLAN_STORAGE"):
+        aws(
+            "ssm",
+            "put-parameter",
+            "--name",
+            COST_PLAN_PARAMETER,
+            "--type",
+            "String",
+            "--value",
+            json.dumps(plan),
+            "--overwrite",
+        )
     report("production-foundation", {"passed": True, "business_enabled": False})
 
 
@@ -288,18 +300,21 @@ def main() -> int:
     parser.add_argument("--digest", required=True)
     parser.add_argument("--cost-plan", type=Path)
     args = parser.parse_args()
-    require_source(args.sha, args.digest)
+    with operation("SOURCE_APPROVAL"):
+        require_source(args.sha, args.digest)
     if args.step == "foundation":
         if not args.cost_plan:
             raise RuntimeError("BLOCKED: reviewed private cost plan required")
-        foundation(json.loads(args.cost_plan.read_text()))
+        with operation("FOUNDATION"):
+            foundation(json.loads(args.cost_plan.read_text()))
     else:
-        commission(args.sha, args.digest)
+        with operation("SERVICE_COMMISSION"):
+            commission(args.sha, args.digest)
     return 0
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception:
-        raise SystemExit(failure()) from None
+    except Exception as error:
+        raise SystemExit(failure(error)) from None

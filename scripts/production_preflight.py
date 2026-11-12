@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from scripts.aws_cli import aws
-from scripts.production import ACCOUNT, failure, report
+from scripts.production import ACCOUNT, failure, operation, report
 
 COST_PLAN_PARAMETER = "/retiro-production/cost-plan"
 
@@ -149,12 +149,13 @@ def main() -> int:
     parser.add_argument("--cost-plan", type=Path)
     args = parser.parse_args()
     plan = json.loads(args.cost_plan.read_text()) if args.cost_plan else None
-    print(json.dumps({"checks": preflight(plan), "passed": True}))
+    with operation("BILLING_PREFLIGHT"):
+        print(json.dumps({"checks": preflight(plan), "passed": True}))
     return 0
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception:
-        raise SystemExit(failure()) from None
+    except Exception as error:
+        raise SystemExit(failure(error)) from None

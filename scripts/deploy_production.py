@@ -233,5 +233,5 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception:
-        raise SystemExit(failure()) from None
+    except Exception as error:
+        raise SystemExit(failure(error)) from None

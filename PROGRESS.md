@@ -20,32 +20,43 @@ No atribuir estas aceptaciones a commits posteriores.
 VPC/BD/KMS/secretos/roles separados, bootstrap SQL, preflight de gasto/custodia,
 migración aislada y CD del mismo digest, con salud/TLS y rollback compatible
 verificado. Todas las rutas de negocio permanecen apagadas. Configuración
-productiva todavía sin valores observados; no se aprovisionó producción.
+productiva todavía sin valores observados; el intento de foundation quedó
+bloqueado y el estado AWS requiere diagnóstico.
 Regresión local: 491 Python, con PostgreSQL/TLS/roles reales; 27 JavaScript;
 diez Chromium/recuperación/diagnóstico; tipos/lint/plantillas/checks Django,
 compatibilidad Expo y auditorías de dependencias/secretos aprobados. CI del PR y
 CD del futuro main se verifican por sus propios resultados antes de continuar.
 
-## Siguiente operación
+## Candidato y operación pendiente
 
-1. Recibir resultados CI del PR, corregir si falla e integrar solo con checks
-   requeridos aprobados. El responsable pide iniciar CI/CD al final y cerrar el
-   turno sin esperar ejecuciones largas; no omitir gates.
-2. El responsable tiene operador CloudShell en `028364485203`, `us-east-1`, y
-   confirmó mantener USD 150 totales. Preparar revisión privada de precios,
-   gasto/crédito y custodia; ejecutar primero el preflight de
-   [producción](docs/runbooks/production.md). No pedir secretos por chat.
-3. Desde main aprobado: foundation → commission. Contrastar propuesta
-   `work/production-configuration.json` con AWS e incorporarla mediante PR.
-   CD automático verifica staging completo antes de producción. Los recursos
-   y el origen productivos no se inventan para completar el JSON.
-4. Continuar E4 y aceptación [E5](docs/runbooks/e5.md) paso a paso con el responsable.
-   Android 13 disponible, **sin APK instalado**. Primer paso: descargar candidato
-   vigente por canal privado y comprobar instalación; no darlo por probado.
-5. E4: registro propio del Android, hashes auditados/allowlist, comisión del
-   notificador, aviso/recibo Expo reales, fallo/recuperación, alarma y p95,
-   consultas/corrección y verificador final. E5 conserva IdP/WORM/retención y firma
-   productivos, recuperación integral/epoch, carga/RTO y ensayo presencial.
+Main integrado: `3bb305635f8e13671408e47970fe236431bb5be3`, PR #36.
+[CI 43158678756](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43158678756)
+aprobó; [CD 43159800799](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43159800799)
+está en curso, con publicación/preparación/migración aprobadas y staging pendiente.
+Digest publicado: `sha256:9aa7cf6637f0706208016d0a8c4f7d0ccb931ebd6c78eba36b89edbed776c3a3`.
+La aceptación de la base anterior no acredita este candidato automáticamente.
+
+El operador confirmó cuenta y preflight completo de gasto/crédito/custodia con
+reservas USD 40 nuevos + 50 retenidos + 30 contingencia, dentro del techo USD 150.
+Inventario observado: diez secretos con prefijo, tres CMK, RDS staging 20 GiB y
+cero snapshots manuales. Plan privado en el checkout CloudShell, bajo
+`work/production-cost-plan.json`; su variable de ruta es `$production_checkout`.
+
+**Foundation devolvió BLOCKED/PRODUCTION_OPERATION_FAILED sin etapa.** Se desconoce
+si llegó a crear recursos: leer primero precondiciones, versiones PostgreSQL y
+estados/eventos de los dos stacks productivos. No repetir comisión ni borrar
+stacks, claves, secretos o BD para diagnosticar. Falta identificar la causa real.
+
+`feat/production-diagnostics` corrige localmente la pérdida de contexto: etapas y
+códigos fijos, errores AWS/HTTP saneados y reporte de fallo, sin excepciones/URLs/
+credenciales remotas. Treinta pruebas pertinentes, tipos y lint aprobados.
+Cambio aún sin publicar; completar la corrección con la causa observada antes de
+iniciar CI al final, sin esperar ejecuciones largas ni alterar el candidato activo.
+
+Después: resolver foundation conservando recursos; commission y configuración
+observada mediante PR; aceptación E4 y E5 conjunta. Android 13 disponible, sin
+APK instalado. Siguen pendientes aviso/recibo Expo real, allowlist, alarma/p95,
+recuperación/epoch/carga, firma/retención productivas y ensayo presencial.
 
 ## Controles que se conservan
 
