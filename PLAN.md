@@ -151,8 +151,9 @@ Lifecycle no existe; falta inspeccionar recursos retenidos y confirmar ausencia
 de BD. El responsable descartó PAID y autorizó retención de backup de un día.
 La recuperación preserva claves/secretos y exige FREE activo durante toda la
 custodia, revisión financiera vigente y main aprobado. No cambia de plan.
-El candidato main también está bloqueado en E2 por pool sintético agotado;
-requiere cohortes nuevas, nunca reinicio o borrado de las usadas.
+El CD del candidato main quedó bloqueado en E2 por pool sintético agotado.
+El operador confirmó la reposición de cuatro cohortes nuevas con MFA; falta
+repetir y aprobar los gates E2/E3. Las cohortes usadas se conservan.
 
 | Criterio de esta etapa | Verificación requerida |
 | --- | --- |

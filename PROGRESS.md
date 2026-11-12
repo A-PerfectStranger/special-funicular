@@ -11,12 +11,13 @@ Main: `3bb305635f8e13671408e47970fe236431bb5be3`, PR #36, remoto actualizado.
 aprobado. [CD 43159800799](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43159800799)
 publicó imagen y APK privado, pasó migración/staging/E1; E2 terminó bloqueado
 `E2_COHORT_POOL_EXHAUSTED`. E3 y producción omitidos: este candidato no tiene
-aceptación E2/E3. Añadir cohortes sintéticas mediante operador sin reutilizar ni
-resetear las usadas. Runbook E2 contiene el refill; no repetir CD antes de resolverlo.
-Se entregó al operador un bloque de refill de cuatro cohortes nuevas, con
-preflight financiero y FREE antes de mutar, trial_id privado persistido para
-reanudar, main aprobado y mensajes suprimidos. **Resultado AWS aún pendiente**;
-no darlo por repuesto ni reejecutar CD sin confirmarlo.
+aceptación E2/E3. El operador repuso cuatro cohortes nuevas desde main aprobado
+usando el bloque persistente; confirmó `E2 synthetic MFA fixtures prepared.`
+El bloque terminó tras el preflight financiero y FREE activo, con reservas
+USD 120 y techo USD 150, sin mensajes reales ni reset de las cohortes usadas.
+El trial_id se conserva para reanudación. **Reposición confirmada por operador;
+aceptación E2/E3 del candidato aún pendiente.** No confundir preparar MFA con
+aprobar los gates; reejecutar CD solo al final, sobre el candidato que corresponda.
 Digest publicado: `sha256:9aa7cf6637f0706208016d0a8c4f7d0ccb931ebd6c78eba36b89edbed776c3a3`.
 
 ## Estado AWS que condiciona la continuación
@@ -58,8 +59,9 @@ mypy de 166 archivos, lint/formato, todas las plantillas CloudFormation, once
 bloques Bash y escaneo de secretos aprobados. No equivalen a aceptación AWS. [PR #37](https://github.com/A-PerfectStranger/special-funicular/pull/37) actualizado;
 CI queda pendiente de resultado y se
 consulta por SHA en Actions. Integrar solo tras checks verdes.
-No esperar ejecuciones largas. Después: resultado de refill E2 desde CloudShell,
-finanzas/continuidad FREE actualizadas, inspección, reparación conservadora,
+No esperar ejecuciones largas. Después: checks del PR, integración/main CI,
+gates E2/E3 con el pool repuesto, finanzas/continuidad FREE actualizadas,
+inspección y reparación conservadora,
 candidato aprobado, comisión y configuración observada por PR y aceptación E4/E5 conjunta.
 
 ## Controles que se conservan
