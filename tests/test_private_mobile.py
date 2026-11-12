@@ -15,6 +15,7 @@ from scripts import private_mobile as mobile
 
 SHA = "a" * 40
 KEY = "arn:aws:kms:us-east-1:028364485203:key/11111111-1111-1111-1111-111111111111"
+ORIGIN = "https://reviewed.ecs.us-east-1.on.aws"
 
 
 def manifest(payload: bytes = b"synthetic apk") -> dict[str, Any]:
@@ -27,6 +28,8 @@ def manifest(payload: bytes = b"synthetic apk") -> dict[str, Any]:
         "pickup_enabled": False,
         "distribution": "private-development-only",
         "firebase_config_sha256": "b" * 64,
+        "storage_layout": "sha256-v1",
+        "release_origin": ORIGIN,
     }
 
 
@@ -128,6 +131,7 @@ class Store:
 
 def configure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Store:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("STAGING_RELEASE_ORIGIN", ORIGIN)
     monkeypatch.setattr(
         mobile,
         "outputs",
@@ -136,14 +140,51 @@ def configure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Store:
             "MobileEncryptionKeyArn": KEY,
         },
     )
-    monkeypatch.setattr(
-        mobile,
-        "aws",
-        lambda *a: {
-            "Account": mobile.ACCOUNT,
-            "Arn": f"arn:aws:iam::{mobile.ACCOUNT}:user/operator",
-        },
-    )
+
+    def aws(*args: str) -> dict[str, Any]:
+        if args[:2] == ("sts", "get-caller-identity"):
+            return {
+                "Account": mobile.ACCOUNT,
+                "Arn": f"arn:aws:iam::{mobile.ACCOUNT}:user/operator",
+            }
+        if args[:2] == ("ecs", "describe-express-gateway-service"):
+            return {
+                "service": {
+                    "status": {"statusCode": "ACTIVE"},
+                    "activeConfigurations": [
+                        {
+                            "taskDefinitionArn": "synthetic-definition",
+                            "ingressPaths": [{"endpoint": ORIGIN}],
+                        }
+                    ],
+                }
+            }
+        if args[:2] == ("ecs", "describe-task-definition"):
+            return {
+                "taskDefinition": {
+                    "containerDefinitions": [
+                        {
+                            "image": (
+                                "028364485203.dkr.ecr.us-east-1.amazonaws.com/"
+                                "retiro-staging/backend@sha256:" + "c" * 64
+                            ),
+                            "environment": [
+                                {"name": k, "value": v}
+                                for k, v in {
+                                    "GIT_SHA": SHA,
+                                    "E1_IDENTITY_ENABLED": "true",
+                                    "E2_FAMILY_ENABLED": "true",
+                                }.items()
+                            ],
+                        }
+                    ]
+                }
+            }
+        if args[:2] == ("ecr", "describe-images"):
+            return {"imageDetails": [{"imageDigest": "sha256:" + "c" * 64}]}
+        pytest.fail(f"Unexpected operation: {args[:2]}")
+
+    monkeypatch.setattr(mobile, "aws", aws)
     return Store()
 
 
@@ -336,7 +377,7 @@ def test_authenticated_download_verifies_bytes_before_exposing_apk(
 ) -> None:
     store = configure(monkeypatch, tmp_path)
     data = manifest()
-    key = f"staging/{SHA}/{data['filename']}"
+    key = mobile.object_prefix(SHA, data["sha256"]) + data["filename"]
     store.objects[key] = b"corrupt" if corrupt else b"synthetic apk"
     store.objects[key + ".json"] = json.dumps(data).encode()
     if corrupt:
@@ -358,7 +399,7 @@ def test_a_replaced_apk_and_matching_manifest_do_not_override_trusted_actions_ch
     store = configure(monkeypatch, tmp_path)
     trusted_checksum = manifest()["sha256"]
     forged = manifest(b"different signed build")
-    key = f"staging/{SHA}/{forged['filename']}"
+    key = mobile.object_prefix(SHA, trusted_checksum) + forged["filename"]
     store.objects[key] = b"different signed build"
     store.objects[key + ".json"] = json.dumps(forged).encode()
     with pytest.raises(RuntimeError, match="trusted Actions checksum"):
@@ -398,3 +439,106 @@ def test_publisher_federation_and_manifest_are_required_before_upload(
     with pytest.raises(RuntimeError, match="trusted main"):
         mobile.publish(store, SHA)
     assert store.writes == 2
+
+
+def test_same_commit_can_publish_a_new_configured_binary_without_overwriting_the_old_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    store = configure(monkeypatch, tmp_path)
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "A-PerfectStranger/special-funicular")
+    monkeypatch.setattr(
+        mobile.subprocess, "check_output", lambda args, **kw: SHA if "rev-parse" in args else ""
+    )
+    monkeypatch.setattr(
+        mobile,
+        "aws",
+        lambda *a: {
+            "Account": mobile.ACCOUNT,
+            "Arn": f"arn:aws:sts::{mobile.ACCOUNT}:assumed-role/retiro-staging-MobilePublisher/job",
+        },
+    )
+    directory = tmp_path / "work/artifacts"
+    directory.mkdir(parents=True)
+    first_data = manifest()
+    path = directory / first_data["filename"]
+    path.write_bytes(b"synthetic apk")
+    path.with_suffix(".apk.json").write_text(json.dumps(first_data))
+    first = mobile.publish(store, SHA)
+    new_origin = "https://recreated.ecs.us-east-1.on.aws"
+    monkeypatch.setenv("STAGING_RELEASE_ORIGIN", new_origin)
+    second_data = {**manifest(b"new configured binary"), "release_origin": new_origin}
+    path.write_bytes(b"new configured binary")
+    path.with_suffix(".apk.json").write_text(json.dumps(second_data))
+    second = mobile.publish(store, SHA)
+    assert first["object_prefix"] != second["object_prefix"] and len(store.objects) == 4
+    assert store.objects[first["object_prefix"] + path.name] == b"synthetic apk"
+    assert store.objects[second["object_prefix"] + path.name] == b"new configured binary"
+    writes = store.writes
+    assert mobile.publish(store, SHA) == second and store.writes == writes
+
+
+@pytest.mark.parametrize("drift", ["origin", "sha", "bootstrap", "digest", "inactive"])
+def test_download_rejects_retired_or_wrong_runtime_before_downloading_binary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, drift: str
+) -> None:
+    store = configure(monkeypatch, tmp_path)
+    real = mobile.aws
+
+    def changed(*args: str) -> dict[str, Any]:
+        result = real(*args)
+        if args[:2] == ("ecs", "describe-express-gateway-service"):
+            if drift == "origin":
+                result["service"]["activeConfigurations"][0]["ingressPaths"][0]["endpoint"] = (
+                    "https://different.ecs.us-east-1.on.aws"
+                )
+            if drift == "inactive":
+                result["service"]["status"]["statusCode"] = "INACTIVE"
+        if args[:2] == ("ecs", "describe-task-definition"):
+            env = result["taskDefinition"]["containerDefinitions"][0]["environment"]
+            for item in env:
+                if drift == "sha" and item["name"] == "GIT_SHA":
+                    item["value"] = "d" * 40
+                if drift == "bootstrap" and item["name"] == "E1_IDENTITY_ENABLED":
+                    item["value"] = "false"
+        if args[:2] == ("ecr", "describe-images") and drift == "digest":
+            result["imageDetails"][0]["imageDigest"] = "sha256:" + "d" * 64
+        return result
+
+    monkeypatch.setattr(mobile, "aws", changed)
+    data = manifest()
+    prefix = mobile.object_prefix(SHA, data["sha256"])
+    store.objects[prefix + data["filename"] + ".json"] = json.dumps(data).encode()
+    # No APK object is present: the runtime drift must fail before requesting it.
+    with pytest.raises(RuntimeError, match="live staging release|active observed"):
+        mobile.download(store, SHA, data["sha256"])
+    assert not (tmp_path / "work/mobile-download").exists()
+
+
+def test_publish_rejects_a_manifest_from_another_verified_origin_before_s3_write(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    store = configure(monkeypatch, tmp_path)
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "A-PerfectStranger/special-funicular")
+    monkeypatch.setenv("STAGING_RELEASE_ORIGIN", "https://different.ecs.us-east-1.on.aws")
+    monkeypatch.setattr(
+        mobile.subprocess, "check_output", lambda args, **kw: SHA if "rev-parse" in args else ""
+    )
+    monkeypatch.setattr(
+        mobile,
+        "aws",
+        lambda *a: {
+            "Account": mobile.ACCOUNT,
+            "Arn": f"arn:aws:sts::{mobile.ACCOUNT}:assumed-role/retiro-staging-MobilePublisher/job",
+        },
+    )
+    directory = tmp_path / "work/artifacts"
+    directory.mkdir(parents=True)
+    data = manifest()
+    path = directory / data["filename"]
+    path.write_bytes(b"synthetic apk")
+    path.with_suffix(".apk.json").write_text(json.dumps(data))
+    with pytest.raises(RuntimeError, match="verified build origin"):
+        mobile.publish(store, SHA)
+    assert store.writes == 0

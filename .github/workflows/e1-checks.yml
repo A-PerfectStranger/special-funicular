@@ -63,7 +63,7 @@ jobs:
       - run: python3 -m pip install --target work/e1-sdk --require-hashes -r infra/aws/e1-ops.txt
       - name: Independent real WORM, KMS, signatures and external high-water
         env: {PYTHONPATH: 'apps/backend:work/e1-sdk'}
-        run: python3 scripts/aws_oidc.py --role E1Verifier -- python3 -m scripts.verify_e1_staging
+        run: python3 scripts/aws_oidc.py --role E1Verifier -- python3 -m scripts.verify_e1_staging --workers 4 --max-seconds 480
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

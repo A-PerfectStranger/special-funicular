@@ -16,7 +16,7 @@ anterior a una imagen, APK o despliegue posterior.
 | E2 | Aceptada con sintéticos | Bulk privado, activación/contacto verificado, principal único, cuidadores/fotos, autorizaciones y revocación. Una familia pertenece a una sola escuela. |
 | E3 | Aceptada con sintéticos | QR diferido, decisión única, archivo antes del permiso de 30 s, reporte físico, incidencias e idempotencia. |
 | E4 | Candidato implementado y verificado localmente; aceptación AWS pendiente | Notificador Expo Push, historial familiar, consulta escolar y correcciones técnicas. La bandera de staging sigue apagada. |
-| E5 | Pendiente | Producción, recuperación integral/carga, Android físico y activación escolar. Custodia privada de staging comisionada; publicación del APK, instalación y distribución productiva pendientes. |
+| E5 | Pendiente | Producción, recuperación integral/carga, Android físico y activación escolar. Publicación privada probada; falta APK vigente para el origen activo, instalación y distribución productiva. |
 
 No hay producción comisionada ni uso real autorizado. `pickup_enabled=false` y
 `synthetic_only=true` siguen en la configuración de ambos destinos. E3 se descubre
@@ -73,30 +73,29 @@ CA-S02/11/12/14/18/21/22/23; AT02/05/07; AB02/10/12/14/16/23.
 | Correcciones | Comando importer privado, aprobación/motivo/operador, evento vinculado, replay/conflicto; conserva bytes, estado original y token consumido. | Corrección y ancla WORM independientes del candidato en staging. |
 | Integración | Migraciones aditivas, contratos/tipos, worker aislado, definición de tarea y plantilla IAM/alarma. | Comisionar recursos, habilitar bandera revisada y completar gate integrado E4 antes de declararla aceptada. |
 
-Verificación local del candidato: 423 pruebas Python con PostgreSQL y roles reales,
+Verificación local del candidato: 461 pruebas Python con PostgreSQL y roles reales,
 27 JavaScript, diez pruebas Chromium/recuperación/diagnóstico, portal escolar en
 Chromium, tipos/lint, bundle Android, migraciones desde cero y auditorías de
 paquetes. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
 acreditan AWS, Expo/FCM ni dispositivo físico. CI, builds de imagen/APK y CD del
 nuevo SHA requieren sus propios resultados.
 
-El operador confirmó la comisión de `retiro-staging-operations` con fuente
-`3ccf3f6`: bucket interno, rol OIDC MobilePublisher, clave KMS conservada y
-suscripción SNS confirmada al correo autorizado. Su preflight de presupuesto/
-créditos pasó. Los CI de [PR](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43058956704)
-y [push](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43058945198)
-del candidato están aprobados; el SHA integrado requiere su propio CI/CD.
-El CI de main `4db7653` está aprobado; su CD publicó la imagen, aplicó las
-migraciones y aprobó staging tras sincronizar el callback. Browser y verificación
-cloud E1 pasaron; los demás gates requieren su resultado. El APK configurado
-compiló y pasó inspección/firma, pero su publicación se bloqueó en el validador
-S3: este debe leer `ApplyServerSideEncryptionByDefault`, el campo real del SDK.
-La corrección está verificada con respuestas validadas por botocore; requiere
-CI, integración y publicación reales. La configuración KMS del bucket es la esperada.
-Esto acredita la preparación operativa, no publicación del APK, entrega de una
-alarma ni aceptación E4. Faltan publicación/lectura/checksum y descarga reales,
-Android 13, allowlist y comisión del notificador. Registrar el equipo antes de
-habilitar avisos. Expo/FCM y sus recibos siguen pendientes de prueba real.
+`retiro-staging-operations` está comisionado: bucket interno, rol OIDC
+MobilePublisher, clave KMS conservada y suscripción SNS confirmada. El operador
+renovó el preflight de presupuesto/créditos y confirmó 1.427 checkpoints. El
+código integrado `561520f` pasó CI, staging, browser E1 y publicación/lectura
+privada del APK. Su verificador cloud agotó diez minutos; E2/E3 siguen pendientes
+para ese candidato. La pasarela cambió de URL y el operador sincronizó su callback
+existente; el APK publicado conserva el origen anterior y requiere sustituto.
+
+La corrección en preparación verifica todos los registros con concurrencia
+acotada, progreso y deadline interno, y conserva variantes del APK por commit/
+checksum con origen autenticado. Regresiones locales incluyen 1.427 eventos
+con firmas reales simulando AWS, comparación secuencial/paralela, alteraciones,
+deadline y reintentos de publicación sin sobrescritura. CI/CD y medición AWS
+del nuevo SHA siguen pendientes; estas pruebas no acreditan E4/E5.
+Faltan APK vigente, Android 13, alarma técnica probada, allowlist y comisión del
+notificador. Expo/FCM y sus recibos siguen pendientes de prueba real.
 
 Orden: cerrar persistencia/permisos → transporte/worker/vistas → regresiones y
 contrato → comisión y ensayo AWS/Expo → verificador externo. Procedimientos y

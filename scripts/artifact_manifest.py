@@ -36,6 +36,11 @@ def main() -> None:
         if os.environ.get("ANDROID_GOOGLE_SERVICES_FILE")
         else None,
     }
+    if args.kind == "staging-apk":
+        origin = os.environ.get("STAGING_RELEASE_ORIGIN", "")
+        if not re.fullmatch(r"https://[a-z0-9-]+\.ecs\.us-east-1\.on\.aws", origin):
+            parser.error("verified staging release origin required")
+        data.update(storage_layout="sha256-v1", release_origin=origin)
     args.artifact.with_suffix(args.artifact.suffix + ".json").write_text(
         json.dumps(data, indent=2) + "\n"
     )
