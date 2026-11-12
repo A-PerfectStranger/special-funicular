@@ -6,5 +6,8 @@
   "window_hours": 3,
   "new_resources_and_custody_reserve_usd": 40,
   "existing_retained_reserve_usd": 27,
-  "contingency_reserve_usd": 30
+  "contingency_reserve_usd": 30,
+  "operator_verified_credit_expiry": false,
+  "credit_verified_at": null,
+  "credit_expires_at": null
 }

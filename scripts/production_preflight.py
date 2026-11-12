@@ -42,6 +42,24 @@ def cost_plan_checks(plan: dict[str, Any], now: datetime) -> dict[str, bool]:
         }
 
 
+def credit_custody_verified(plan: dict[str, Any], now: datetime) -> bool:
+    """Plan expiry is not credit expiry; use the operator-reviewed Billing credit record."""
+    try:
+        checked = datetime.fromisoformat(plan["credit_verified_at"])
+        expires = datetime.fromisoformat(plan["credit_expires_at"])
+        until = datetime.fromisoformat(plan["custody_until"])
+        return (
+            plan.get("operator_verified_credit_expiry") is True
+            and checked.tzinfo is not None
+            and expires.tzinfo is not None
+            and until.tzinfo is not None
+            and now - timedelta(days=1) <= checked <= now
+            and expires >= until
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def evaluate(
     budget: dict[str, Any],
     credit_plan: dict[str, Any],
@@ -50,6 +68,9 @@ def evaluate(
     now: datetime,
 ) -> dict[str, bool]:
     checks = cost_plan_checks(cost_plan, now)
+    # Financial headroom does not establish feature availability. AWS rejected
+    # production's seven-day RDS retention under the free account plan.
+    checks["production_account_plan_supported"] = credit_plan.get("accountPlanType") == "PAID"
     if not all(checks.values()):
         return checks
     reserve = sum(
@@ -88,10 +109,7 @@ def evaluate(
             "credit_covers_reserves": credit.get("unit") == "USD"
             and valid_credit
             and credit_amount >= reserve,
-            "credit_valid_through_custody": datetime.fromisoformat(
-                credit_plan["accountPlanExpirationDate"]
-            )
-            >= datetime.fromisoformat(cost_plan["custody_until"]),
+            "credit_valid_through_custody": credit_custody_verified(cost_plan, now),
             "budget_active": datetime.fromisoformat(budget["TimePeriod"]["Start"])
             <= now
             < datetime.fromisoformat(budget["TimePeriod"]["End"]),

@@ -58,12 +58,16 @@ def billing_data() -> tuple[dict, dict, dict, dict, datetime]:
         },
     }
     credit = {
+        "accountPlanType": "PAID",
         "accountPlanRemainingCredits": {"unit": "USD", "amount": "120"},
         "accountPlanExpirationDate": (now + timedelta(days=150)).isoformat(),
     }
     cost = {"ResultsByTime": [{"Total": {"UnblendedCost": {"Unit": "USD", "Amount": "20"}}}]}
     plan = {
         "schema_version": 1,
+        "operator_verified_credit_expiry": True,
+        "credit_verified_at": now.isoformat(),
+        "credit_expires_at": (now + timedelta(days=150)).isoformat(),
         "operator_verified_official_prices": True,
         "window_hours": 3,
         "pricing_checked_at": now.isoformat(),
@@ -84,6 +88,17 @@ def test_billing_reserves_include_gross_spend_and_entire_custody() -> None:
             billing.evaluate(budget, credit, cost, plan, now)["usage_and_reserves_within_ceiling"]
             is expected
         )
+
+
+@pytest.mark.parametrize("account_plan", ["FREE", None, "UNKNOWN"])
+def test_funded_free_or_unknown_account_cannot_provision_seven_day_production(
+    account_plan: str | None,
+) -> None:
+    budget, credit, cost, plan, now = billing_data()
+    credit["accountPlanType"] = account_plan
+    checks = billing.evaluate(budget, credit, cost, plan, now)
+    assert checks["production_account_plan_supported"] is False
+    assert not all(checks.values())
 
 
 @pytest.mark.parametrize(
@@ -111,7 +126,6 @@ def test_billing_missing_usage_pagination_credit_expiry_and_net_budget_block() -
         assert not all(billing.evaluate(budget, credit, modified, plan, now).values())
     for modified in [
         {**credit, "accountPlanRemainingCredits": {"unit": "USD", "amount": "96.99"}},
-        {**credit, "accountPlanExpirationDate": (now + timedelta(days=96)).isoformat()},
     ]:
         assert not all(billing.evaluate(budget, modified, cost, plan, now).values())
     budget["CostTypes"]["IncludeCredit"] = True
@@ -172,7 +186,13 @@ def test_production_infrastructure_is_separate_and_has_no_secret_read_in_deploy(
     db = r["Database"]["Properties"]
     assert db["PubliclyAccessible"] is False and db["DeletionProtection"] is True
     assert db["StorageEncrypted"] is True and db["BackupRetentionPeriod"] == 7
-    assert db["KmsKeyId"] == {"Fn::GetAtt": ["DatabaseKey", "Arn"]}
+    assert db["KmsKeyId"] == {
+        "Fn::If": [
+            "CreateDatabaseKey",
+            {"Fn::GetAtt": ["DatabaseKey", "Arn"]},
+            {"Ref": "ExistingDatabaseKeyArn"},
+        ]
+    }
     assert r["DatabaseParameters"]["Properties"]["Parameters"]["rds.force_ssl"] == "1"
     assert r["Vpc"]["Properties"]["CidrBlock"] == "10.62.0.0/16"
     assert r["Database"]["DeletionPolicy"] == r["DatabaseKey"]["DeletionPolicy"] == "Retain"
@@ -350,3 +370,29 @@ def test_production_pipeline_requires_full_staging_then_isolated_migration() -> 
     for key in ["production-prepare", "production-migrate", "production"]:
         assert jobs[key]["permissions"] == {"contents": "read", "id-token": "write"}
         assert "environment" not in jobs[key]  # no new manual promotion approval
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("operator_verified_credit_expiry", False),
+        ("credit_verified_at", None),
+        ("credit_verified_at", "2020-01-01T00:00:00+00:00"),
+        ("credit_expires_at", None),
+        ("credit_expires_at", "2020-01-01T00:00:00+00:00"),
+        ("credit_expires_at", "2099-01-01T00:00:00"),
+    ],
+)
+def test_credit_expiry_is_verified_separately_from_account_plan(field: str, value: Any) -> None:
+    budget, credit, cost, plan, now = billing_data()
+    plan[field] = value
+    assert not billing.evaluate(budget, credit, cost, plan, now)["credit_valid_through_custody"]
+    # A paid plan need not have an expiration date; it cannot prove credit expiry.
+    credit.pop("accountPlanExpirationDate")
+    good_plan = {
+        **plan,
+        "operator_verified_credit_expiry": True,
+        "credit_verified_at": now.isoformat(),
+        "credit_expires_at": (now + timedelta(days=150)).isoformat(),
+    }
+    assert billing.evaluate(budget, credit, cost, good_plan, now)["credit_valid_through_custody"]

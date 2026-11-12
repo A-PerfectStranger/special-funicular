@@ -28,6 +28,7 @@ from scripts.production import (
     technical_only,
 )
 from scripts.production_preflight import COST_PLAN_PARAMETER, preflight
+from scripts.production_recovery import remove_failed_record, retained_parameters
 
 
 def require_source(sha: str, digest: str) -> None:
@@ -112,7 +113,7 @@ def deploy_stack(name: str, template: Path, parameters: list[str]) -> None:
         )
 
 
-def foundation(plan: dict[str, Any]) -> None:
+def foundation(plan: dict[str, Any], recovery: dict[str, Any] | None = None) -> None:
     with operation("BILLING_PREFLIGHT"):
         preflight(plan)  # Before ANY provisioning mutation, including cost-plan storage.
     with operation("ECS_SERVICE_ROLE"):
@@ -140,7 +141,12 @@ def foundation(plan: dict[str, Any]) -> None:
             "db.t4g.micro",
         ).get("OrderableDBInstanceOptions"):
             raise RuntimeError("BLOCKED: selected private PostgreSQL instance unavailable")
-    params = ["EngineVersion=" + version]
+    params = {"EngineVersion": version}
+    if recovery is not None:
+        with operation("RECOVERY_INSPECTION"):
+            for parameter in retained_parameters(recovery):
+                key, value = parameter.split("=", 1)
+                params[key] = value
     with operation("RETAINED_SECRET_METADATA"):
         for name in ["RuntimePassword", "MigrationPassword", "DjangoSecret"]:
             secret = read(
@@ -160,9 +166,16 @@ def foundation(plan: dict[str, Any]) -> None:
                     raise RuntimeError(
                         "BLOCKED: retained production secret ownership/state mismatch"
                     )
-                params.append("Existing" + name + "=" + secret["ARN"])
+                expected = params.get("Existing" + name)
+                if expected is not None and expected != secret["ARN"]:
+                    raise RuntimeError("BLOCKED: retained secret reference mismatch")
+                params["Existing" + name] = secret["ARN"]
     with operation("CLOUDFORMATION_BASE"):
-        deploy_stack("retiro-production-base", Path("infra/aws/production-base.json"), params)
+        deploy_stack(
+            "retiro-production-base",
+            Path("infra/aws/production-base.json"),
+            [key + "=" + value for key, value in params.items()],
+        )
     end = datetime.now(UTC) + timedelta(hours=3)
     with operation("CLOUDFORMATION_LIFECYCLE"):
         deploy_stack(
@@ -295,18 +308,30 @@ def commission(sha: str, digest: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--step", required=True, choices=["foundation", "commission"])
+    parser.add_argument(
+        "--step", required=True, choices=["foundation", "recover-foundation", "commission"]
+    )
     parser.add_argument("--sha", required=True)
     parser.add_argument("--digest", required=True)
     parser.add_argument("--cost-plan", type=Path)
+    parser.add_argument("--recovery-plan", type=Path)
     args = parser.parse_args()
     with operation("SOURCE_APPROVAL"):
         require_source(args.sha, args.digest)
-    if args.step == "foundation":
+    if args.step in {"foundation", "recover-foundation"}:
         if not args.cost_plan:
             raise RuntimeError("BLOCKED: reviewed private cost plan required")
+        recovery = json.loads(args.recovery_plan.read_text()) if args.recovery_plan else None
+        cost_plan = json.loads(args.cost_plan.read_text())
+        if args.step == "recover-foundation":
+            if recovery is None:
+                raise RuntimeError("BLOCKED: exact private recovery plan required")
+            with operation("BILLING_PREFLIGHT"):
+                preflight(cost_plan)
+            with operation("RECOVERY_REMOVE_FAILED_RECORD"):
+                remove_failed_record(recovery)
         with operation("FOUNDATION"):
-            foundation(json.loads(args.cost_plan.read_text()))
+            foundation(cost_plan, recovery)
     else:
         with operation("SERVICE_COMMISSION"):
             commission(args.sha, args.digest)

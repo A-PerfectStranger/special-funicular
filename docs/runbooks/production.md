@@ -25,6 +25,12 @@ para convertir un despliegue técnico en aceptación funcional.
 ## Preflight de operador, sin crear recursos
 
 CloudShell necesita AWS CLI, Git y Python 3, con identidad humana de la cuenta.
+El plan de cuenta debe ser `PAID`: AWS rechaza los siete días de backup RDS bajo
+el plan gratuito. No reducir la retención para superar ese límite. Cambiar el
+plan requiere decisión expresa del titular: el plan de pago permite cargos no
+cubiertos por créditos; el presupuesto USD 150 es una alerta, no un corte de gasto.
+Consultar [planes AWS](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html).
+El preflight nunca cambia el plan de cuenta.
 El código de comisión debe ser un checkout limpio del **main aprobado por CI**;
 no ejecutar bootstrap privilegiado desde una rama pendiente de checks.
 
@@ -46,7 +52,13 @@ no ejecutar bootstrap privilegiado desde una rama pendiente de checks.
    dejar margen para las siguientes ejecuciones. Confirmar
    `operator_verified_official_prices` solo después de contrastar los precios
    [oficiales](../../infra/aws/README.md#presupuesto-y-costes-retenidos) y el
-   inventario retenido. Los importes de ejemplo son **reservas máximas de trabajo**,
+   inventario retenido. En Billing, comprobar también la fecha de vencimiento
+   de los créditos que cubren **todas** las reservas y completar
+   `credit_expires_at`, `credit_verified_at` y `operator_verified_credit_expiry`.
+   Si hay varios créditos, usar la fecha más temprana entre los necesarios.
+   No inferir esa fecha de `accountPlanExpirationDate`: AWS documenta ese campo
+   como caducidad del plan, no de los créditos. Revisión de crédito de menos de
+   24 horas; un dato ausente bloquea. Los importes de ejemplo son **reservas máximas de trabajo**,
    no una cotización ni saldo observado. Incluir aprovisionamiento, ventana,
    RDS/almacenamiento/backups, KMS, secretos, ECR, logs, IPv4/ALB y custodia.
 
@@ -76,8 +88,9 @@ python3 -m scripts.commission_production --step foundation \
 Repite el preflight antes de modificar AWS. Aplica `production-base.json` y
 `production-lifecycle.yaml` y almacena la revisión privada en SSM
 `/retiro-production/cost-plan` para que CD pueda comprobar presupuesto actualizado
-sin aprobación manual de promoción. Nunca elimina stacks fallidos ni recursos
-retenidos para reintentar; ante ROLLBACK/deriva inspeccionar eventos privados.
+sin aprobación manual de promoción. `foundation` nunca elimina stacks fallidos;
+ante ROLLBACK/deriva usar la inspección restringida siguiente. No repetir el
+comando sobre `ROLLBACK_COMPLETE` ni eliminar recursos manualmente.
 
 ```bash
 python3 -m scripts.commission_production --step commission \
@@ -108,6 +121,50 @@ La preparación arma la ventana; el despliegue no la prolonga para compensar una
 migración lenta. La retirada o cambio de pasarela bloquean el origen anterior:
 recomisionar el destino observado y revisar su configuración antes de repetir CD.
 No omitir las comprobaciones ni ampliar permisos para reutilizar una URL retirada.
+
+## Recuperación de foundation sin base de datos
+
+Ante `ROLLBACK_COMPLETE`, conservar logs privados y trabajar desde main limpio
+aprobado. Inspección **solo lectura**, sin leer valores de secretos:
+
+```bash
+python3 -m scripts.production_recovery --plan work/production-recovery-plan.json
+```
+
+El plan privado fija el StackId exacto, huella de recursos, clave y secretos.
+Exige ausencia de `retiro-production` mediante RDS; `CREATE_FAILED` no demuestra
+ausencia. Solo permite recursos eliminados o claves/secretos conocidos con
+`DELETE_SKIPPED` y políticas Retain verificadas. Comprueba cuenta, etiquetas,
+rotación y política KMS. Una BD existente, permisos insuficientes, un recurso
+superviviente inesperado o deriva bloquean. No borrar BD, claves, secretos ni
+evidencias para superar el bloqueo.
+
+Una vez autorizado y observado el plan PAID, crédito/custodia revisados, main CI
+y staging aprobados, y sin otra operación activa:
+
+```bash
+python3 -m scripts.commission_production --step recover-foundation \
+  --sha SHA_COMPLETO_APROBADO --digest sha256:DIGEST_APROBADO \
+  --cost-plan work/production-cost-plan.json \
+  --recovery-plan work/production-recovery-plan.json
+```
+
+Revalida fuente, presupuesto y plan; compara la inspección actual con la privada.
+Solo entonces elimina **el registro del stack fallido por su StackId exacto**,
+conservando los recursos Retain. Verifica su conservación y recompone foundation
+referenciando esa misma clave y secretos, sin crear otra CMK para sustituirlos.
+Este camino no recupera ni restaura datos y no acredita recuperación E5.
+
+Si se interrumpe después de eliminar el registro, comprobar que ese stack ya no
+existe y que no hay BD. Conservar el mismo plan privado; continuar con
+`--step foundation --recovery-plan work/production-recovery-plan.json` y los demás
+argumentos anteriores. No repetir `recover-foundation` contra un stack nuevo.
+Si ya existe una BD o el estado es ambiguo, detenerse e inspeccionar; no adoptar
+ni eliminar la BD automáticamente.
+
+Los fallos emiten etapa y códigos saneados en
+`work/production-operation-failure.json`; los detalles remotos permanecen en logs
+privados del operador. No publicar cuerpos de excepciones ni credenciales.
 
 ## Aceptación de esta etapa y siguiente paso
 

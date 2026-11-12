@@ -139,16 +139,21 @@ modifica la retención sintética de staging ni se cargan datos reales para ensa
 ### Primera ventana técnica productiva
 
 El responsable confirmó operador CloudShell y el techo total de USD 150.
-Implementación en `feat/production-commissioning`: infraestructura aislada,
+Implementación integrada en main: infraestructura aislada,
 preflight de gasto/crédito/custodia, roles SQL seguros, migración aislada,
 promoción del mismo digest, probes y rollback de código compatible verificado.
 Ventana de tres horas con retirada de API y guarda RDS; negocio deshabilitado.
-Procedimiento: [producción](docs/runbooks/production.md). No se crearon recursos
-productivos ni se completó su configuración observada desde esta sesión.
+Procedimiento: [producción](docs/runbooks/production.md). Foundation está en
+`ROLLBACK_COMPLETE`: AWS rechazó backup de siete días bajo el plan gratuito.
+Lifecycle no existe; falta inspeccionar recursos retenidos y confirmar ausencia
+de BD. La recuperación preserva claves/secretos y exige decisión del titular
+para PAID, revisión financiera vigente y main aprobado; no reduce retención.
+El candidato main también está bloqueado en E2 por pool sintético agotado;
+requiere cohortes nuevas, nunca reinicio o borrado de las usadas.
 
 | Criterio de esta etapa | Verificación requerida |
 | --- | --- |
-| Presupuesto | Preflight real con precios revisados, gasto bruto, crédito vigente y financiación de custodia. Sin datos/plan válido, BLOCKED antes de aprovisionar. |
+| Presupuesto | Plan PAID observado, precios y vencimiento de créditos revisados, gasto bruto y financiación de custodia. Sin datos/plan válido, BLOCKED antes de aprovisionar. |
 | Aislamiento | VPC/BD/KMS/secretos/roles productivos separados; TLS SQL obligatorio, RLS y runtime sin DDL/escritor. Plantillas y PostgreSQL local no acreditan IAM/AWS efectivos. |
 | Publicación | Main aprobado, mismo SHA/digest que staging, migración serializada y verificación de imagen/red/TLS/salud; reversión de código verificada ante fallo. |
 | Operación acotada | Retirada real de API/ALB y parada de RDS, sin borrar datos, claves, backups ni evidencia. |

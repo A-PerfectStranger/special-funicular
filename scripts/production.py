@@ -36,6 +36,8 @@ STAGES = {
     "PRODUCTION_PREPARE",
     "PRODUCTION_MIGRATE",
     "PRODUCTION_DEPLOY",
+    "RECOVERY_INSPECTION",
+    "RECOVERY_REMOVE_FAILED_RECORD",
 }
 AWS_ERROR_CODES = {
     "AccessDenied",
@@ -268,6 +270,12 @@ def failure(error: Exception | None = None) -> int:
         "BLOCKED: production CloudFormation failed; inspect private stack events": (
             "CLOUDFORMATION_DEPLOY_FAILED"
         ),
+        "BLOCKED: production database exists; automatic stack recovery prohibited": (
+            "RECOVERY_REQUIRES_DATABASE_ABSENCE"
+        ),
+        "BLOCKED: production recovery plan drift; nothing removed": "RECOVERY_PLAN_DRIFT",
+        "BLOCKED: retained production key metadata mismatch": "RETAINED_KEY_METADATA_DRIFT",
+        "BLOCKED: retained production key policy mismatch": "RETAINED_KEY_POLICY_DRIFT",
     }
     if isinstance(error, RuntimeError):
         result["code"] = codes.get(str(error), result["code"])
