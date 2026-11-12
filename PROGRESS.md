@@ -1,75 +1,74 @@
 # Continuidad
 
-[PLAN](PLAN.md) concentra criterios y aceptación; [README](README.md) y runbooks,
-comandos. **E4/E5 y producción real siguen pendientes.** Sin datos/avisos reales,
-activación escolar ni prueba física. Android 13 disponible sin APK instalado.
+[PLAN](PLAN.md) concentra aceptación y pendientes; [README](README.md) y runbooks,
+comandos. **E4/E5 y producción real siguen pendientes.** Sin activación escolar,
+datos ni avisos reales. No atribuir aceptación a un candidato posterior.
 
-## Candidato y verificaciones
+## Base aprobada
 
-Main: `3bb305635f8e13671408e47970fe236431bb5be3`, PR #36, remoto actualizado.
-[CI 43158678756](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43158678756)
-aprobado. [CD 43159800799](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43159800799)
-publicó imagen y APK privado, pasó migración/staging/E1; E2 terminó bloqueado
-`E2_COHORT_POOL_EXHAUSTED`. E3 y producción omitidos: este candidato no tiene
-aceptación E2/E3. El operador repuso cuatro cohortes nuevas desde main aprobado
-usando el bloque persistente; confirmó `E2 synthetic MFA fixtures prepared.`
-El bloque terminó tras el preflight financiero y FREE activo, con reservas
-USD 120 y techo USD 150, sin mensajes reales ni reset de las cohortes usadas.
-El trial_id se conserva para reanudación. **Reposición confirmada por operador;
-aceptación E2/E3 del candidato aún pendiente.** No confundir preparar MFA con
-aprobar los gates; reejecutar CD solo al final, sobre el candidato que corresponda.
-Digest publicado: `sha256:9aa7cf6637f0706208016d0a8c4f7d0ccb931ebd6c78eba36b89edbed776c3a3`.
+Main `55263bd8a31e4954ff1acba5354e7f306894b994`, PR #37 integrada.
+[CI 43165684917](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43165684917)
+aprobado. [CD 43167057252](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43167057252)
+aprobó publicación, migración/staging, E1/browser/cloud/archive-drill, APK privado,
+E2/E3 y WORM independiente: 1.896 eventos en 61 s. Solo producción bloqueó por
+configuración incompleta. El pool repuesto permitió los gates; no resetear ni
+reutilizar cohortes consumidas.
 
-## Estado AWS que condiciona la continuación
+Digest `sha256:d0efa19f27cce5d6c047b055b491077a86aca8c5f0d03f3f907f03308729053d`.
+APK SHA-256 `18f8b34543b770b09c8f4444d328a6c54366d02277fe52e61c4d89ebd634249f`.
+Descarga privada confirmada por el operador con versión/checksum/origen activos.
+Redmi 10C/Android 13 rechaza la instalación con «App no instalada»; causa pendiente.
+Solo está disponible el teléfono, sin ADB. La copia llegó por otra vía, pesa
+37,1 MB y hay 22 GB libres. Se solicitó descargar directamente desde CloudShell
+al Redmi y comprobar un único intento; resultado pendiente. No modificar APK ni firma
+sin un diagnóstico. No hay login ni avisos físicos acreditados.
+No acreditar instalación, cámara, retorno OIDC ni avisos a partir de la descarga.
 
-Cuenta `028364485203`, `us-east-1`, operador CloudShell; techo total USD 150.
-El operador confirmó preflight financiero con reservas USD 40 nuevas + 50
-retenidas + 30 contingencia. Debe revalidarse antes de nuevas operaciones: gasto
-bruto más reservas <= USD 150, crédito suficiente y FREE activo durante toda la
-custodia. El resultado previo no acreditó compatibilidad del backup de siete días.
-Inventario observado previo: diez secretos con prefijo, tres CMK, RDS staging
-20 GiB/backup un día y cero snapshots manuales. No usarlo como inventario posterior
-al fallo. El checkout temporal y su variable ya no aparecen en CloudShell.
-El bloque entregado usa `$HOME/retiro-operador-3bb3056` de forma persistente,
-reconstituye el plan privado con la revisión real conservada (sin fingir una
-revisión nueva) y ejecuta preflight actual antes de mutar. Trial reanudable en
-`work/e2-refill-trial-id`; plan en `work/production-cost-plan.json`.
+## Bloqueo productivo y corrección
 
-Source check pasó. `retiro-production-base` está `ROLLBACK_COMPLETE`: RDS rechazó
-backup de siete días por límite del plan gratuito. `retiro-production-lifecycle`
-no existe. **Ausencia de BD y recursos retenidos aún no inspeccionados.**
-No repetir foundation ni eliminar recursos manualmente. El responsable rechazó
-PAID y autorizó backup de un día para conservar FREE y el techo USD 150.
-Evidencia 90 días y custodia mínima de claves 97 días se mantienen. El código
-no cambia el plan; si FREE o sus créditos no cubren la custodia, bloquea.
+Cuenta `028364485203`, región `us-east-1`, operador CloudShell, techo USD 150 y
+plan FREE obligatorio. Base `retiro-production-base` en `ROLLBACK_COMPLETE`;
+lifecycle ausente. La inspección de solo lectura confirmó ausencia de la BD en
+RDS y el catálogo CFN: Database, DatabaseKey y tres secretos DELETE_SKIPPED;
+los demás recursos DELETE_COMPLETE. La inspección completa bloqueó en Database:
+el inspector aprobado solo contemplaba CREATE_FAILED para una BD ausente.
+No hubo recuperación, retirada del stack ni aprovisionamiento productivo.
 
-## Corrección preparada
+Rama `fix/production-recovery-inspection`: contempla DELETE_SKIPPED únicamente
+para retiro-production con ausencia RDS y ambas políticas Retain comprobadas.
+Conserva validación de claves/secretos, comparación del plan privado y preflight
+antes de cualquier retirada. Añade códigos fijos de diagnóstico sin respuestas
+remotas, secretos ni identificadores físicos. Pruebas de BD existente, permisos
+denegados, deriva, estado ajeno y preservación de recursos aprobadas localmente.
+Validación local: make check completo aprobado, 558 pruebas Python con PostgreSQL
+y roles reales, 27 JavaScript, lint/tipos, migraciones, plantillas AWS y checks
+Django/Expo; gitleaks y auditorías Python/npm sin hallazgos. CI y aceptación AWS
+de esta corrección quedan pendientes hasta sus resultados.
 
-`feat/production-diagnostics` añade etapas/errores saneados, guardia FREE activo
-durante toda la custodia y recuperación restringida. La plantilla y la
-verificación RDS exigen backup de un día, conforme a la política actualizada.
-El inspector solo lee metadatos; exige BD ausente y retención/identidad KMS-secretos correctas.
-La recuperación compara un plan privado con el estado actual, retira únicamente
-el registro CFN fallido y reutiliza los mismos recursos Retain. Estado desconocido
-o deriva bloquean. [Producción](docs/runbooks/production.md) contiene los comandos
-y la reanudación tras interrupción; no ejecutarlos desde una rama sin aprobar.
+## Continuación concreta
 
-Validación local de esta revisión: 73 pruebas pertinentes de producción/cohortes,
-mypy de 166 archivos, lint/formato, todas las plantillas CloudFormation, once
-bloques Bash y escaneo de secretos aprobados. No equivalen a aceptación AWS. [PR #37](https://github.com/A-PerfectStranger/special-funicular/pull/37) actualizado;
-CI queda pendiente de resultado y se
-consulta por SHA en Actions. Integrar solo tras checks verdes.
-No esperar ejecuciones largas. Después: checks del PR, integración/main CI,
-gates E2/E3 con el pool repuesto, finanzas/continuidad FREE actualizadas,
-inspección y reparación conservadora,
-candidato aprobado, comisión y configuración observada por PR y aceptación E4/E5 conjunta.
+1. Revisar checks del PR de la rama; integrar solo con todos aprobados. Consultar
+   CI de main y gates por SHA; no esperar horas ni omitir controles.
+2. Desde main limpio aprobado, repetir la inspección completa de
+   [producción](docs/runbooks/production.md). En CloudShell se conserva el checkout
+   `$HOME/retiro-operador-55263bd`; no asumir que existe un plan de recuperación
+   válido tras la inspección bloqueada. No ejecutar código privilegiado de la rama.
+3. Revalidar precios, gasto, crédito y vigencia FREE durante toda la custodia.
+   Plan privado: reservas 40 nuevas + 50 retenidas + 30 contingencia, techo 150;
+   no inventar una revisión vigente. Backup aprobado un día; evidencia 90 días y
+   custodia mínima 97 días. Preservar claves, secretos, backups y evidencias.
+4. Solo con inspección/fuentes/finanzas aprobadas, recuperar foundation según
+   runbook, comisionar ventana técnica, verificar retirada efectiva y proponer
+   configuración pública por PR. Funciones de negocio siguen apagadas.
+5. Resolver el rechazo Android antes del siguiente paso presencial. APK privado
+   en `work/mobile-download/` del checkout CloudShell; no publicar el binario.
+   Tras instalación, continuar [E5](docs/runbooks/e5.md) paso a paso con el operador.
+6. Cerrar E4: notificador/Expo/allowlist/alarma reales, gate integrado y WORM del
+   candidato. E5 conserva recuperación integral/epoch, carga/RTO, fallos,
+   retención efectiva, firma/distribución productivas y ensayo presencial.
 
-## Controles que se conservan
-
-Producción técnica: todas las funciones de negocio apagadas. Staging mantiene
-`e4_enabled=false`; ambos destinos `pickup_enabled=false`, `synthetic_only=true`.
-IdP/WORM/KMS/firma/retención productivos, Expo real, recuperación/epoch/carga,
-retirada efectiva del gateway/BD y pruebas presenciales siguen pendientes.
-No borrar eventos/recibos/WORM/claves/backups ni recomisionar recursos de staging
-para reintentar. Docker local conserva BD y contenedores de ensayo detenidos;
-`work/` contiene scratch privado, nunca evidencia de aceptación AWS.
+Staging mantiene e4_enabled=false; ambos destinos pickup_enabled=false y
+synthetic_only=true. Una pasarela es efímera: comprobar origen/SHA/digest actuales.
+Resultados por commit en Actions, scratch privado en work/ y evidencia/anclas
+fuera del repositorio público. CI/CD se inicia al final y se entregan enlaces
+sin esperar ejecuciones largas; sus resultados pendientes siguen pendientes.

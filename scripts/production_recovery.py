@@ -156,8 +156,19 @@ def inspect() -> dict[str, Any]:
         physical = resource.get("PhysicalResourceId")
         if status == "DELETE_COMPLETE" or not physical:
             continue
-        if logical == "Database" and status == "CREATE_FAILED" and physical == "retiro-production":
-            continue  # RDS absence was established independently, never from CREATE_FAILED alone.
+        if (
+            logical == "Database"
+            and status in {"CREATE_FAILED", "DELETE_SKIPPED"}
+            and physical == "retiro-production"
+        ):
+            # Retain also applies to a resource whose creation failed. Neither
+            # CFN status proves absence: the independent RDS read above must pass.
+            if status == "DELETE_SKIPPED" and any(
+                template["Resources"][logical].get(p) != "Retain"
+                for p in ["DeletionPolicy", "UpdateReplacePolicy"]
+            ):
+                raise RuntimeError("BLOCKED: protected resource retention policy mismatch")
+            continue
         if logical not in {"DatabaseKey", *SECRETS} or status != "DELETE_SKIPPED":
             raise RuntimeError("BLOCKED: unexpected surviving production resource")
         if any(

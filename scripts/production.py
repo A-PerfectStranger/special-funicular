@@ -276,6 +276,18 @@ def failure(error: Exception | None = None) -> int:
         "BLOCKED: production recovery plan drift; nothing removed": "RECOVERY_PLAN_DRIFT",
         "BLOCKED: retained production key metadata mismatch": "RETAINED_KEY_METADATA_DRIFT",
         "BLOCKED: retained production key policy mismatch": "RETAINED_KEY_POLICY_DRIFT",
+        "Wrong AWS account": "WRONG_ACCOUNT",
+        "Verified AWS operator identity required": "OPERATOR_IDENTITY_REQUIRED",
+        "CI/runtime roles are not provisioning operators": "CI_IDENTITY_REJECTED",
+        "BLOCKED: production CI/runtime identities are not operators": "CI_IDENTITY_REJECTED",
+        "BLOCKED: unexpected failed production stack ownership/state": "STACK_OWNERSHIP_OR_STATE",
+        "BLOCKED: unexpected resource in failed production stack": "RECOVERY_UNKNOWN_RESOURCE",
+        "BLOCKED: unexpected surviving production resource": "RECOVERY_UNEXPECTED_SURVIVOR",
+        "BLOCKED: protected resource retention policy mismatch": "RECOVERY_RETENTION_POLICY_DRIFT",
+        "BLOCKED: ambiguous retained production key": "RECOVERY_AMBIGUOUS_KEY",
+        "BLOCKED: ambiguous retained production secret": "RECOVERY_AMBIGUOUS_SECRET",
+        "BLOCKED: retained secret reference mismatch": "RETAINED_SECRET_REFERENCE_DRIFT",
+        "BLOCKED: retained secret metadata mismatch": "RETAINED_SECRET_METADATA_DRIFT",
     }
     if isinstance(error, RuntimeError):
         result["code"] = codes.get(str(error), result["code"])
@@ -283,7 +295,10 @@ def failure(error: Exception | None = None) -> int:
             r"(sts\.get-caller-identity|ecr\.describe-images|ssm\.get-parameter|ssm\.put-parameter|"
             r"budgets\.describe-budget|ce\.get-cost-and-usage|freetier\.get-account-plan-state|"
             r"rds\.describe-db-engine-versions|rds\.describe-orderable-db-instance-options|"
-            r"cloudformation\.describe-stacks): ([A-Za-z0-9_]{1,64})",
+            r"cloudformation\.describe-stacks|cloudformation\.list-stack-resources|"
+            r"cloudformation\.get-template|rds\.describe-db-instances|"
+            r"kms\.describe-key|kms\.list-resource-tags|kms\.get-key-rotation-status|"
+            r"kms\.get-key-policy|secretsmanager\.describe-secret): ([A-Za-z0-9_]{1,64})",
             str(error),
         )
         if match:

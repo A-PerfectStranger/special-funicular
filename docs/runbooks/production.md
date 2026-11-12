@@ -136,8 +136,13 @@ python3 -m scripts.production_recovery --plan work/production-recovery-plan.json
 ```
 
 El plan privado fija el StackId exacto, huella de recursos, clave y secretos.
-Exige ausencia de `retiro-production` mediante RDS; `CREATE_FAILED` no demuestra
-ausencia. Solo permite recursos eliminados o claves/secretos conocidos con
+Exige ausencia de `retiro-production` mediante RDS; ni `CREATE_FAILED` ni
+`DELETE_SKIPPED` demuestran ausencia. CloudFormation puede conservar el registro
+`Database` como `DELETE_SKIPPED` por `Retain` aunque RDS rechazara su creación.
+Ese caso solo se acepta para el identificador exacto `retiro-production`, con
+ausencia comprobada por RDS y ambas políticas de retención `Retain` verificadas.
+Un error de permisos al consultar RDS bloquea; no equivale a ausencia.
+Solo permite los demás recursos eliminados o claves/secretos conocidos con
 `DELETE_SKIPPED` y políticas Retain verificadas. Comprueba cuenta, etiquetas,
 rotación y política KMS. Una BD existente, permisos insuficientes, un recurso
 superviviente inesperado o deriva bloquean. No borrar BD, claves, secretos ni
@@ -169,6 +174,10 @@ ni eliminar la BD automáticamente.
 Los fallos emiten etapa y códigos saneados en
 `work/production-operation-failure.json`; los detalles remotos permanecen en logs
 privados del operador. No publicar cuerpos de excepciones ni credenciales.
+`RECOVERY_UNEXPECTED_SURVIVOR` exige inspeccionar tipo, nombre lógico y estado de
+los recursos; no autoriza eliminarlos. `RECOVERY_RETENTION_POLICY_DRIFT` bloquea
+ante políticas distintas de `Retain`. Los fallos de lectura AWS indican solo
+la operación y un código permitido; no exponen identificadores físicos ni secretos.
 
 ## Aceptación de esta etapa y siguiente paso
 

@@ -73,28 +73,30 @@ CA-S02/11/12/14/18/21/22/23; AT02/05/07; AB02/10/12/14/16/23.
 | Correcciones | Comando importer privado, aprobación/motivo/operador, evento vinculado, replay/conflicto; conserva bytes, estado original y token consumido. | Corrección y ancla WORM independientes del candidato en staging. |
 | Integración | Migraciones aditivas, contratos/tipos, worker aislado, definición de tarea y plantilla IAM/alarma. | Comisionar recursos, habilitar bandera revisada y completar gate integrado E4 antes de declararla aceptada. |
 
-Regresión local: 491 pruebas Python con PostgreSQL/TLS y roles reales,
-27 JavaScript, diez pruebas Chromium/recuperación/diagnóstico, tipos/lint,
-checks Django/Expo, bundle Android, migraciones desde cero y auditorías de
-paquetes. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
+Regresión local vigente: 558 pruebas Python con PostgreSQL y roles reales,
+27 JavaScript, tipos/lint, checks Django/Expo, migraciones y auditorías de
+paquetes/secretos aprobados. Los recibos y respuestas de proveedor locales son **SIMULATED**; no
 acreditan AWS, Expo/FCM ni dispositivo físico. CI, builds de imagen/APK y CD del
 nuevo SHA requieren sus propios resultados.
 
 `retiro-staging-operations` está comisionado: bucket interno, rol OIDC
 MobilePublisher, clave KMS conservada y suscripción SNS confirmada.
-Base integrada `ac21cef9cb6a8ea4f2b5477565111cffd799400f`:
-[CI 43147560038](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43147560038)
-aprobado y [CD 43148696923](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43148696923)
+Base integrada `55263bd8a31e4954ff1acba5354e7f306894b994`:
+[CI 43165684917](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43165684917)
+aprobado y [CD 43167057252](https://github.com/A-PerfectStranger/special-funicular/actions/runs/43167057252)
 con publicación, migración, staging, E1/browser/cloud/archive-drill, E2/E3 y APK
 privado aprobados. Solo producción terminó BLOCKED por falta de configuración.
-El lector independiente verificó 1.637 eventos en 172 s; conserva firmas KMS,
+El lector independiente verificó 1.896 eventos en 61 s; conserva firmas KMS,
 versiones/retención/hash, orden de cadena y deadline de 480 s con cuatro lectores.
-Digest: `sha256:b169e5104fa7da859e813af65c2d7fb89dbb8df086204bcac9c95b92f5dec56e`.
-APK staging: `89eb2cd2cbdb5196799bdba3b46c3b0ac4c480f7709fa539c28e1fcf086be0f8`,
+Digest: `sha256:d0efa19f27cce5d6c047b055b491077a86aca8c5f0d03f3f907f03308729053d`.
+APK staging: `18f8b34543b770b09c8f4444d328a6c54366d02277fe52e61c4d89ebd634249f`,
 almacenado por SHA/checksum/origen, sin sobrescritura. La validez de la pasarela
 se revalida al descargar; estos resultados no se trasladan a otro candidato.
-Android 13 está disponible y no tiene APK instalado. Faltan instalación conjunta,
-alarma técnica probada, allowlist y comisión del notificador; Expo/FCM y recibos
+Descarga privada del APK confirmada por el operador: versión, origen activo y
+checksum coincidentes. Instalación rechazada en Redmi 10C/Android 13 con
+«App no instalada»; causa pendiente de diagnóstico, sin ADB disponible.
+Faltan instalación/pruebas conjuntas, alarma técnica probada, allowlist y
+comisión del notificador; Expo/FCM y recibos
 reales siguen sin acreditar E4/E5.
 
 Orden: cerrar persistencia/permisos → transporte/worker/vistas → regresiones y
@@ -147,13 +149,17 @@ promoción del mismo digest, probes y rollback de código compatible verificado.
 Ventana de tres horas con retirada de API y guarda RDS; negocio deshabilitado.
 Procedimiento: [producción](docs/runbooks/production.md). Foundation está en
 `ROLLBACK_COMPLETE`: AWS rechazó backup de siete días bajo el plan gratuito.
-Lifecycle no existe; falta inspeccionar recursos retenidos y confirmar ausencia
-de BD. El responsable descartó PAID y autorizó retención de backup de un día.
+Lifecycle no existe. La inspección de solo lectura del operador confirmó ausencia
+de BD en RDS; CloudFormation registra `Database`, la clave y tres secretos como
+`DELETE_SKIPPED`, y los demás recursos como `DELETE_COMPLETE`. La inspección
+completa bloqueó porque el inspector no contemplaba ese estado de una BD ausente.
+La corrección exige ausencia independiente e identificador/políticas exactos;
+falta aprobarla por CI y repetir la inspección completa antes de recuperar.
+El responsable descartó PAID y autorizó retención de backup de un día.
 La recuperación preserva claves/secretos y exige FREE activo durante toda la
 custodia, revisión financiera vigente y main aprobado. No cambia de plan.
-El CD del candidato main quedó bloqueado en E2 por pool sintético agotado.
-El operador confirmó la reposición de cuatro cohortes nuevas con MFA; falta
-repetir y aprobar los gates E2/E3. Las cohortes usadas se conservan.
+El CD de `55263bd` aprobó E2/E3 con el pool repuesto. Las cohortes usadas se
+conservan; una release posterior necesita sus propios gates y cohorte disponible.
 
 | Criterio de esta etapa | Verificación requerida |
 | --- | --- |

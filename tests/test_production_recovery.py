@@ -121,7 +121,11 @@ def cloud(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     return state
 
 
-def test_inspection_and_recovery_preserve_all_protected_resources(cloud: dict[str, Any]) -> None:
+@pytest.mark.parametrize("database_status", ["CREATE_FAILED", "DELETE_SKIPPED"])
+def test_inspection_and_recovery_preserve_all_protected_resources(
+    cloud: dict[str, Any], database_status: str
+) -> None:
+    cloud["resources"][0]["ResourceStatus"] = database_status
     plan = recovery.inspect()
     assert plan["retained_database_key_arn"] == KEY
     assert len(plan["retained_secrets"]) == 3
@@ -137,11 +141,43 @@ def test_inspection_and_recovery_preserve_all_protected_resources(cloud: dict[st
 
 
 @pytest.mark.parametrize("database", ["exists", "denied"])
+@pytest.mark.parametrize("database_status", ["CREATE_FAILED", "DELETE_SKIPPED"])
 def test_failed_creation_does_not_prove_database_absence(
-    cloud: dict[str, Any], database: str
+    cloud: dict[str, Any], database: str, database_status: str
 ) -> None:
     cloud["database"] = database
+    cloud["resources"][0]["ResourceStatus"] = database_status
     with pytest.raises(RuntimeError):
+        recovery.inspect()
+    assert not any(c[1] == "delete-stack" for c in cloud["calls"])
+
+
+@pytest.mark.parametrize("policy", ["DeletionPolicy", "UpdateReplacePolicy"])
+def test_absent_skipped_database_still_requires_retention(
+    cloud: dict[str, Any], policy: str
+) -> None:
+    cloud["resources"][0]["ResourceStatus"] = "DELETE_SKIPPED"
+    cloud["template"]["Resources"]["Database"][policy] = "Delete"
+    with pytest.raises(RuntimeError, match="retention policy mismatch"):
+        recovery.inspect()
+    assert not any(c[1] == "delete-stack" for c in cloud["calls"])
+
+
+@pytest.mark.parametrize("status", ["DELETE_FAILED", "CREATE_COMPLETE", "UPDATE_COMPLETE"])
+def test_database_with_unexpected_status_is_not_assumed_absent(
+    cloud: dict[str, Any], status: str
+) -> None:
+    cloud["resources"][0]["ResourceStatus"] = status
+    with pytest.raises(RuntimeError, match="unexpected surviving"):
+        recovery.inspect()
+    assert not any(c[1] == "delete-stack" for c in cloud["calls"])
+
+
+def test_different_physical_database_is_not_adopted(cloud: dict[str, Any]) -> None:
+    cloud["resources"][0].update(
+        ResourceStatus="DELETE_SKIPPED", PhysicalResourceId="another-database"
+    )
+    with pytest.raises(RuntimeError, match="unexpected surviving"):
         recovery.inspect()
     assert not any(c[1] == "delete-stack" for c in cloud["calls"])
 
